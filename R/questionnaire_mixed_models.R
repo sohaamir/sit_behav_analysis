@@ -831,69 +831,95 @@ plot_simple_slopes <- function(model, var, data, raw_p = NULL, adj_p = NULL, par
   color_scheme <- scale_color_manual(values = c("Against group" = "red", "With group" = "blue"))
   
   if(params$analysis_type == "switch_difference") {
-    # Create prediction grid including trial_type
+    # Create prediction grid
     pred_data <- expand.grid(
       consensus_level = levels(data$consensus_level),
       direction = levels(data$direction),
-      switch_difference = c(0, 1),  # Binary values for Stay (0) and Switch (1)
-      scale_name = c(-1, 0, 1),
+      switch_difference = c(0, 1),
+      scale_name = seq(-1, 1, by = 1),  # -1 SD, Mean, +1 SD
       age = 0
     ) %>%
-      mutate(trial_type = factor(ifelse(switch_difference == 0, "Stay", "Switch"), 
-                                 levels = c("Stay", "Switch")))
+      mutate(
+        trial_type = factor(ifelse(switch_difference == 0, "Stay", "Switch"), 
+                            levels = c("Stay", "Switch"))
+      )
     
     # Generate predictions
     pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
     if(params$is_percentage) pred_data$predicted <- pred_data$predicted * 100
     
-    # Create plot with trial_type faceting
-    p <- ggplot(pred_data, 
+    # Create plot with ribbons
+    p <- ggplot() +
+      # Add ribbons
+      geom_ribbon(data = pred_data[pred_data$scale_name == 0,],
+                  aes(x = consensus_level, 
+                      ymin = predicted - sd(predicted),
+                      ymax = predicted + sd(predicted),
+                      fill = direction,
+                      group = direction), 
+                  alpha = 0.2) +
+      # Add mean lines
+      geom_line(data = pred_data[pred_data$scale_name == 0,],
                 aes(x = consensus_level, 
-                    y = predicted, 
-                    color = direction)) +
-      geom_line(aes(linetype = factor(scale_name,
-                                      labels = c("-1 SD", "Mean", "+1 SD")),
-                    group = interaction(direction, scale_name))) +
-      geom_point() +
+                    y = predicted,
+                    color = direction,
+                    group = direction),
+                linewidth = 1) +
+      # Add points
+      geom_point(data = pred_data[pred_data$scale_name == 0,],
+                 aes(x = consensus_level, 
+                     y = predicted,
+                     color = direction),
+                 size = 3) +
       facet_wrap(~trial_type, ncol = 2) +
+      scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+      scale_fill_manual(values = c("Against group" = "#f36a7b", "With group" = "#3f9fef")) +
       labs(title = paste("Simple slopes analysis for", display_name),
            subtitle = subtitle_text,
            x = "Consensus Level",
            y = params$y_label,
-           color = "Direction",
-           linetype = paste(display_name, "Score")) +
-      common_theme +
-      color_scheme
+           color = "Direction") +
+      common_theme
     
   } else if(params$analysis_type == "choice_consensus") {
-    # Original code for choice_consensus remains unchanged
+    # Similar structure for choice_consensus
     pred_data <- expand.grid(
       consensus_level = levels(data$consensus_level),
       direction = levels(data$direction),
-      scale_name = c(-1, 0, 1),
+      scale_name = seq(-1, 1, by = 1),
       age = 0
     )
     
     pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
     if(params$is_percentage) pred_data$predicted <- pred_data$predicted * 100
     
-    p <- ggplot(pred_data, 
+    p <- ggplot() +
+      geom_ribbon(data = pred_data[pred_data$scale_name == 0,],
+                  aes(x = consensus_level, 
+                      ymin = predicted - sd(predicted),
+                      ymax = predicted + sd(predicted),
+                      fill = direction,
+                      group = direction), 
+                  alpha = 0.2) +
+      geom_line(data = pred_data[pred_data$scale_name == 0,],
                 aes(x = consensus_level, 
-                    y = predicted, 
+                    y = predicted,
                     color = direction,
-                    linetype = factor(scale_name,
-                                      labels = c("-1 SD", "Mean", "+1 SD")),
-                    group = interaction(direction, scale_name))) +
-      geom_line() +
-      geom_point() +
+                    group = direction),
+                linewidth = 1) +
+      geom_point(data = pred_data[pred_data$scale_name == 0,],
+                 aes(x = consensus_level, 
+                     y = predicted,
+                     color = direction),
+                 size = 3) +
+      scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+      scale_fill_manual(values = c("Against group" = "#f36a7b", "With group" = "#3f9fef")) +
       labs(title = paste("Simple slopes analysis for", display_name),
            subtitle = subtitle_text,
            x = "Consensus Level",
            y = params$y_label,
-           color = "Direction",
-           linetype = paste(display_name, "Score")) +
-      common_theme +
-      color_scheme
+           color = "Direction") +
+      common_theme
   }
   
   return(p)
