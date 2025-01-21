@@ -667,10 +667,15 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
     "P-values not available"
   }
   
-  # Different plotting logic based on analysis type
+  # Create quest_group factor with ordered levels
+  data <- data %>%
+    mutate(quest_group = factor(
+      ifelse(.data[[median_var]] > median(.data[[median_var]]), "High", "Low"),
+      levels = c("Low", "High")
+    ))
+  
   if(params$analysis_type == "switch_difference") {
     summary_data <- data %>%
-      mutate(quest_group = ifelse(.data[[median_var]] > median(.data[[median_var]]), "High", "Low")) %>%
       group_by(consensus_level, direction, quest_group, trial_type) %>%
       summarise(
         mean_outcome = mean(outcome_value),
@@ -682,26 +687,23 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
                 aes(x = consensus_level, 
                     y = mean_outcome, 
                     color = direction,
-                    linetype = quest_group,
-                    group = interaction(direction, quest_group))) +
-      geom_line() +
-      geom_point() +
+                    group = direction)) +
+      geom_line(linewidth = 1.2) +
+      geom_point(size = 3) +
       geom_errorbar(aes(ymin = mean_outcome - se, 
                         ymax = mean_outcome + se), 
-                    width = 0.2) +
+                    width = 0.1,
+                    linewidth = 0.8) +
       scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
-      facet_wrap(~trial_type, ncol = 2) +  # Side by side plots
+      facet_grid(trial_type ~ quest_group) +  # trial_type on y-axis, quest_group columns
       labs(x = "Consensus Level",
            y = params$y_label,
            title = paste("Effect of", display_name, "(Median-split)"),
-           subtitle = subtitle_text,
-           linetype = paste(display_name, "Group")) +
+           subtitle = subtitle_text) +
       theme_custom
     
   } else {
-    # Original plotting code for non-switch_difference analysis
     summary_data <- data %>%
-      mutate(quest_group = ifelse(.data[[median_var]] > median(.data[[median_var]]), "High", "Low")) %>%
       group_by(consensus_level, direction, quest_group) %>%
       summarise(
         mean_outcome = mean(outcome_value),
@@ -713,19 +715,19 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
                 aes(x = consensus_level, 
                     y = mean_outcome, 
                     color = direction,
-                    linetype = quest_group,
-                    group = interaction(direction, quest_group))) +
-      geom_line() +
-      geom_point() +
+                    group = direction)) +
+      geom_line(linewidth = 1.2) +
+      geom_point(size = 3) +
       geom_errorbar(aes(ymin = mean_outcome - se, 
                         ymax = mean_outcome + se), 
-                    width = 0.2) +
+                    width = 0.1,
+                    linewidth = 0.8) +
       scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+      facet_wrap(~ quest_group, ncol = 2) +  # Side by side plots for Low/High
       labs(x = "Consensus Level",
            y = params$y_label,
            title = paste("Effect of", display_name, "(Median-split)"),
-           subtitle = subtitle_text,
-           linetype = paste(display_name, "Group")) +
+           subtitle = subtitle_text) +
       theme_custom
   }
   
@@ -848,27 +850,37 @@ plot_simple_slopes <- function(model, var, data, raw_p = NULL, adj_p = NULL, par
     pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
     if(params$is_percentage) pred_data$predicted <- pred_data$predicted * 100
     
+    # Reshape data to get ribbon bounds
+    ribbon_data <- pred_data %>%
+      group_by(consensus_level, direction, trial_type) %>%
+      summarise(
+        ymin = predicted[scale_name == -1],
+        ymean = predicted[scale_name == 0],
+        ymax = predicted[scale_name == 1],
+        .groups = 'drop'
+      )
+    
     # Create plot with ribbons
     p <- ggplot() +
-      # Add ribbons
-      geom_ribbon(data = pred_data[pred_data$scale_name == 0,],
+      # Add ribbons using the SD bounds
+      geom_ribbon(data = ribbon_data,
                   aes(x = consensus_level, 
-                      ymin = predicted - sd(predicted),
-                      ymax = predicted + sd(predicted),
+                      ymin = ymin,
+                      ymax = ymax,
                       fill = direction,
                       group = direction), 
                   alpha = 0.2) +
       # Add mean lines
-      geom_line(data = pred_data[pred_data$scale_name == 0,],
+      geom_line(data = ribbon_data,
                 aes(x = consensus_level, 
-                    y = predicted,
+                    y = ymean,
                     color = direction,
                     group = direction),
                 linewidth = 1) +
       # Add points
-      geom_point(data = pred_data[pred_data$scale_name == 0,],
+      geom_point(data = ribbon_data,
                  aes(x = consensus_level, 
-                     y = predicted,
+                     y = ymean,
                      color = direction),
                  size = 3) +
       facet_wrap(~trial_type, ncol = 2) +
@@ -882,7 +894,7 @@ plot_simple_slopes <- function(model, var, data, raw_p = NULL, adj_p = NULL, par
       common_theme
     
   } else if(params$analysis_type == "choice_consensus") {
-    # Similar structure for choice_consensus
+    # Create prediction grid
     pred_data <- expand.grid(
       consensus_level = levels(data$consensus_level),
       direction = levels(data$direction),
@@ -893,23 +905,33 @@ plot_simple_slopes <- function(model, var, data, raw_p = NULL, adj_p = NULL, par
     pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
     if(params$is_percentage) pred_data$predicted <- pred_data$predicted * 100
     
+    # Reshape data to get ribbon bounds
+    ribbon_data <- pred_data %>%
+      group_by(consensus_level, direction) %>%
+      summarise(
+        ymin = predicted[scale_name == -1],
+        ymean = predicted[scale_name == 0],
+        ymax = predicted[scale_name == 1],
+        .groups = 'drop'
+      )
+    
     p <- ggplot() +
-      geom_ribbon(data = pred_data[pred_data$scale_name == 0,],
+      geom_ribbon(data = ribbon_data,
                   aes(x = consensus_level, 
-                      ymin = predicted - sd(predicted),
-                      ymax = predicted + sd(predicted),
+                      ymin = ymin,
+                      ymax = ymax,
                       fill = direction,
                       group = direction), 
                   alpha = 0.2) +
-      geom_line(data = pred_data[pred_data$scale_name == 0,],
+      geom_line(data = ribbon_data,
                 aes(x = consensus_level, 
-                    y = predicted,
+                    y = ymean,
                     color = direction,
                     group = direction),
                 linewidth = 1) +
-      geom_point(data = pred_data[pred_data$scale_name == 0,],
+      geom_point(data = ribbon_data,
                  aes(x = consensus_level, 
-                     y = predicted,
+                     y = ymean,
                      color = direction),
                  size = 3) +
       scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +

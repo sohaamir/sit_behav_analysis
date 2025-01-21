@@ -1,1 +1,25 @@
+# RStudio files
+*.Rproj
+.Rhistory
+.RData
+.Ruserdata
+
+# Temporary files
+*.Rproj.user/
+__pycache__/
+
+# R package build files
+.Rbuildignore
+*.tar.gz
+
+# Dependency management caches
+packrat/lib*
+renv/cache/
+
+# Output and generated files
 /output/
+
+# Compiled files
+*.o
+*.so
+*.dll

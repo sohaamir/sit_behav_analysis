@@ -228,7 +228,6 @@ save_analysis_plots(bet_results, "bet_magnitude", analysis_dir)
 ## Choice accuracy and bet magnitude as a function of switch difference across trials (Choice 2 - Choice 1), by group consensus and direction
 
 ```{r setup, include=FALSE, message=FALSE}
-
 rm(list=ls())
 
 # Source the core pipeline functions
