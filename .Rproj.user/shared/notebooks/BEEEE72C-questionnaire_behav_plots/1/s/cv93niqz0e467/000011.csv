@@ -1,5 +1,0 @@
-"0",""
-"0","# Create continuous relationship plots"
-"0","for(var in questionnaire_vars) {"
-"0","  plot_continuous_relationship(var, processed_data, model_results)"
-"0","}"
