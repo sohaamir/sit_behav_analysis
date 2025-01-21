@@ -1,0 +1,87 @@
+
+DIAGNOSTIC CHECKS
+================
+
+Variables in Analysis:
+Original questionnaire variables:  lsas_p, lsas_s, dass_a, dass_d, dass_s, ssms_cd, ssms_ia, srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct, ami_es, ami_sm, ami_ba, aq_10 
+Retained questionnaire variables:  lsas_p, lsas_s, dass_a, dass_d, dass_s, ssms_cd, ssms_ia, srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct, ami_es, ami_sm, ami_ba, aq_10 
+
+
+Multicollinearity Condition Numbers:
+Behavioral Variables: 9.282334 
+Questionnaire Variables: 32.26893 
+
+
+CANONICAL CORRELATION ANALYSIS RESULTS
+=====================================
+
+CANONICAL CORRELATIONS AND SIGNIFICANCE:
+Dimension 1: r = 0.33 (CI: 0.40, 0.57)
+   Wilks' λ = 0.745, F(60,1366) = 0.45, p = 1.000
+Dimension 2: r = 0.30 (CI: 0.32, 0.48)
+   Wilks' λ = 0.835, F(42,1275) = 0.39, p = 1.000
+Dimension 3: r = 0.26 (CI: 0.24, 0.40)
+   Wilks' λ = 0.915, F(26,1184) = 0.31, p = 1.000
+Dimension 4: r = 0.14 (CI: 0.16, 0.32)
+   Wilks' λ = 0.980, F(12,1093) = 0.16, p = 1.000
+
+STRUCTURE-FUNCTION ANALYSIS:
+
+Behavioral Variables:
+Variable                     Loading     Weight  Discrepancy  Suppression
+Switch Frequency (Dissent)     -0.112      0.020        0.133         TRUE
+ Stay Frequency (Confirm)      -0.064      0.042        0.106         TRUE
+ Bet Difference (Confirm)      -0.465     -0.082        0.383         TRUE
+ Bet Difference (Dissent)      -0.524     -0.072        0.452         TRUE
+
+Questionnaire Variables:
+Variable           Loading     Weight  Discrepancy  Suppression
+lsas_p              -0.667     -0.055        0.612         TRUE
+ lsas_s              -0.583     -0.012        0.571         TRUE
+ dass_a              -0.461     -0.020        0.441         TRUE
+ dass_d              -0.230     -0.008        0.222        FALSE
+ dass_s              -0.152      0.058        0.211         TRUE
+ ssms_cd             -0.295     -0.016        0.278        FALSE
+ ssms_ia              0.063      0.023        0.041        FALSE
+ srp_sf_ipm           0.040      0.035        0.004        FALSE
+ srp_sf_ca           -0.184     -0.001        0.183        FALSE
+ srp_sf_els          -0.024     -0.002        0.022        FALSE
+ srp_sf_ct           -0.149     -0.042        0.108        FALSE
+ ami_es              -0.024      0.034        0.058         TRUE
+ ami_sm               0.298      0.017        0.281        FALSE
+ ami_ba              -0.178     -0.002        0.176        FALSE
+ aq_10               -0.450     -0.013        0.437         TRUE
+
+COMMONALITY ANALYSIS:
+
+Behavioral Variables (|loading| or |weight| >= 0.3):
+Variable                      Unique     Common      Total
+bet_diff_confirm               0.216      0.000      0.216
+ bet_diff_dissent               0.275     -0.000      0.275
+
+Questionnaire Variables (|loading| or |weight| >= 0.3):
+Variable            Unique     Common      Total
+lsas_p               0.445     -0.000      0.445
+ lsas_s               0.340     -0.000      0.340
+ dass_a               0.213      0.000      0.213
+ aq_10                0.203     -0.000      0.203
+
+INTERPRETATION GUIDELINES:
+- Loadings/Weights >= |0.3| are considered meaningful
+- Suppression effects indicate potential complex relationships
+- Common variance indicates shared contribution with other variables
+- Unique variance indicates independent contribution
+
+VARIANCE EXPLAINED:
+Dimension     R-squared   Proportion   Cumulative
+1                 0.108        0.383        0.383
+ 2                 0.088        0.311        0.694
+ 3                 0.066        0.234        0.928
+ 4                 0.020        0.072        1.000
+
+EFFECT SIZES:
+Dimension   Correlation     Effect Size
+1                 0.329          Medium
+ 2                 0.296           Small
+ 3                 0.257           Small
+ 4                 0.143           Small

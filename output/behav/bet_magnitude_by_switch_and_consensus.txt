@@ -1,0 +1,335 @@
+CHOICE ACCURACY BY SWITCH AND CONSENSUS ANALYSIS RESULTS
+
+Analysis run on: 2025-01-20 14:58:19
+
+PRIMARY ANALYSIS RESULTS:
+================================
+
+Questionnaire: ssms
+Trial type: switch
+p-value: 2.36e-16
+FDR-adjusted p-value: 2.36e-16
+AIC: 6703.85
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: ssms
+Trial type: stay
+p-value: 2.24e-05
+FDR-adjusted p-value: 2.24e-05
+AIC: 7358.67
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: dass
+Trial type: switch
+p-value: 0.328
+FDR-adjusted p-value: 0.328
+AIC: 6754.34
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: dass
+Trial type: stay
+p-value: 5.44e-05
+FDR-adjusted p-value: 5.44e-05
+AIC: 7348.44
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: lsas
+Trial type: switch
+p-value: 7.14e-05
+FDR-adjusted p-value: 7.14e-05
+AIC: 6737.96
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: lsas
+Trial type: stay
+p-value: 9.96e-06
+FDR-adjusted p-value: 9.96e-06
+AIC: 7362.78
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: srp_sf
+Trial type: switch
+p-value: 0.0129
+FDR-adjusted p-value: 0.0129
+AIC: 6755.24
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: srp_sf
+Trial type: stay
+p-value: 0.0627
+FDR-adjusted p-value: 0.0627
+AIC: 7362.23
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: ami
+Trial type: switch
+p-value: 0.000658
+FDR-adjusted p-value: 0.000658
+AIC: 6744.95
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: ami
+Trial type: stay
+p-value: 5.23e-05
+FDR-adjusted p-value: 5.23e-05
+AIC: 7370.11
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: aq_10
+Trial type: switch
+p-value: 0.00213
+FDR-adjusted p-value: 0.00213
+AIC: 6765.19
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+Questionnaire: aq_10
+Trial type: stay
+p-value: 0.762
+FDR-adjusted p-value: 0.762
+AIC: 7392.38
+Residual normality (p): <2e-16
+Model converged: TRUE
+
+
+MODERATION ANALYSIS RESULTS:
+================================
+
+Scale: ssms
+Main effect chi-square: 76.349
+Main effect p-value: 1.03e-15
+Effect size (R² marginal): 0.042
+
+
+Subscale Results:
+
+Subscale: ssms_cd
+Chi-square: 52.28
+p-value: 4.73e-10
+Effect size (R² marginal): 0.059
+
+
+Subscale: ssms_ia
+Chi-square: 21.279
+p-value: 0.000718
+Effect size (R² marginal): 0.049
+
+
+Scale: ssms
+Main effect chi-square: 57.564
+Main effect p-value: 9.42e-12
+Effect size (R² marginal): 0.028
+
+
+Subscale Results:
+
+Subscale: ssms_cd
+Chi-square: 131.529
+p-value: <2e-16
+Effect size (R² marginal): 0.069
+
+
+Subscale: ssms_ia
+Chi-square: 41.879
+p-value: 6.23e-08
+Effect size (R² marginal): 0.041
+
+
+Scale: dass
+Main effect chi-square: 68.473
+Main effect p-value: 4.77e-14
+Effect size (R² marginal): 0.032
+
+
+Subscale Results:
+
+Subscale: dass_a
+Chi-square: 26.077
+p-value: 8.62e-05
+Effect size (R² marginal): 0.04
+
+
+Subscale: dass_d
+Chi-square: 39.084
+p-value: 2.28e-07
+Effect size (R² marginal): 0.044
+
+
+Subscale: dass_s
+Chi-square: 9.071
+p-value: 0.106
+Effect size (R² marginal): 0.035
+
+
+Scale: lsas
+Main effect chi-square: 43.152
+Main effect p-value: 9.63e-09
+Effect size (R² marginal): 0.03
+
+
+Subscale Results:
+
+Subscale: lsas_p
+Chi-square: 34.29
+p-value: 2.08e-06
+Effect size (R² marginal): 0.042
+
+
+Subscale: lsas_s
+Chi-square: 46.571
+p-value: 6.95e-09
+Effect size (R² marginal): 0.046
+
+
+Scale: lsas
+Main effect chi-square: 43.943
+Main effect p-value: 6.59e-09
+Effect size (R² marginal): 0.024
+
+
+Subscale Results:
+
+Subscale: lsas_p
+Chi-square: 59.437
+p-value: 1.59e-11
+Effect size (R² marginal): 0.043
+
+
+Subscale: lsas_s
+Chi-square: 9.041
+p-value: 0.107
+Effect size (R² marginal): 0.027
+
+
+Scale: srp_sf
+Main effect chi-square: 24.356
+Main effect p-value: 6.78e-05
+Effect size (R² marginal): 0.024
+
+
+Subscale Results:
+
+Subscale: srp_sf_ipm
+Chi-square: 63.281
+p-value: 2.55e-12
+Effect size (R² marginal): 0.045
+
+
+Subscale: srp_sf_ca
+Chi-square: 66.268
+p-value: 6.11e-13
+Effect size (R² marginal): 0.046
+
+
+Subscale: srp_sf_els
+Chi-square: 116.271
+p-value: <2e-16
+Effect size (R² marginal): 0.063
+
+
+Subscale: srp_sf_ct
+Chi-square: 152.705
+p-value: <2e-16
+Effect size (R² marginal): 0.075
+
+
+Scale: srp_sf
+Main effect chi-square: 51.727
+Main effect p-value: 1.57e-10
+Effect size (R² marginal): 0.027
+
+
+Subscale Results:
+
+Subscale: srp_sf_ipm
+Chi-square: 103.226
+p-value: <2e-16
+Effect size (R² marginal): 0.058
+
+
+Subscale: srp_sf_ca
+Chi-square: 30.391
+p-value: 1.24e-05
+Effect size (R² marginal): 0.036
+
+
+Subscale: srp_sf_els
+Chi-square: 58.238
+p-value: 2.81e-11
+Effect size (R² marginal): 0.045
+
+
+Subscale: srp_sf_ct
+Chi-square: 23.758
+p-value: 0.000242
+Effect size (R² marginal): 0.034
+
+
+Scale: ami
+Main effect chi-square: 31.919
+Main effect p-value: 1.99e-06
+Effect size (R² marginal): 0.026
+
+
+Subscale Results:
+
+Subscale: ami_es
+Chi-square: 13.11
+p-value: 0.0224
+Effect size (R² marginal): 0.031
+
+
+Subscale: ami_sm
+Chi-square: 105.236
+p-value: <2e-16
+Effect size (R² marginal): 0.062
+
+
+Subscale: ami_ba
+Chi-square: 53.614
+p-value: 2.52e-10
+Effect size (R² marginal): 0.045
+
+
+Scale: ami
+Main effect chi-square: 43.017
+Main effect p-value: 1.03e-08
+Effect size (R² marginal): 0.024
+
+
+Subscale Results:
+
+Subscale: ami_es
+Chi-square: 53.253
+p-value: 2.98e-10
+Effect size (R² marginal): 0.04
+
+
+Subscale: ami_sm
+Chi-square: 38.616
+p-value: 2.84e-07
+Effect size (R² marginal): 0.036
+
+
+Subscale: ami_ba
+Chi-square: 53.65
+p-value: 2.47e-10
+Effect size (R² marginal): 0.04
+
+
+Scale: aq_10
+Main effect chi-square: 11.872
+Main effect p-value: 0.0183
+Effect size (R² marginal): 0.019
+
+

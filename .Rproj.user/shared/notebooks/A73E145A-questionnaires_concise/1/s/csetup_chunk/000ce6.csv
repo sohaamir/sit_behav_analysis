@@ -1,0 +1,53 @@
+"1","outcome_value ~ consensus_level * direction * switch_difference * 
+"
+"1","    scale_name + age + (1 + switch_difference | participant.id_in_session)
+"
+"1","
+===== Participant Summary =====
+"
+"1","Total participants: 100
+"
+"1","============================
+"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"2","Warning: Could not calculate VIF values"
+"1","[1]"
+"1"," ""Results saved to: /Users/aamirsohail/University of Birmingham - ALPN Laboratory - Research - Projects/online_social_study/otree_projects/test_analysis/output/behav/questionnaire/choice_acc_and_bet_mag_by_switch_across_trials/txt/choice_accuracy_by_switch_difference.txt"""
+"1","
+"
+"0","# Run bet analysis"
+"0","bet_results <- run_model_pipeline("
+"0","  data = data,"
+"0","  params = bet_params,"
+"0","  output_path = file.path(txt_base_dir, ""bet_magnitude_by_switch_difference.txt"")"
+"0",")"
+"1","
+===== Trial Type Summary =====
+"
+"1","Stay trials: 3100
+"
+"1","Switch trials: 2800
+"
+"1","============================
+"
+"1","
+===== Running Model Selection =====
+"

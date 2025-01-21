@@ -1,0 +1,75 @@
+CHOICE ACCURACY BY TRIAL REVERSAL - STATISTICAL ANALYSIS RESULTS
+
+Analysis run on: 2025-01-16 14:19:31
+
+MODEL COMPARISON RESULTS:
+========================
+   Model      AIC      BIC Is_Winner
+m1    m1 10184.56 10294.22       Yes
+m2    m2 10186.56 10303.07        No
+m3    m3 10188.56 10311.92        No
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 0.497
+  Normality test p-value: <2e-16
+  Number of residuals: 7000
+
+Model Fit:
+  R² marginal: 0.012
+  R² conditional: 0.012
+  AIC: 10184.56
+  BIC: 10294.22
+
+Assumptions:
+  VIF range: 1 to 256
+  Homoscedasticity (residual-fitted correlation): -0.005 (p = 0.683)
+  Model convergence achieved: FALSE
+
+Outliers:
+  Number of outliers: 0
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: accuracy
+                                Chisq Df Pr(>Chisq)    
+choice_type                    0.0578  1     0.8101    
+trial_to_reversal             57.9924  6  1.150e-10 ***
+choice_type:trial_to_reversal 30.2669  6  3.497e-05 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+POST-HOC TESTS:
+==============
+ contrast                                      estimate     SE  df z.ratio p.value
+ (trial_to_reversal-3) - (trial_to_reversal-2)    -0.12 0.0222 Inf  -5.396  <.0001
+ (trial_to_reversal-3) - (trial_to_reversal-1)    -0.13 0.0222 Inf  -5.845  <.0001
+ (trial_to_reversal-3) - trial_to_reversal0       -0.11 0.0222 Inf  -4.946  <.0001
+ (trial_to_reversal-3) - trial_to_reversal1       -0.03 0.0222 Inf  -1.349  0.8287
+ (trial_to_reversal-3) - trial_to_reversal2       -0.09 0.0222 Inf  -4.047  0.0010
+ (trial_to_reversal-3) - trial_to_reversal3       -0.06 0.0222 Inf  -2.698  0.0987
+ (trial_to_reversal-2) - (trial_to_reversal-1)    -0.01 0.0222 Inf  -0.450  0.9994
+ (trial_to_reversal-2) - trial_to_reversal0        0.01 0.0222 Inf   0.450  0.9994
+ (trial_to_reversal-2) - trial_to_reversal1        0.09 0.0222 Inf   4.047  0.0010
+ (trial_to_reversal-2) - trial_to_reversal2        0.03 0.0222 Inf   1.349  0.8287
+ (trial_to_reversal-2) - trial_to_reversal3        0.06 0.0222 Inf   2.698  0.0987
+ (trial_to_reversal-1) - trial_to_reversal0        0.02 0.0222 Inf   0.899  0.9728
+ (trial_to_reversal-1) - trial_to_reversal1        0.10 0.0222 Inf   4.496  0.0001
+ (trial_to_reversal-1) - trial_to_reversal2        0.04 0.0222 Inf   1.799  0.5490
+ (trial_to_reversal-1) - trial_to_reversal3        0.07 0.0222 Inf   3.147  0.0275
+ trial_to_reversal0 - trial_to_reversal1           0.08 0.0222 Inf   3.597  0.0060
+ trial_to_reversal0 - trial_to_reversal2           0.02 0.0222 Inf   0.899  0.9728
+ trial_to_reversal0 - trial_to_reversal3           0.05 0.0222 Inf   2.248  0.2698
+ trial_to_reversal1 - trial_to_reversal2          -0.06 0.0222 Inf  -2.698  0.0987
+ trial_to_reversal1 - trial_to_reversal3          -0.03 0.0222 Inf  -1.349  0.8287
+ trial_to_reversal2 - trial_to_reversal3           0.03 0.0222 Inf   1.349  0.8287
+
+Results are averaged over the levels of: choice_type 
+Degrees-of-freedom method: asymptotic 
+P value adjustment: tukey method for comparing a family of 7 estimates 
+
+

@@ -1,0 +1,2895 @@
+---
+title: "questionnaire_behav_plots"
+output: html_document
+---
+
+# Description of this script
+
+This script runs the linear mixed-effects models as part of the behavioural analysis for questionnaire scores. It runs and plots the questionnaire equivalent of Fig 1D-I and Supp Fig 2A-C from Zhang & Glascher.
+
+The general pipeline for these analyses is as follows:
+
+1. Run linear mixed-effects models for each questionnaire measure:
+
+Predict dependent variable, compare models with different random effects structures
+Select winning model using AIC
+
+2. Analyze and visualize significant relationships:
+
+Create plots showing subject-level effects where significant, generating median-split visualizations to illustrate interactions
+
+## Set-up and installation
+
+```{r setup, include=FALSE, message=FALSE, cache=TRUE}
+source(here("R", "questionnaire_mixed_models.R"))
+```
+
+```{r setup, include=FALSE, message=FALSE, cache=TRUE}
+# Install packages only if they are not already installed
+required_packages <- c("ggplot2", "tidyverse", "ggpubr", "rstatix", "ez", "lme4", "lmerTest", "car", "emmeans", "MuMIn", "psych", "interactions", "effects", "here", "lm.beta", "effectsize")
+install_if_missing <- required_packages[!required_packages %in% installed.packages()]
+if (length(install_if_missing) > 0) {
+  install.packages(install_if_missing, quietly = TRUE)
+}
+
+# Load libraries
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+library(ez)
+library(lme4)
+library(car)
+library(readr)
+library(lmerTest)
+library(emmeans)
+library(MuMIn)
+library(corrplot)
+library(reshape2)
+library(psych)
+library(interactions)
+library(effects)
+library(here)
+library(conflicted)
+library(lm.beta)
+library(effectsize)
+
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
+conflicts_prefer(lmerTest::lmer)
+conflicts_prefer(effectsize::eta_squared)
+```
+
+## Basic correlation matrix of questionnaires
+
+Plot a correlation matrix of questionnaire scores
+
+```{r}
+# Read and process data
+merged_data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), show_col_types = FALSE)
+
+# Create correlation matrix dataframe with one row per participant
+questionnaire_data <- merged_data %>%
+  group_by(participant.id_in_session) %>%
+  slice(1) %>%  # Take first instance of each participant
+  select(ssms, dass, lsas, srp_sf, ami, aq_10) %>%
+  ungroup()
+
+# Calculate correlation matrix
+cor_matrix <- cor(questionnaire_data, method = "pearson")
+
+# If you want p-values for the correlations
+cor_test <- psych::corr.test(questionnaire_data)
+
+# Visualize using corrplot
+corrplot(cor_matrix, 
+         method = "color",
+         type = "upper",
+         addCoef.col = "black",
+         number.cex = 0.7,
+         tl.col = "black",
+         tl.srt = 45,
+         diag = FALSE)
+```
+
+## Choice accuracy and bet magnitude
+
+Plot average choice accuracy and bet magnitude 
+
+```{r}
+# Read and process data
+data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"))
+
+# Calculate participant-level differences and prepare data
+prepare_participant_data <- function(data) {
+  data %>%
+    group_by(participant.id_in_session) %>%
+    summarise(
+      choice_accuracy_diff = mean(player.choice2_accuracy - player.choice1_accuracy) * 100,
+      bet_magnitude_diff = mean(player.bet2 - player.bet1)
+    ) %>%
+    # Join with questionnaire data
+    left_join(
+      data %>%
+        group_by(participant.id_in_session) %>%
+        slice(1) %>%
+        dplyr::select(participant.id_in_session, ssms, dass, lsas, srp_sf, ami, aq_10, age),
+      by = "participant.id_in_session"
+    ) %>%
+    # Scale variables
+    mutate(
+      across(c(ssms, dass, lsas, srp_sf, ami, aq_10, age), scale)
+    )
+}
+
+# Function to analyze effects for a single measure (choice or bet)
+analyze_single_measure <- function(data, questionnaire, measure, outcome_var) {
+  model <- lm(paste(outcome_var, "~", questionnaire, "+ age"), data = data)
+  model_stats <- summary(model)
+  
+  cor_test <- cor.test(data[[questionnaire]], data[[outcome_var]])
+  
+  list(
+    p_value = model_stats$coefficients[2,4],
+    r_value = cor_test$estimate,
+    r_ci_low = cor_test$conf.int[1],
+    r_ci_high = cor_test$conf.int[2],
+    beta = lm.beta::lm.beta(model)$standardized.coefficients[2],
+    resid_norm = shapiro.test(residuals(model))$p.value,
+    r2 = model_stats$r.squared,
+    f_stat = model_stats$fstatistic["value"],
+    df = nrow(data)
+  )
+}
+
+# Main analysis function for questionnaires
+analyze_questionnaire_effects <- function(questionnaire, data) {
+  choice_results <- analyze_single_measure(data, questionnaire, "choice", "choice_accuracy_diff")
+  bet_results <- analyze_single_measure(data, questionnaire, "bet", "bet_magnitude_diff")
+  
+  tibble(
+    questionnaire = questionnaire,
+    choice_p = choice_results$p_value,
+    bet_p = bet_results$p_value,
+    choice_r = choice_results$r_value,
+    bet_r = bet_results$r_value,
+    choice_r_ci_low = choice_results$r_ci_low,
+    choice_r_ci_high = choice_results$r_ci_high,
+    bet_r_ci_low = bet_results$r_ci_low,
+    bet_r_ci_high = bet_results$r_ci_high,
+    choice_beta = choice_results$beta,
+    bet_beta = bet_results$beta,
+    choice_resid_norm = choice_results$resid_norm,
+    bet_resid_norm = bet_results$resid_norm,
+    choice_r2 = choice_results$r2,
+    bet_r2 = bet_results$r2,
+    choice_f = choice_results$f_stat,
+    choice_df = choice_results$df,
+    bet_f = bet_results$f_stat,
+    bet_df = bet_results$df
+  )
+}
+
+# Run main analyses
+participant_data <- prepare_participant_data(data)
+questionnaires <- c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10")
+results <- map_df(questionnaires, ~analyze_questionnaire_effects(.x, participant_data))
+
+# Add FDR correction
+results <- results %>%
+  mutate(
+    choice_p_adj = p.adjust(choice_p, method = "fdr"),
+    bet_p_adj = p.adjust(bet_p, method = "fdr")
+  )
+
+# Plotting function for both measures
+plot_relationship <- function(questionnaire, measure = "choice", data = participant_data, results_df) {
+  measure_vars <- list(
+    choice = list(
+      y_var = "choice_accuracy_diff",
+      y_lab = "Choice accuracy difference (%)",
+      fill_color = "#1f77b4",
+      prefix = "choice"
+    ),
+    bet = list(
+      y_var = "bet_magnitude_diff",
+      y_lab = "Bet magnitude difference",
+      fill_color = "#2ca02c",
+      prefix = "bet"
+    )
+  )[[measure]]
+  
+  vars <- measure_vars
+  stats <- results_df[results_df$questionnaire == questionnaire, ]
+  
+  p <- ggplot(data, aes(x = .data[[questionnaire]], y = .data[[vars$y_var]])) +
+    geom_point() +
+    geom_smooth(method = "lm", color = vars$fill_color) +
+    labs(
+      x = questionnaire,
+      y = vars$y_lab,
+      title = paste("Effect of", questionnaire, "on", measure),
+      subtitle = sprintf(
+        "r = %.3f [%.3f, %.3f], β = %.3f, p = %.3f\nR² = %.3f, F(%d,%d) = %.2f",
+        stats[[paste0(vars$prefix, "_r")]],
+        stats[[paste0(vars$prefix, "_r_ci_low")]],
+        stats[[paste0(vars$prefix, "_r_ci_high")]],
+        stats[[paste0(vars$prefix, "_beta")]],
+        stats[[paste0(vars$prefix, "_p")]],
+        stats[[paste0(vars$prefix, "_r2")]],
+        stats[[paste0(vars$prefix, "_df")]][1],
+        stats[[paste0(vars$prefix, "_df")]][2],
+        stats[[paste0(vars$prefix, "_f")]]
+      )
+    ) +
+    theme_classic()
+  
+  print(p)
+}
+
+# Function to plot significant subscale relationships
+plot_significant_subscales <- function(subscale_results, subscale_data) {
+  for(scale in unique(subscale_results$parent_scale)) {
+    # Plot for choice accuracy
+    significant_subscales_choice <- subscale_results %>%
+      filter(parent_scale == scale, choice_p_adj < 0.5) %>%
+      pull(questionnaire)
+    
+    for(subscale in significant_subscales_choice) {
+      plot_relationship(subscale, "choice", subscale_data, subscale_results)
+    }
+    
+    # Plot for bet magnitude
+    significant_subscales_bet <- subscale_results %>%
+      filter(parent_scale == scale, bet_p_adj < 0.5) %>%
+      pull(questionnaire)
+    
+    for(subscale in significant_subscales_bet) {
+      plot_relationship(subscale, "bet", subscale_data, subscale_results)
+    }
+  }
+}
+
+# Define subscale mapping
+subscale_mapping <- list(
+  lsas = c("lsas_p", "lsas_s"),
+  dass = c("dass_a", "dass_d", "dass_s"),
+  ssms = c("ssms_cd", "ssms_ia"),
+  srp_sf = c("srp_sf_ipm", "srp_sf_ca", "srp_sf_els", "srp_sf_ct"),
+  ami = c("ami_es", "ami_sm", "ami_ba"),
+  aq_10 = NULL
+)
+
+# Prepare subscale data
+prepare_subscale_data <- function(data) {
+  subscale_cols <- c(
+    "lsas_p", "lsas_s",
+    "dass_a", "dass_d", "dass_s",
+    "ssms_cd", "ssms_ia",
+    "srp_sf_ipm", "srp_sf_ca", "srp_sf_els", "srp_sf_ct",
+    "ami_es", "ami_sm", "ami_ba"
+  )
+  
+  data %>%
+    group_by(participant.id_in_session) %>%
+    summarise(
+      choice_accuracy_diff = mean(player.choice2_accuracy - player.choice1_accuracy) * 100,
+      bet_magnitude_diff = mean(player.bet2 - player.bet1),
+      age = first(age),
+      across(all_of(subscale_cols), first)
+    ) %>%
+    mutate(
+      across(c(age, all_of(subscale_cols)), scale)
+    )
+}
+
+# Analyze subscales
+analyze_subscales <- function(significant_questionnaires, subscale_data) {
+  subscale_results <- NULL
+  
+  for(questionnaire in significant_questionnaires) {
+    subscales <- subscale_mapping[[questionnaire]]
+    
+    if(!is.null(subscales)) {
+      questionnaire_results <- map_df(subscales, function(subscale) {
+        result <- analyze_questionnaire_effects(subscale, subscale_data)
+        result$parent_scale <- questionnaire
+        return(result)
+      })
+      
+      subscale_results <- bind_rows(subscale_results, questionnaire_results)
+    }
+  }
+  
+  if(!is.null(subscale_results)) {
+    subscale_results <- subscale_results %>%
+      group_by(parent_scale) %>%
+      mutate(
+        choice_p_adj = p.adjust(choice_p, method = "fdr"),
+        bet_p_adj = p.adjust(bet_p, method = "fdr")
+      ) %>%
+      ungroup()
+  }
+  
+  return(subscale_results)
+}
+
+# Format results for output
+format_results <- function(main_results, subscale_results = NULL) {
+  residual_df <- nrow(participant_data) - 3
+  
+  output_text <- "CHOICE AND BET MAGNITUDE ANALYSIS RESULTS\n\n"
+  output_text <- paste0(output_text, 
+                       "Sample size: ", nrow(participant_data), "\n\n",
+                       "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
+  
+  # Format main results
+  output_text <- paste0(output_text, "PRIMARY ANALYSIS RESULTS:\n",
+                       "================================\n")
+  
+  for(i in 1:nrow(main_results)) {
+    output_text <- paste0(output_text,
+                         format_single_result(main_results[i,], residual_df))
+  }
+  
+  # Format subscale results if they exist
+  if(!is.null(subscale_results)) {
+    output_text <- paste0(output_text, "\n\nSUBSCALE ANALYSIS RESULTS:\n",
+                         "================================\n")
+    
+    for(scale in unique(subscale_results$parent_scale)) {
+      output_text <- paste0(output_text, "\nParent Scale: ", scale, "\n")
+      
+      scale_results <- subscale_results %>% filter(parent_scale == scale)
+      for(i in 1:nrow(scale_results)) {
+        output_text <- paste0(output_text,
+                             format_single_result(scale_results[i,], residual_df))
+      }
+    }
+  }
+  
+  return(output_text)
+}
+
+# Helper function to format individual results
+format_single_result <- function(result_row, residual_df) {
+  sprintf("\nQuestionnaire: %s\n
+Choice Analysis:
+p-value: %s
+FDR-adjusted p-value: %s
+Correlation (r): %.3f [%.3f, %.3f]
+Standardized beta: %.3f
+R²: %.3f
+F-statistic: F(1,%d) = %.2f
+Residual normality: %s
+
+Bet Analysis:
+p-value: %s
+FDR-adjusted p-value: %s
+Correlation (r): %.3f [%.3f, %.3f]
+Standardized beta: %.3f
+R²: %.3f
+F-statistic: F(1,%d) = %.2f
+Residual normality: %s\n",
+          result_row$questionnaire,
+          format.pval(result_row$choice_p, digits = 3),
+          format.pval(result_row$choice_p_adj, digits = 3),
+          result_row$choice_r, result_row$choice_r_ci_low, result_row$choice_r_ci_high,
+          result_row$choice_beta,
+          result_row$choice_r2,
+          residual_df, result_row$choice_f,
+          format.pval(result_row$choice_resid_norm, digits = 3),
+          format.pval(result_row$bet_p, digits = 3),
+          format.pval(result_row$bet_p_adj, digits = 3),
+          result_row$bet_r, result_row$bet_r_ci_low, result_row$bet_r_ci_high,
+          result_row$bet_beta,
+          result_row$bet_r2,
+          residual_df, result_row$bet_f,
+          format.pval(result_row$bet_resid_norm, digits = 3))
+}
+
+# Main execution
+significant_choice <- results %>% 
+  filter(choice_p_adj < 0.5) %>% 
+  pull(questionnaire)
+
+significant_bet <- results %>% 
+  filter(bet_p_adj < 0.5) %>% 
+  pull(questionnaire)
+
+# Plot significant relationships
+for(quest in significant_choice) {
+  plot_relationship(quest, "choice", participant_data, results)
+}
+
+for(quest in significant_bet) {
+  plot_relationship(quest, "bet", participant_data, results)
+}
+
+# Run subscale analyses if there are significant results
+if(length(c(significant_choice, significant_bet)) > 0) {
+  subscale_participant_data <- prepare_subscale_data(data)
+  subscale_results <- analyze_subscales(unique(c(significant_choice, significant_bet)), 
+                                      subscale_participant_data)
+  
+  # Plot significant subscale relationships
+  plot_significant_subscales(subscale_results, subscale_participant_data)
+} else {
+  print("No significant main scale results to analyze at subscale level")
+}
+
+# Generate and save results
+results_text <- format_results(results, subscale_results)
+
+# Create output directory if it doesn't exist
+dir.create(here("output", "behav"), showWarnings = FALSE, recursive = TRUE)
+
+# Save to file
+writeLines(results_text, here("output", "behav", "questionnaire", "choice_and_bet_magnitude.txt"))
+```
+
+## Choice switch probability and bet difference by group consensus
+
+Run linear-mixed effect models for choice switch probability and bet magnitude by group consensus
+
+```{r}
+# Set significance threshold for analyses
+SIGNIFICANCE_THRESHOLD <- 0.2
+
+################## SHARED UTILITY FUNCTIONS ###################
+
+theme_custom <- theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "right",
+    plot.title = element_text(size = 12, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    axis.title = element_text(size = 10),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9)
+  )
+
+check_model_diagnostics <- function(model) {
+  residuals <- residuals(model)
+  fitted_vals <- fitted(model)
+  
+  shapiro_test <- shapiro.test(residuals)
+  outliers <- boxplot.stats(residuals)$out
+  vif_values <- car::vif(model)
+  r2_values <- tryCatch({
+    MuMIn::r.squaredGLMM(model)
+  }, error = function(e) {
+    c(NA, NA)
+  })
+  
+  convergence <- !is.null(model@optinfo$conv$lme4$messages)
+  homo_test <- cor.test(abs(residuals), fitted_vals)
+  
+  list(
+    residuals = list(
+      mean = mean(residuals),
+      sd = sd(residuals),
+      normality_p = shapiro_test$p.value
+    ),
+    model_fit = list(
+      r2_marginal = r2_values[1],
+      r2_conditional = r2_values[2],
+      aic = AIC(model),
+      bic = BIC(model)
+    ),
+    assumptions = list(
+      vif = vif_values,
+      homoscedasticity_cor = homo_test$estimate,
+      homoscedasticity_p = homo_test$p.value,
+      convergence = convergence
+    ),
+    outliers = list(
+      n_outliers = length(outliers),
+      outlier_values = outliers
+    )
+  )
+}
+
+################## DATA PROCESSING FUNCTIONS ###################
+
+process_initial_data <- function(data, outcome_type, group_2_2_in_with = FALSE) {
+  base_data <- data %>%
+    mutate(
+      consensus_group = case_when(
+        player.choice1_with == 0.5 ~ ifelse(group_2_2_in_with, "2:2_with", "2:2_against"),
+        player.choice1_with == 0 ~ "4:0_against",
+        player.choice1_with == 0.25 ~ "3:1_against",
+        player.choice1_with == 0.75 ~ "3:1_with",
+        player.choice1_with == 1 ~ "4:0_with"
+      ),
+      consensus_level = case_when(
+        player.choice1_with %in% c(0, 1) ~ "4:0",
+        player.choice1_with %in% c(0.25, 0.75) ~ "3:1",
+        player.choice1_with == 0.5 ~ "2:2"
+      ),
+      direction = if_else(player.choice1_with >= 0.5, "With group", "Against group")
+    )
+  
+  outcome_data <- if(outcome_type == "switch") {
+    base_data %>%
+      group_by(participant.id_in_session, consensus_group, direction, gender) %>%
+      summarise(
+        outcome_value = mean(player.switch_vs_stay) * 100,
+        .groups = 'drop'
+      )
+  } else {
+    base_data %>%
+      mutate(bet_difference = player.bet2 - player.bet1) %>%
+      group_by(participant.id_in_session, consensus_group, direction, gender) %>%
+      summarise(
+        outcome_value = mean(bet_difference),
+        .groups = 'drop'
+      )
+  }
+  
+  outcome_data %>%
+    left_join(
+      base_data %>%
+        group_by(participant.id_in_session) %>%
+        slice(1) %>%
+        select(participant.id_in_session, ssms, dass, lsas, srp_sf, ami, aq_10, age),
+      by = "participant.id_in_session"
+    ) %>%
+    mutate(
+      across(c(ssms, dass, lsas, srp_sf, ami, aq_10, age), scale),
+      gender = factor(gender),
+      consensus_group = factor(consensus_group, 
+                             levels = if(!group_2_2_in_with) 
+                               c("2:2_against", "3:1_against", "4:0_against", "3:1_with", "4:0_with")
+                             else 
+                               c("3:1_against", "4:0_against", "2:2_with", "3:1_with", "4:0_with"))
+    )
+}
+
+################## MODEL FUNCTIONS ###################
+
+run_questionnaire_models <- function(quest_var, data, outcome_type) {
+  # Define models
+  models <- list(
+    m1 = lmer(as.formula(paste("outcome_value ~ consensus_group *", quest_var, 
+                              "+ age + (1|participant.id_in_session)")),
+              data = data,
+              control = lmerControl(optimizer = "bobyqa")),
+    
+    m2 = lmer(as.formula(paste("outcome_value ~ consensus_group *", quest_var,
+                              "+ age + (1|participant.id_in_session) + (1|gender)")),
+              data = data,
+              control = lmerControl(optimizer = "bobyqa"))
+  )
+  
+  # Compare models
+  aic_values <- sapply(models, AIC)
+  bic_values <- sapply(models, BIC)
+  winning_idx <- which.min(aic_values)
+  winning_model <- models[[winning_idx]]
+  
+  # Run diagnostics
+  diagnostics <- check_model_diagnostics(winning_model)
+  
+  # Get ANOVA results
+  model_anova <- car::Anova(winning_model, type = 2)
+  interaction_term <- grep(paste0("consensus_group:", quest_var), rownames(model_anova), value = TRUE)
+  interaction_p <- model_anova[interaction_term, "Pr(>Chisq)"]
+  
+  list(
+    questionnaire = quest_var,
+    models = models,
+    winning_model = winning_model,
+    aic_values = aic_values,
+    bic_values = bic_values,
+    winning_idx = winning_idx,
+    p_value = interaction_p,
+    diagnostics = diagnostics,
+    anova_results = model_anova
+  )
+}
+
+################## PLOTTING FUNCTIONS ###################
+
+plot_continuous_relationship <- function(var, data, model_results, outcome_type) {
+  data <- data %>%
+    mutate(
+      consensus_level = case_when(
+        str_detect(consensus_group, "4:0") ~ "4:0",
+        str_detect(consensus_group, "3:1") ~ "3:1",
+        str_detect(consensus_group, "2:2") ~ "2:2"
+      ),
+      consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0"))
+    )
+  
+  effects <- data %>%
+    group_by(direction, consensus_level) %>%
+    summarise(
+      correlation = cor(.data[[var]], outcome_value),
+      .groups = 'drop'
+    )
+  
+  y_lab <- if(outcome_type == "switch") {
+    "Choice switch probability (%)"
+  } else {
+    "Bet difference (Bet 2 - Bet 1)"
+  }
+  
+  p <- ggplot(data, 
+              aes(x = .data[[var]], 
+                  y = outcome_value,
+                  color = direction)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth(method = "lm", formula = y ~ x) +
+    facet_wrap(~consensus_level) +
+    labs(x = var,
+         y = y_lab,
+         title = paste("Relationship between", var, "and", ifelse(outcome_type == "switch", "switch probability", "bet difference")),
+         subtitle = paste("Raw p =", format.pval(model_results$p_value[model_results$questionnaire == var], digits = 3),
+                         "\nFDR-adjusted p =", format.pval(model_results$p_adjusted[model_results$questionnaire == var], digits = 3)),
+         caption = paste("Effect sizes (r) range:", 
+                        round(min(effects$correlation), 3), "to",
+                        round(max(effects$correlation), 3))) +
+    scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+    theme_custom
+  
+  print(p)
+}
+
+analyze_simple_slopes <- function(model, questionnaire_var, data, outcome_type, p_adjusted = NULL) {
+  # Get the actual variable name used in the model formula
+  model_vars <- all.vars(formula(model))
+  actual_var_name <- model_vars[model_vars %in% c("scale_name", questionnaire_var)]
+  
+  # Calculate probe points using the original questionnaire variable name
+  probe_points <- data %>%
+    summarise(
+      low = mean(!!sym(questionnaire_var)) - sd(!!sym(questionnaire_var)),
+      mean = mean(!!sym(questionnaire_var)),
+      high = mean(!!sym(questionnaire_var)) + sd(!!sym(questionnaire_var))
+    )
+  
+  # Create prediction data frame
+  pred_data <- expand.grid(
+    consensus_group = levels(data$consensus_group),
+    quest_score = c(probe_points$low, probe_points$mean, probe_points$high)
+  ) %>%
+    mutate(
+      quest_level = rep(c("-1 SD", "Mean", "+1 SD"), 
+                       each = length(levels(data$consensus_group))),
+      age = 0,
+      participant.id_in_session = 1  # dummy value for random effect
+    )
+  
+  # Use the actual variable name from the model
+  pred_data[[actual_var_name]] <- pred_data$quest_score
+  
+  # Make predictions
+  pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
+  
+  # Get model statistics for subtitle
+  model_stats <- car::Anova(model, type = 2)
+  interaction_term <- grep(paste0("consensus_group:", questionnaire_var), 
+                         rownames(model_stats), value = TRUE)
+  interaction_p <- model_stats[interaction_term, "Pr(>Chisq)"]
+  
+  # Create plot...
+  y_lab <- if(outcome_type == "switch") {
+    "Predicted Switch Probability (%)"
+  } else {
+    "Predicted Bet Difference"
+  }
+  
+  p <- ggplot(pred_data, 
+              aes(x = consensus_group, 
+                  y = predicted, 
+                  color = quest_level, 
+                  group = quest_level)) +
+    geom_line() +
+    geom_point(size = 3) +
+    labs(title = paste("Simple slopes analysis for", questionnaire_var),
+         subtitle = paste("Raw p =", format.pval(interaction_p, digits = 3),
+                         if(!is.null(p_adjusted)) paste("\nFDR-adjusted p =", format.pval(p_adjusted, digits = 3)) else ""),
+         x = "Consensus Group",
+         y = y_lab,
+         color = paste(questionnaire_var, "Level")) +
+    scale_color_manual(values = c("red", "purple", "blue")) +
+    theme_custom
+  
+  list(
+    predictions = pred_data,
+    plot = p,
+    model_summary = summary(model),
+    interaction_p = interaction_p
+  )
+}
+
+plot_moderation_effects <- function(model, data, original_scale_name, outcome_type, is_subscale = FALSE, p_adjusted = NULL) {
+  # Create prediction grid at meaningful levels
+  pred_data <- expand.grid(
+    consensus_group = levels(data$consensus_group),
+    scale_name = seq(from = -2, to = 2, length.out = 100)  # Fine-grained scale scores
+  )
+  
+  # Add mean age for predictions
+  pred_data$age <- 0  # since age is scaled
+  
+  if(is_subscale) {
+    subscale_patterns <- c("_a$", "_d$", "_s$", "_p$", "_cd$", "_ia$", 
+                          "_ipm$", "_ca$", "_els$", "_ct$", "_es$", "_sm$", "_ba$")
+    subscale_cols <- grep(paste(subscale_patterns, collapse="|"), 
+                         names(data), value=TRUE)
+    for(col in subscale_cols) {
+      if(col != original_scale_name) {
+        pred_data[[col]] <- 0
+      }
+    }
+    names(pred_data)[names(pred_data) == "scale_name"] <- original_scale_name
+  }
+  
+  # Get predictions
+  pred_matrix <- predict(model, newdata = pred_data, re.form = NA, 
+                        allow.new.levels = TRUE)
+  
+  pred_data$predicted <- pred_matrix
+  
+  # Add direction information
+  pred_data <- pred_data %>%
+    mutate(
+      direction = case_when(
+        str_detect(consensus_group, "with") ~ "With group",
+        TRUE ~ "Against group"
+      ),
+      consensus_level = case_when(
+        str_detect(consensus_group, "4:0") ~ "4:0",
+        str_detect(consensus_group, "3:1") ~ "3:1",
+        str_detect(consensus_group, "2:2") ~ "2:2"
+      ),
+      consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0"))
+    )
+
+  # Get model statistics for subtitle
+  model_stats <- car::Anova(model, type = 2)
+  interaction_term <- if(is_subscale) {
+    paste0("consensus_group:", original_scale_name)
+  } else {
+    "consensus_group:scale_name"
+  }
+  interaction_p <- model_stats[interaction_term, "Pr(>Chisq)"]
+  
+  # Get y-lab
+  y_lab <- if(outcome_type == "switch") {
+    "Predicted choice switch probability (%)"
+  } else {
+    "Predicted bet difference"
+  }
+
+  # Create plot using original scale name
+  p <- ggplot(pred_data, 
+              aes(x = if(is_subscale) .data[[original_scale_name]] else scale_name, 
+                  y = predicted, 
+                  color = direction)) +
+    geom_line() +
+    facet_wrap(~consensus_level) +
+    labs(title = paste("Moderation effect of", original_scale_name),
+         subtitle = paste("Raw p =", format.pval(interaction_p, digits = 3),
+                         if(!is.null(p_adjusted)) paste("\nFDR-adjusted p =", format.pval(p_adjusted, digits = 3)) else ""),
+         x = paste(original_scale_name, "score (standardized)"),
+         y = y_lab) +
+    scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+    theme_custom
+
+  print(p)
+  
+  return(list(
+    plot = p,
+    predictions = pred_data,
+    interaction_p = interaction_p
+  ))
+}
+
+create_median_split_plot <- function(summary_data, var, outcome_type, p_value, p_adjusted) {
+  y_lab <- if(outcome_type == "switch") {
+    "Choice switch probability (%)"
+  } else {
+    "Bet difference (Bet 2 - Bet 1)"
+  }
+  
+  ggplot(summary_data, 
+         aes(x = consensus_level, 
+             y = mean_outcome, 
+             color = direction,
+             linetype = quest_group,
+             group = interaction(direction, quest_group))) +
+    geom_line(size = 1) +
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = mean_outcome - se, 
+                      ymax = mean_outcome + se), 
+                  width = 0.2) +
+    scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+    labs(x = "Group consensus",
+         y = y_lab,
+         title = paste("Effect of", var, "(Median-split)"),
+         subtitle = paste("Raw p =", format.pval(p_value, digits = 3),
+                         "\nFDR-adjusted p =", format.pval(p_adjusted, digits = 3))) +
+    theme_custom
+}
+
+################## MODERATION ANALYSIS ###################
+
+run_moderation_analysis <- function(data, scale_name, subscales = NULL, outcome_type, p_adjusted = NULL) {
+  main_model <- lmer(outcome_value ~ consensus_group * scale_name + 
+                      age + (1|participant.id_in_session) + 
+                      (0 + scale_name|participant.id_in_session),
+                    data = data,
+                    control = lmerControl(optimizer = "bobyqa"))
+  
+  main_r2 <- MuMIn::r.squaredGLMM(main_model)
+  main_diagnostics <- check_model_diagnostics(main_model)
+  main_plots <- plot_moderation_effects(main_model, data, scale_name, outcome_type, FALSE, p_adjusted)
+  
+  results <- list(main = list(
+    scale = scale_name,
+    model = main_model,
+    summary = summary(main_model),
+    r2_marginal = main_r2[1],
+    r2_conditional = main_r2[2],
+    diagnostics = main_diagnostics,
+    plots = main_plots
+  ))
+  
+  if (!is.null(subscales)) {
+    subscale_results <- map(subscales, function(subscale) {
+      if(subscale %in% names(data)) {
+        sub_model <- lmer(as.formula(paste(
+          "outcome_value ~ consensus_group *", subscale,
+          "+ age + (1|participant.id_in_session) + (0 +", subscale, "|participant.id_in_session)"
+        )),
+        data = data,
+        control = lmerControl(optimizer = "bobyqa"))
+        
+        sub_r2 <- MuMIn::r.squaredGLMM(sub_model)
+        sub_diagnostics <- check_model_diagnostics(sub_model)
+        
+        list(
+          scale = subscale,
+          model = sub_model,
+          summary = summary(sub_model),
+          r2_marginal = sub_r2[1],
+          r2_conditional = sub_r2[2],
+          diagnostics = sub_diagnostics
+        )
+      } else {
+        NULL
+      }
+    })
+    
+    results$subscales <- compact(subscale_results)
+  }
+  
+  return(results)
+}
+
+check_moderation_assumptions <- function(model) {
+  list(
+    vif = car::vif(model),
+    normality = shapiro.test(residuals(model))$p.value,
+    convergence = model@optinfo$conv$opt
+  )
+}
+
+################## RESULTS FORMATTING ###################
+
+format_results <- function(model_results, moderation_results, significant_vars, outcome_type) {
+  output_text <- sprintf("%s BY GROUP CONSENSUS - STATISTICAL ANALYSIS RESULTS\n\n",
+                        ifelse(outcome_type == "switch", "CHOICE SWITCH", "BET MAGNITUDE"))
+  
+  output_text <- paste0(output_text, "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
+  
+  # For each questionnaire
+  for(i in 1:nrow(model_results)) {
+    quest_var <- model_results$questionnaire[i]
+    diag <- model_results$diagnostics[[i]]
+    
+    output_text <- paste0(output_text, "\n", quest_var, " ANALYSIS\n",
+                         "=================\n\n",
+                         "MODEL COMPARISON:\n",
+                         "================\n")
+    
+    model_comp_df <- data.frame(
+      Model = 1:length(model_results$aic_values[[i]]),
+      AIC = round(model_results$aic_values[[i]], 3),
+      BIC = round(model_results$bic_values[[i]], 3),
+      Is_Winner = ifelse(1:length(model_results$aic_values[[i]]) == model_results$winning_idx[i], "Yes", "No")
+    )
+    
+    output_text <- paste0(output_text, 
+                         paste(capture.output(print.data.frame(model_comp_df)), collapse = "\n"),
+                         "\n\nWINNING MODEL:\n",
+                         "==============\n",
+                         "R² marginal/conditional: ", round(diag$model_fit$r2_marginal, 3), "/", 
+                         round(diag$model_fit$r2_conditional, 3), "\n",
+                         "Residual normality p: ", format.pval(diag$residuals$normality_p, digits = 3), "\n",
+                         "VIF range: ", round(min(diag$assumptions$vif), 2), " - ", round(max(diag$assumptions$vif), 2), "\n",
+                         "Homoscedasticity: p = ", format.pval(diag$assumptions$homoscedasticity_p, digits = 3), "\n",
+                         "Outliers: ", diag$outliers$n_outliers, "\n\n",
+                         "ANOVA RESULTS:\n",
+                         "==============\n",
+                         paste(capture.output(model_results$anova_results[[i]]), collapse = "\n"),
+                         "\nRaw interaction p = ", format.pval(model_results$p_value[i], digits = 3),
+                         "\nFDR-adjusted interaction p = ", format.pval(model_results$p_adjusted[i], digits = 3), "\n\n")
+  }
+  
+  # Add moderation results only for significant variables
+  if(!is.null(moderation_results)) {
+    output_text <- paste0(output_text, "\nMODERATION ANALYSES:\n",
+                         "===================\n")
+    
+    for(mod_result in moderation_results) {
+      # Get p-values for main scale (using original FDR-adjusted p-value)
+      main_anova <- car::Anova(mod_result$main$model, type = 2)
+      interaction_term <- grep("consensus_group:scale_name", rownames(main_anova), value = TRUE)
+      raw_p <- main_anova[interaction_term, "Pr(>Chisq)"]
+      # Get the corresponding FDR-adjusted p-value from initial analysis
+      fdr_p <- model_results$p_adjusted[model_results$questionnaire == mod_result$main$scale]
+      
+      output_text <- paste0(output_text, "\nScale: ", mod_result$main$scale, "\n",
+                           "----------------------\n",
+                           paste(capture.output(main_anova), collapse = "\n"),
+                           "\nRaw interaction p = ", format.pval(raw_p, digits = 3),
+                           "\nFDR-adjusted interaction p = ", format.pval(fdr_p, digits = 3),
+                           "\n\nModel diagnostics: R² = ", round(mod_result$main$r2_marginal, 3),
+                           ", Residual normality p = ", format.pval(mod_result$main$diagnostics$residuals$normality_p, digits = 3),
+                           ", Outliers = ", mod_result$main$diagnostics$outliers$n_outliers, "\n")
+      
+      if(!is.null(mod_result$subscales)) {
+        # Collect all subscale p-values first
+        subscale_ps <- sapply(mod_result$subscales, function(sub_result) {
+          sub_anova <- car::Anova(sub_result$model, type = 2)
+          sub_interaction_term <- grep(paste0("consensus_group:", sub_result$scale), rownames(sub_anova), value = TRUE)
+          sub_anova[sub_interaction_term, "Pr(>Chisq)"]
+        })
+        
+        # FDR correct all subscale p-values together
+        subscale_ps_adjusted <- p.adjust(subscale_ps, method = "fdr")
+        
+        # Now output results for each subscale
+        for(j in seq_along(mod_result$subscales)) {
+          sub_result <- mod_result$subscales[[j]]
+          sub_anova <- car::Anova(sub_result$model, type = 2)
+          sub_interaction_term <- grep(paste0("consensus_group:", sub_result$scale), rownames(sub_anova), value = TRUE)
+          sub_raw_p <- sub_anova[sub_interaction_term, "Pr(>Chisq)"]
+          
+          output_text <- paste0(output_text, "\nSubscale: ", sub_result$scale, "\n",
+                               paste(capture.output(sub_anova), collapse = "\n"),
+                               "\nRaw interaction p = ", format.pval(sub_raw_p, digits = 3),
+                               "\nFDR-adjusted interaction p = ", format.pval(subscale_ps_adjusted[j], digits = 3),
+                               "\nModel diagnostics: R² = ", round(sub_result$r2_marginal, 3),
+                               ", Residual normality p = ", format.pval(sub_result$diagnostics$residuals$normality_p, digits = 3),
+                               ", Outliers = ", sub_result$diagnostics$outliers$n_outliers, "\n")
+        }
+      }
+    }
+  }
+  
+  return(output_text)
+}
+
+################## MAIN ANALYSIS FUNCTION ###################
+
+run_analysis <- function(outcome_type) {
+ # Read data
+ merged_data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), show_col_types = FALSE)
+ 
+ # Process data
+ processed_data <- process_initial_data(merged_data, outcome_type, FALSE)
+ processed_data_alt <- process_initial_data(merged_data, outcome_type, TRUE)
+ 
+ # Define questionnaire variables
+ questionnaire_vars <- c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10")
+ 
+ # Run models for all questionnaires with enhanced diagnostics
+ model_results <- map_df(questionnaire_vars, function(var) {
+   result_primary <- run_questionnaire_models(var, processed_data, outcome_type)
+   result_alt <- run_questionnaire_models(var, processed_data_alt, outcome_type)
+   
+   tibble(
+     questionnaire = result_primary$questionnaire,
+     p_value = result_primary$p_value,
+     alt_p_value = result_alt$p_value,
+     aic_values = list(result_primary$aic_values),
+     bic_values = list(result_primary$bic_values),
+     winning_idx = result_primary$winning_idx,
+     model = list(result_primary$winning_model),
+     diagnostics = list(result_primary$diagnostics),
+     anova_results = list(result_primary$anova_results)
+   )
+ })
+ 
+ # Add FDR-adjusted p-values
+ model_results$p_adjusted <- p.adjust(model_results$p_value, method = "fdr")
+ 
+ # Identify significant results
+ significant_vars <- model_results %>%
+   filter(p_adjusted < SIGNIFICANCE_THRESHOLD) %>%
+   pull(questionnaire)
+ 
+ cat("\nVariables passing significance threshold (p_adjusted <", SIGNIFICANCE_THRESHOLD, "):", 
+     ifelse(length(significant_vars) > 0, paste(significant_vars, collapse = ", "), "none"), "\n")
+ 
+ # Create continuous relationship plots
+ for(var in questionnaire_vars) {
+   plot_continuous_relationship(var, processed_data, model_results, outcome_type)
+ }
+ 
+ # Define subscale mapping
+ subscale_mapping <- list(
+   lsas = c("lsas_p", "lsas_s"),
+   dass = c("dass_a", "dass_d", "dass_s"),
+   ssms = c("ssms_cd", "ssms_ia"),
+   srp_sf = c("srp_sf_ipm", "srp_sf_ca", "srp_sf_els", "srp_sf_ct"),
+   ami = c("ami_es", "ami_sm", "ami_ba"),
+   aq_10 = NULL
+ )
+ 
+ if(length(significant_vars) > 0) {
+   # Process subscale data
+   subscale_data <- merged_data %>%
+     group_by(participant.id_in_session) %>%
+     slice(1) %>%
+     select(participant.id_in_session,
+            lsas_p, lsas_s,
+            dass_a, dass_d, dass_s,
+            ssms_cd, ssms_ia,
+            srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct,
+            ami_es, ami_sm, ami_ba)
+   
+   subscale_data_scaled <- subscale_data %>%
+     ungroup() %>%
+     mutate(across(-participant.id_in_session, ~as.vector(scale(.x))))
+   
+   processed_data_with_subscales <- processed_data %>%
+     left_join(subscale_data_scaled, by = "participant.id_in_session")
+   
+   # Run moderation analyses with enhanced diagnostics
+   moderation_results <- map(significant_vars, function(scale) {
+     subscales <- subscale_mapping[[scale]]
+     
+     mod_data <- processed_data_with_subscales %>%
+       rename(scale_name = !!scale)
+     
+     p_adjusted <- model_results$p_adjusted[model_results$questionnaire == scale]
+     
+     results <- run_moderation_analysis(mod_data, scale, subscales, outcome_type, p_adjusted)
+     
+     # Add diagnostics to moderation results
+     results$main$diagnostics <- check_model_diagnostics(results$main$model)
+     
+     # Add diagnostics for subscales if they exist
+     if(!is.null(results$subscales)) {
+       results$subscales <- map(results$subscales, function(sub_result) {
+         sub_result$diagnostics <- check_model_diagnostics(sub_result$model)
+         sub_result
+       })
+     }
+     
+     # Run simple slopes analyses with diagnostics
+     slopes_analysis <- analyze_simple_slopes(
+       model = results$main$model,
+       questionnaire_var = scale,
+       data = processed_data,
+       outcome_type = outcome_type,
+       p_adjusted = p_adjusted
+     )
+     
+     # Store slopes analysis 
+     results$slopes_analysis <- slopes_analysis
+     
+     results
+   })
+   
+   # Create median-split plots and analyses for significant results
+   for(var in significant_vars) {
+     summary_data <- processed_data %>%
+       mutate(
+         consensus_level = case_when(
+           str_detect(consensus_group, "4:0") ~ "4:0",
+           str_detect(consensus_group, "3:1") ~ "3:1",
+           str_detect(consensus_group, "2:2") ~ "2:2"
+         ),
+         consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
+         quest_group = ifelse(.data[[var]] > median(.data[[var]]), "High", "Low")
+       ) %>%
+       group_by(consensus_level, direction, quest_group) %>%
+       summarise(
+         mean_outcome = mean(outcome_value),
+         se = sd(outcome_value) / sqrt(n()),
+         .groups = 'drop'
+       )
+     
+     p_median <- create_median_split_plot(summary_data, var, outcome_type, 
+                                        model_results$p_value[model_results$questionnaire == var],
+                                        model_results$p_adjusted[model_results$questionnaire == var])
+     print(p_median)
+     
+     model <- model_results$model[[which(model_results$questionnaire == var)]]
+     if(!is.null(model)) {
+       slopes_analysis <- analyze_simple_slopes(
+         model,
+         var,
+         processed_data,
+         outcome_type,
+         p_adjusted = model_results$p_adjusted[model_results$questionnaire == var]
+       )
+       print(slopes_analysis$plot)
+     }
+   }
+ }
+ 
+ # Generate and save results with enhanced diagnostics
+ results_text <- format_results(
+   model_results, 
+   if(length(significant_vars) > 0) moderation_results else NULL, 
+   significant_vars, 
+   outcome_type
+ )
+ 
+ # Create output directory and file
+ dir.create(here("output", "behav", "questionnaire"), showWarnings = FALSE, recursive = TRUE)
+ output_file <- here(
+   "output", 
+   "behav",
+   "questionnaire",
+   ifelse(
+     outcome_type == "switch",
+     "choice_switching_by_group_consensus.txt",
+     "bet_difference_by_group_consensus.txt"
+   )
+ )
+ 
+ writeLines(results_text, output_file)
+ cat("\nResults written to:", output_file, "\n")
+ 
+ return(list(
+   model_results = model_results,
+   significant_vars = significant_vars,
+   processed_data = processed_data,
+   moderation_results = if(length(significant_vars) > 0) moderation_results else NULL,
+   diagnostics_summary = map(model_results$diagnostics, ~list(
+     residuals = .$residuals,
+     model_fit = .$model_fit,
+     assumptions = .$assumptions,
+     outliers = .$outliers
+   ))
+ ))
+}
+
+################## RUN ANALYSES ###################
+
+# Run analyses for both outcomes
+switch_results <- run_analysis("switch")
+bet_results <- run_analysis("bet")
+```
+
+## Choice accuracy and bet magnitude and switching across trials/group consensus
+
+Plot Choice 1 accuracy and Bet 1 magnitude as a function of switch difference across trials (Choice 2 - Choice 1) and group consensus
+
+```{r}
+# Define create_trial_datasets function
+create_trial_datasets <- function(data) {
+  switch_data <- data %>% 
+    filter(choice_switch_across_trials == 1) %>%
+    mutate(
+      consensus_numeric = case_when(
+        player.choice1_with %in% c(0, 1) ~ 2,  # 4:0
+        player.choice1_with %in% c(0.25, 0.75) ~ 1,  # 3:1
+        player.choice1_with == 0.5 ~ 0  # 2:2
+      ),
+      direction = if_else(player.choice1_with > 0.5, "With group", "Against group")
+    )
+  
+  stay_data <- data %>%
+    filter(choice_switch_across_trials == 0) %>%
+    mutate(
+      consensus_numeric = case_when(
+        player.choice1_with %in% c(0, 1) ~ 2,  # 4:0
+        player.choice1_with %in% c(0.25, 0.75) ~ 1,  # 3:1
+        player.choice1_with == 0.5 ~ 0  # 2:2
+      ),
+      direction = if_else(player.choice1_with > 0.5, "With group", "Against group")
+    )
+  
+  list(switch_data = switch_data, stay_data = stay_data)
+}
+
+# Right after create_trial_datasets and before run_behavioral_analysis, add:
+format_switch_consensus_results <- function(model_results, moderation_results = NULL) {
+  output_text <- "CHOICE ACCURACY BY SWITCH AND CONSENSUS ANALYSIS RESULTS\n\n"
+  
+  # Add timestamp
+  output_text <- paste0(output_text, "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
+  
+  # Main results section
+  output_text <- paste0(output_text, "PRIMARY ANALYSIS RESULTS:\n",
+                       "================================\n")
+  
+  # Add main model results
+  for(i in 1:nrow(model_results)) {
+    output_text <- paste0(output_text,
+                         "\nQuestionnaire: ", model_results$questionnaire[i], "\n",
+                         "Trial type: ", model_results$trial_type[i], "\n",
+                         "p-value: ", format.pval(model_results$p_value[i], digits = 3), "\n",
+                         "FDR-adjusted p-value: ", format.pval(model_results$p_adjusted[i], digits = 3), "\n",
+                         "AIC: ", round(model_results$aic[i], 2), "\n",
+                         "Residual normality (p): ", format.pval(model_results$resid_normality[i], digits = 3), "\n",
+                         "Model converged: ", model_results$model_converged[i], "\n")
+  }
+  
+  # Moderation results section (for significant results)
+  if(!is.null(moderation_results)) {
+    output_text <- paste0(output_text, "\n\nMODERATION ANALYSIS RESULTS:\n",
+                         "================================\n")
+    
+    for(i in seq_along(moderation_results)) {
+      results <- moderation_results[[i]]
+      scale_name <- results$main$scale
+      
+      output_text <- paste0(output_text, "\nScale: ", scale_name, "\n")
+      
+      # Add model comparison results if they exist
+      if(!is.null(results$main$model_comparison)) {
+        comp_stats <- results$main$model_comparison
+        if("Chisq" %in% names(comp_stats)) {
+          chisq_val <- comp_stats$Chisq[length(comp_stats$Chisq)]  # Get last value
+          p_val <- comp_stats$`Pr(>Chisq)`[length(comp_stats$`Pr(>Chisq)`)]  # Get last value
+          output_text <- paste0(output_text,
+                              "Main effect chi-square: ", round(chisq_val, 3), "\n",
+                              "Main effect p-value: ", format.pval(p_val, digits = 3), "\n")
+        }
+      }
+      
+      # Add effect size if it exists
+      if(!is.null(results$main$effect_size)) {
+        output_text <- paste0(output_text,
+                            "Effect size (R² marginal): ", 
+                            round(results$main$effect_size, 3), "\n")
+      }
+      
+      output_text <- paste0(output_text, "\n")
+      
+      # Subscale results if they exist
+      if(!is.null(results$subscales)) {
+        output_text <- paste0(output_text, "\nSubscale Results:\n")
+        
+        for(sub_result in results$subscales) {
+          output_text <- paste0(output_text,
+                              "\nSubscale: ", sub_result$scale, "\n")
+          
+          if(!is.null(sub_result$model_comparison)) {
+            comp_stats <- sub_result$model_comparison
+            if("Chisq" %in% names(comp_stats)) {
+              chisq_val <- comp_stats$Chisq[length(comp_stats$Chisq)]
+              p_val <- comp_stats$`Pr(>Chisq)`[length(comp_stats$`Pr(>Chisq)`)]
+              output_text <- paste0(output_text,
+                                  "Chi-square: ", round(chisq_val, 3), "\n",
+                                  "p-value: ", format.pval(p_val, digits = 3), "\n")
+            }
+          }
+          
+          if(!is.null(sub_result$effect_size)) {
+            output_text <- paste0(output_text,
+                                "Effect size (R² marginal): ", 
+                                round(sub_result$effect_size, 3), "\n")
+          }
+          
+          output_text <- paste0(output_text, "\n")
+        }
+      }
+    }
+  }
+  
+  return(output_text)
+}
+
+# Create a function to run the complete analysis pipeline
+run_behavioral_analysis <- function(outcome_var, is_percentage = FALSE, y_label, output_prefix) {
+  
+  # Read and process data
+  merged_data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+                         show_col_types = FALSE)
+  
+  # Create separate datasets for switch and stay trials
+  trial_datasets <- create_trial_datasets(merged_data)
+  
+  # Diagnostic checking function
+  check_model_diagnostics <- function(model) {
+    conv_check <- model@optinfo$conv$opt
+    diagnostics <- list(
+      convergence = conv_check,
+      resid_mean = mean(residuals(model)),
+      resid_sd = sd(residuals(model)),
+      resid_normality = shapiro.test(residuals(model))$p.value
+    )
+    return(diagnostics)
+  }
+  
+  # Check model assumptions
+  check_model_assumptions <- function(model) {
+    resids <- residuals(model)
+    fitted_vals <- fitted(model)
+    
+    homoscedasticity_test <- cor.test(abs(resids), fitted_vals)
+    
+    list(
+      normality = shapiro.test(resids),
+      homoscedasticity = list(
+        correlation = homoscedasticity_test$estimate,
+        p_value = homoscedasticity_test$p.value,
+        interpretation = if(homoscedasticity_test$p.value < 0.05) 
+          "Potential heteroscedasticity" else "No clear evidence of heteroscedasticity"
+      ),
+      vif = car::vif(model)
+    )
+  }
+  
+  # Custom theme
+  theme_custom <- theme_minimal() +
+    theme(
+      panel.grid.minor = element_blank(),
+      legend.position = "right",
+      plot.title = element_text(size = 12, face = "bold"),
+      plot.subtitle = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      legend.title = element_text(size = 10),
+      legend.text = element_text(size = 9)
+    )
+  
+  # Plot continuous relationship
+  plot_continuous_relationship <- function(var, trial_datasets, model_results) {
+    subject_averages <- bind_rows(
+      trial_datasets$switch_data %>% mutate(trial_type = "Switch trials"),
+      trial_datasets$stay_data %>% mutate(trial_type = "Stay trials")
+    ) %>%
+      group_by(participant.id_in_session, direction, consensus_numeric, trial_type, .data[[var]]) %>%
+      summarise(
+        mean_outcome = mean(!!sym(outcome_var)),
+        .groups = 'drop'
+      ) %>%
+      mutate(
+        consensus_level = case_when(
+          consensus_numeric == 2 ~ "4:0",
+          consensus_numeric == 1 ~ "3:1",
+          consensus_numeric == 0 ~ "2:2"
+        ),
+        consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0"))
+      )
+    
+    if(is_percentage) {
+      subject_averages$mean_outcome <- subject_averages$mean_outcome * 100
+    }
+    
+    effects <- subject_averages %>%
+      group_by(direction, consensus_level, trial_type) %>%
+      summarise(
+        correlation = cor(.data[[var]], mean_outcome),
+        .groups = 'drop'
+      )
+    
+    p <- ggplot(subject_averages, 
+                aes(x = .data[[var]], 
+                    y = mean_outcome,
+                    color = direction)) +
+      geom_point(alpha = 0.5) +
+      geom_smooth(method = "lm", formula = y ~ x) +
+      facet_grid(trial_type ~ consensus_level) +
+      labs(x = var,
+           y = y_label,
+           title = paste("Relationship between", var, "and", y_label),
+           subtitle = paste("p =", format.pval(model_results$p_value[
+             model_results$questionnaire == var], digits = 3)),
+           caption = paste("Effect sizes (r) range:", 
+                          round(min(effects$correlation), 3), "to",
+                          round(max(effects$correlation), 3))) +
+      scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+      theme_custom
+    
+    print(p)
+  }
+  
+  # Analyze simple slopes
+  analyze_simple_slopes <- function(model, questionnaire_var, trial_type, trial_datasets) {
+    data <- if(trial_type == "switch") trial_datasets$switch_data else trial_datasets$stay_data
+    
+    probe_points <- data %>%
+      summarise(
+        low = mean(!!sym(questionnaire_var)) - sd(!!sym(questionnaire_var)),
+        mean = mean(!!sym(questionnaire_var)),
+        high = mean(!!sym(questionnaire_var)) + sd(!!sym(questionnaire_var))
+      )
+    
+    pred_data <- expand.grid(
+      direction = unique(data$direction),
+      consensus_numeric = unique(data$consensus_numeric),
+      quest_score = c(probe_points$low, probe_points$mean, probe_points$high)
+    ) %>%
+      mutate(
+        quest_level = rep(c("-1 SD", "Mean", "+1 SD"), 
+                         each = length(unique(data$direction)) * length(unique(data$consensus_numeric))),
+        direction = factor(direction)
+      )
+    
+    pred_data$age <- 0
+    pred_data[[questionnaire_var]] <- pred_data$quest_score
+    
+    pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
+    if(is_percentage) pred_data$predicted <- pred_data$predicted * 100
+    
+    pred_data <- pred_data %>%
+      mutate(
+        consensus_level = case_when(
+          consensus_numeric == 2 ~ "4:0",
+          consensus_numeric == 1 ~ "3:1",
+          consensus_numeric == 0 ~ "2:2"
+        ),
+        consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0"))
+      )
+    
+    p <- ggplot(pred_data, 
+                aes(x = consensus_level, 
+                    y = predicted,
+                    color = direction,
+                    linetype = quest_level,
+                    group = interaction(direction, quest_level))) +
+      geom_line() +
+      geom_point(size = 3) +
+      labs(title = paste("Simple slopes analysis for", questionnaire_var, "in", trial_type, "trials"),
+           x = "Consensus Level",
+           y = y_label,
+           color = "Direction",
+           linetype = paste(questionnaire_var, "Level")) +
+      scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+      theme_custom
+    
+    list(
+      predictions = pred_data,
+      plot = p,
+      model_summary = summary(model)
+    )
+  }
+  
+  # Run questionnaire models
+  run_questionnaire_models <- function(quest_var, data_type) {
+    data <- if(data_type == "switch") trial_datasets$switch_data else trial_datasets$stay_data
+    
+    data <- data %>%
+      mutate(
+        across(c(ssms, dass, lsas, srp_sf, ami, aq_10, age), scale),
+        gender = factor(gender),
+        direction = factor(direction)
+      )
+    
+    formula1 <- as.formula(paste(outcome_var, "~ direction * consensus_numeric *", 
+                               quest_var, "+ age + (1|participant.id_in_session)"))
+    
+    formula2 <- as.formula(paste(outcome_var, "~ direction * consensus_numeric *", 
+                               quest_var, "+ age + (1|participant.id_in_session) + (1|gender)"))
+    
+    model1 <- lmer(formula1, data = data, control = lmerControl(optimizer = "bobyqa"))
+    model2 <- lmer(formula2, data = data, control = lmerControl(optimizer = "bobyqa"))
+    
+    models_list <- list(model1, model2)
+    aic_values <- sapply(models_list, AIC)
+    winning_model <- models_list[[which.min(aic_values)]]
+    
+    model_anova <- car::Anova(winning_model, type = 2)
+    interaction_p <- model_anova[paste0("direction:consensus_numeric:", quest_var), "Pr(>Chisq)"]
+    
+    list(
+      questionnaire = quest_var,
+      trial_type = data_type,
+      winning_model = winning_model,
+      p_value = interaction_p,
+      aic = min(aic_values),
+      diagnostics = check_model_diagnostics(winning_model)
+    )
+  }
+  
+  # Define subscale mapping
+  subscale_mapping <- list(
+    lsas = c("lsas_p", "lsas_s"),
+    dass = c("dass_a", "dass_d", "dass_s"),
+    ssms = c("ssms_cd", "ssms_ia"),
+    srp_sf = c("srp_sf_ipm", "srp_sf_ca", "srp_sf_els", "srp_sf_ct"),
+    ami = c("ami_es", "ami_sm", "ami_ba"),
+    aq_10 = NULL
+  )
+  
+  # Run moderation analysis
+  run_moderation_analysis <- function(data, scale_name, subscales = NULL, trial_type) {
+    
+    # Run base model without any scale moderation for comparison
+    base_model <- lmer(as.formula(paste(outcome_var, "~ direction * consensus_numeric + 
+                                      age + (1|participant.id_in_session)")),
+                      data = data,
+                      control = lmerControl(optimizer = "bobyqa"))
+    
+    # Run moderation for main scale
+    main_model <- lmer(as.formula(paste(outcome_var, "~ direction * consensus_numeric * scale_name + 
+                                      age + (1|participant.id_in_session)")),
+                      data = data,
+                      control = lmerControl(optimizer = "bobyqa"))
+    
+    # Compare models
+    main_comparison <- anova(base_model, main_model)
+    
+    # Calculate effect size
+    vc <- VarCorr(main_model)
+    var_random <- sum(sapply(vc, function(x) x[1]))
+    var_residual <- attr(vc, "sc")^2
+    var_fixed <- var(fitted(main_model))
+    effect_size <- var_fixed / (var_fixed + var_random + var_residual)
+    
+    results <- list(
+      main = list(
+        scale = scale_name,
+        base_model = base_model,
+        model = main_model,
+        model_comparison = main_comparison,
+        effect_size = effect_size,
+        summary = summary(main_model)
+      )
+    )
+    
+    # Run for subscales if they exist
+    if (!is.null(subscales)) {
+      subscale_results <- map(subscales, function(subscale) {
+        if(subscale %in% names(data)) {
+          # Use the main scale model as the base for subscale comparison
+          base_sub_model <- main_model
+          
+          # Create formula for subscale model
+          sub_formula <- paste0(outcome_var, " ~ direction * consensus_numeric * scale_name + ",
+                             "direction * consensus_numeric * `", subscale, "` + ",
+                             "scale_name * `", subscale, "` + ",
+                             "age + (1|participant.id_in_session)")
+          
+          # Run subscale model
+          sub_model <- lmer(as.formula(sub_formula),
+                           data = data,
+                           control = lmerControl(optimizer = "bobyqa"))
+          
+          # Compare models
+          sub_comparison <- anova(base_sub_model, sub_model)
+          
+          # Calculate effect size
+          vc <- VarCorr(sub_model)
+          var_random <- sum(sapply(vc, function(x) x[1]))
+          var_residual <- attr(vc, "sc")^2
+          var_fixed <- var(fitted(sub_model))
+          sub_effect_size <- var_fixed / (var_fixed + var_random + var_residual)
+          
+          list(
+            scale = subscale,
+            base_model = base_sub_model,
+            model = sub_model,
+            model_comparison = sub_comparison,
+            effect_size = sub_effect_size,
+            summary = summary(sub_model)
+          )
+        } else {
+          NULL
+        }
+      })
+      results$subscales <- compact(subscale_results)
+    }
+    
+    return(results)
+  }
+  
+  create_moderation_plot <- function(model, scale_name, trial_type) {
+    # Get the model frame to ensure we have all required variables
+    model_frame <- model@frame
+    
+    # Check if this is a subscale analysis
+    is_subscale <- grepl("_", scale_name)  # e.g., "dass_a" contains underscore
+    
+    # Create data frame for predictions
+    new_data <- expand.grid(
+        direction = levels(model_frame$direction),
+        consensus_numeric = sort(unique(model_frame$consensus_numeric)),
+        scale_name = c(-1, 0, 1),
+        age = 0
+    )
+    
+    # If this is a subscale analysis, add the subscale variable
+    if(is_subscale) {
+        new_data[[scale_name]] <- 0  # Add with mean value
+    }
+    
+    # Get predictions
+    new_data$predicted <- predict(model, newdata = new_data, re.form = NA)
+    if(is_percentage) new_data$predicted <- new_data$predicted * 100
+    
+    # Convert consensus numeric to factor for plotting
+    new_data <- new_data %>%
+      mutate(
+        consensus_level = case_when(
+          consensus_numeric == 2 ~ "4:0",
+          consensus_numeric == 1 ~ "3:1",
+          consensus_numeric == 0 ~ "2:2"
+        ),
+        consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0"))
+      )
+    
+    # Create plot
+    p <- ggplot(new_data, 
+                aes(x = consensus_level, 
+                    y = predicted, 
+                    color = direction,
+                    linetype = as.factor(scale_name),
+                    group = interaction(direction, scale_name))) +
+      geom_line() +
+      geom_point() +
+      scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+      scale_linetype_discrete(name = "Scale Score",
+                            labels = c("-1 SD", "Mean", "+1 SD")) +
+      theme_custom +
+      labs(title = paste("Moderation Effect of", scale_name, "in", trial_type),
+           x = "Consensus Level",
+           y = y_label)
+    
+    print(p)
+  }
+  
+  create_moderation_slopes_plot <- function(model, scale_name, trial_type) {
+    # Get the model frame to ensure we have all required variables
+    model_frame <- model@frame
+    
+    # Check if this is a subscale analysis
+    is_subscale <- grepl("_", scale_name)  # e.g., "dass_a" contains underscore
+    
+    # Create prediction grid
+    new_data <- expand.grid(
+        direction = levels(model_frame$direction),
+        consensus_numeric = seq(min(model_frame$consensus_numeric), 
+                            max(model_frame$consensus_numeric), 
+                            length.out = 100),
+        scale_name = c(-1, 0, 1),
+        age = 0
+    )
+    
+    # If this is a subscale analysis, add the subscale variable
+    if(is_subscale) {
+        new_data[[scale_name]] <- 0  # Add with mean value
+    }
+    
+    # Get predictions
+    new_data$predicted <- predict(model, newdata = new_data, re.form = NA)
+    if(is_percentage) new_data$predicted <- new_data$predicted * 100
+    
+    # Create plot
+    p <- ggplot(new_data, 
+                aes(x = consensus_numeric,
+                    y = predicted,
+                    color = direction)) +
+      geom_line(aes(linetype = factor(scale_name,
+                                    levels = c(-1, 0, 1),
+                                    labels = c("-1 SD", "Mean", "+1 SD")))) +
+      scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+      theme_custom +
+      labs(title = paste("Simple Slopes Analysis for", scale_name, "in", trial_type),
+           subtitle = "Moderation Effect",
+           x = "Consensus Level",
+           y = y_label,
+           color = "Direction",
+           linetype = "Scale Level")
+    
+    print(p)
+  }
+  
+  # Run analyses
+  questionnaire_vars <- c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10")
+  trial_types <- c("switch", "stay")
+  
+  all_results <- list()
+  
+  for(var in questionnaire_vars) {
+    for(trial in trial_types) {
+      result <- run_questionnaire_models(var, trial)
+      all_results[[paste(var, trial, sep="_")]] <- tibble(
+        questionnaire = result$questionnaire,
+        trial_type = result$trial_type,
+        p_value = result$p_value,
+        p_adjusted = p.adjust(result$p_value, method = "fdr"),
+        aic = result$aic,
+        resid_normality = result$diagnostics$resid_normality,
+        model_converged = !is.null(result$diagnostics$convergence)
+      )
+    }
+  }
+  
+  model_results <- bind_rows(all_results)
+  
+  # Process significant results (CHANGE P-VALUE HERE)
+  significant_results <- model_results %>%
+    filter(p_adjusted < 0.1)
+  
+  # Store moderation results in a list
+  moderation_results_list <- list()
+  
+  if(nrow(significant_results) > 0) {
+    for(i in 1:nrow(significant_results)) {
+      var <- significant_results$questionnaire[i]
+      trial_type <- significant_results$trial_type[i]
+      
+      # Continuous relationship plot
+      plot_continuous_relationship(var, trial_datasets, model_results)
+      
+      # Median-split plot
+      summary_data <- bind_rows(
+        trial_datasets$switch_data %>% mutate(trial_type = "Switch trials"),
+        trial_datasets$stay_data %>% mutate(trial_type = "Stay trials")
+      ) %>%
+        mutate(
+          consensus_level = case_when(
+            consensus_numeric == 2 ~ "4:0",
+            consensus_numeric == 1 ~ "3:1",
+            consensus_numeric == 0 ~ "2:2"
+          ),
+          consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
+          quest_group = ifelse(.data[[var]] > median(.data[[var]]), "High", "Low")
+        ) %>%
+        group_by(consensus_level, direction, quest_group, trial_type) %>%
+        summarise(
+          mean_outcome = mean(!!sym(outcome_var)),
+          se = sd(!!sym(outcome_var)) / sqrt(n()),
+          .groups = 'drop'
+        )
+      
+      if(is_percentage) {
+        summary_data$mean_outcome <- summary_data$mean_outcome * 100
+        summary_data$se <- summary_data$se * 100
+      }
+      
+      p_median <- ggplot(summary_data, 
+                        aes(x = consensus_level, 
+                            y = mean_outcome, 
+                            color = direction,
+                            linetype = quest_group,
+                            group = interaction(direction, quest_group))) +
+        geom_line() +
+        geom_point() +
+        geom_errorbar(aes(ymin = mean_outcome - se, 
+                          ymax = mean_outcome + se), 
+                      width = 0.2) +
+        facet_grid(trial_type ~ .) +
+        scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+        labs(x = "Group consensus",
+             y = y_label,
+             title = paste("Effect of", var, "(Median-split)"),
+             subtitle = paste("p =", format.pval(significant_results$p_value[i], digits = 3))) +
+        theme_custom
+      
+      print(p_median)
+      
+      # Run moderation analysis for significant results
+      if(var %in% names(subscale_mapping)) {
+        subscales <- subscale_mapping[[var]]
+        
+        data <- if(trial_type == "switch") {
+          trial_datasets$switch_data
+        } else {
+          trial_datasets$stay_data
+        }
+        
+        mod_data <- data %>%
+          rename(scale_name = !!var)
+        
+        # Store moderation results in the list
+        current_moderation <- run_moderation_analysis(mod_data, var, subscales, trial_type)
+        moderation_results_list[[paste(var, trial_type, sep="_")]] <- current_moderation
+        
+        # Print moderation results
+        cat("\nModeration Analysis Results for", var, "in", trial_type, "trials\n")
+        print(car::Anova(current_moderation$main$model, type = 2))
+        
+        # Create and print moderation plot for main scale
+        create_moderation_plot(current_moderation$main$model, var, trial_type)
+        create_moderation_slopes_plot(current_moderation$main$model, var, trial_type)
+        
+        if(!is.null(current_moderation$subscales)) {
+          cat("\nSubscale Results:\n")
+          for(sub_result in current_moderation$subscales) {
+            cat("\nSubscale:", sub_result$scale, "\n")
+            print(car::Anova(sub_result$model, type = 2))
+            
+            # Create and print moderation plots for subscales
+            create_moderation_plot(sub_result$model, sub_result$scale, trial_type)
+            create_moderation_slopes_plot(sub_result$model, sub_result$scale, trial_type)
+          }
+        }
+      }
+    }
+  } else {
+    print("No significant relationships found after multiple comparison correction")
+  }
+  
+  # Format and save results
+  results_text <- format_switch_consensus_results(model_results, 
+                                                if(length(moderation_results_list) > 0) moderation_results_list else NULL)
+  
+  # Create output directory if it doesn't exist
+  dir.create(here("output", "behav"), showWarnings = FALSE, recursive = TRUE)
+  
+  # Save results
+  writeLines(results_text, here("output", "behav", paste0(output_prefix, ".txt")))
+}
+
+# Run analyses for both outcomes
+run_behavioral_analysis(
+  outcome_var = "player.choice1_accuracy",
+  is_percentage = TRUE,
+  y_label = "Choice 1 accuracy on t + 1 (%)",
+  output_prefix = "choice_accuracy_by_switch_and_consensus"
+)
+
+run_behavioral_analysis(
+  outcome_var = "player.bet1",
+  is_percentage = FALSE,
+  y_label = "Bet magnitude",
+  output_prefix = "bet_magnitude_by_switch_and_consensus"
+)
+```
+
+
+## Supplementary analyses
+
+Bet difference as a function of choice switching on the current trial and group consensus (Fig Supp 2A)
+
+```{r}
+# Set significance threshold for analyses
+SIGNIFICANCE_THRESHOLD <- 0.2
+
+################## SHARED UTILITY FUNCTIONS ###################
+
+theme_custom <- theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "right",
+    plot.title = element_text(size = 12, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    axis.title = element_text(size = 10),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9)
+  )
+
+check_model_diagnostics <- function(model) {
+  conv_check <- model@optinfo$conv$opt
+  list(
+    convergence = conv_check,
+    resid_mean = mean(residuals(model)),
+    resid_sd = sd(residuals(model)),
+    resid_normality = shapiro.test(residuals(model))$p.value,
+    outliers = length(boxplot.stats(residuals(model))$out)
+  )
+}
+
+################## DATA PROCESSING FUNCTIONS ###################
+
+process_data <- function(data) {
+  data %>%
+    mutate(
+      bet_difference = player.bet2 - player.bet1,
+      consensus_numeric = case_when(
+        player.choice1_with %in% c(0, 1) ~ 2,  # 4:0
+        player.choice1_with %in% c(0.25, 0.75) ~ 1,  # 3:1
+        player.choice1_with == 0.5 ~ 0  # 2:2
+      ),
+      direction = if_else(player.choice1_with > 0.5, "With group", "Against group")
+    )
+}
+
+process_subscale_data <- function(data) {
+  subscale_data <- data %>%
+    group_by(participant.id_in_session) %>%
+    slice(1) %>%
+    select(participant.id_in_session,
+           lsas_p, lsas_s,
+           dass_a, dass_d, dass_s,
+           ssms_cd, ssms_ia,
+           srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct,
+           ami_es, ami_sm, ami_ba)
+  
+  subscale_data %>%
+    ungroup() %>%
+    mutate(across(-participant.id_in_session, ~as.vector(scale(.x))))
+}
+
+################## MODEL FUNCTIONS ###################
+
+run_questionnaire_models <- function(quest_var, data) {
+  print(paste("\nRunning models for:", quest_var))
+  
+  analysis_data <- data %>%
+    mutate(
+      across(c(ssms, dass, lsas, srp_sf, ami, aq_10, age), scale),
+      gender = factor(gender),
+      direction = factor(direction),
+      switch_vs_stay = factor(player.switch_vs_stay),
+      participant.id_in_session = factor(participant.id_in_session)
+    )
+  
+  # Run models with increasing complexity
+  model1 <- lmer(as.formula(paste("bet_difference ~ direction * consensus_numeric * switch_vs_stay *", 
+                                 quest_var, "+ age + (1|participant.id_in_session)")),
+                data = analysis_data,
+                control = lmerControl(optimizer = "bobyqa"))
+  
+  model2 <- lmer(as.formula(paste("bet_difference ~ direction * consensus_numeric * switch_vs_stay *", 
+                                 quest_var, "+ age + (1|participant.id_in_session) + (1|gender)")),
+                data = analysis_data,
+                control = lmerControl(optimizer = "bobyqa"))
+  
+  model3 <- lmer(as.formula(paste("bet_difference ~ direction * consensus_numeric * switch_vs_stay *", 
+                                 quest_var, "+ age + (1|participant.id_in_session) + (1|gender) + 
+                                 (1|direction:participant.id_in_session)")),
+                data = analysis_data,
+                control = lmerControl(optimizer = "bobyqa"))
+  
+  model4 <- lmer(as.formula(paste("bet_difference ~ direction * consensus_numeric * switch_vs_stay *", 
+                                 quest_var, "+ age + (1|participant.id_in_session) + (1|gender) + 
+                                 (1|direction:participant.id_in_session) + (1|consensus_numeric:participant.id_in_session)")),
+                data = analysis_data,
+                control = lmerControl(optimizer = "bobyqa"))
+  
+  models_list <- list(model1, model2, model3, model4)
+  aic_values <- sapply(models_list, AIC)
+  winning_model <- models_list[[which.min(aic_values)]]
+  
+  model_anova <- car::Anova(winning_model, type = 2)
+  interaction_p <- model_anova[paste0("direction:consensus_numeric:switch_vs_stay:", quest_var), "Pr(>Chisq)"]
+  
+  list(
+    questionnaire = quest_var,
+    winning_model = winning_model,
+    all_models = models_list,
+    aic_values = aic_values,
+    p_value = interaction_p,
+    aic = min(aic_values),
+    diagnostics = check_model_diagnostics(winning_model)
+  )
+}
+
+################## PLOTTING FUNCTIONS ###################
+
+plot_continuous_relationship <- function(var, data, model_results) {
+  subject_averages <- data %>%
+    group_by(participant.id_in_session, direction, consensus_numeric, 
+             player.switch_vs_stay, .data[[var]]) %>%
+    summarise(
+      mean_diff = mean(bet_difference),
+      .groups = 'drop'
+    ) %>%
+    mutate(
+      consensus_level = case_when(
+        consensus_numeric == 2 ~ "4:0",
+        consensus_numeric == 1 ~ "3:1",
+        consensus_numeric == 0 ~ "2:2"
+      ),
+      consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0"))
+    )
+  
+  effects <- subject_averages %>%
+    group_by(direction, consensus_level, player.switch_vs_stay) %>%
+    summarise(
+      correlation = cor(.data[[var]], mean_diff),
+      .groups = 'drop'
+    )
+  
+  p <- ggplot(subject_averages, 
+              aes(x = .data[[var]], 
+                  y = mean_diff,
+                  color = direction)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth(method = "lm", formula = y ~ x) +
+    facet_grid(player.switch_vs_stay ~ consensus_level, 
+               labeller = labeller(player.switch_vs_stay = 
+                                   c("0" = "Stay trials", "1" = "Switch trials"))) +
+    labs(x = var,
+         y = "Bet difference (Bet 2 - Bet 1)",
+         title = paste("Relationship between", var, "and bet difference"),
+         subtitle = paste("p =", format.pval(model_results$p_value[
+           model_results$questionnaire == var], digits = 3)),
+         caption = paste("Effect sizes (r) range:", 
+                        round(min(effects$correlation, na.rm = TRUE), 3), "to",
+                        round(max(effects$correlation, na.rm = TRUE), 3))) +
+    scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+    theme_custom
+  
+  print(p)
+}
+
+plot_median_split <- function(var, data, model_results) {
+  summary_data <- data %>%
+    mutate(
+      consensus_level = case_when(
+        consensus_numeric == 2 ~ "4:0",
+        consensus_numeric == 1 ~ "3:1",
+        consensus_numeric == 0 ~ "2:2"
+      ),
+      consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
+      quest_group = ifelse(.data[[var]] > median(.data[[var]]), "High", "Low")
+    ) %>%
+    group_by(consensus_level, direction, quest_group, player.switch_vs_stay) %>%
+    summarise(
+      mean_diff = mean(bet_difference),
+      se = sd(bet_difference) / sqrt(n()),
+      .groups = 'drop'
+    )
+  
+  p <- ggplot(summary_data, 
+              aes(x = consensus_level, 
+                  y = mean_diff, 
+                  color = direction,
+                  linetype = quest_group,
+                  group = interaction(direction, quest_group))) +
+    geom_line() +
+    geom_point() +
+    geom_errorbar(aes(ymin = mean_diff - se, 
+                      ymax = mean_diff + se), 
+                  width = 0.2) +
+    facet_wrap(~player.switch_vs_stay,
+               labeller = labeller(player.switch_vs_stay = 
+                                   c("0" = "Stay trials", "1" = "Switch trials"))) +
+    scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+    labs(x = "Group consensus",
+         y = "Bet difference (Bet 2 - Bet 1)",
+         title = paste("Effect of", var, "(Median-split)"),
+         subtitle = paste("p =", format.pval(model_results$p_value[
+           model_results$questionnaire == var], digits = 3))) +
+    theme_custom
+  
+  print(p)
+}
+
+analyze_simple_slopes <- function(model, questionnaire_var, data) {
+  probe_points <- data %>%
+    summarise(
+      low = mean(!!sym(questionnaire_var)) - sd(!!sym(questionnaire_var)),
+      mean = mean(!!sym(questionnaire_var)),
+      high = mean(!!sym(questionnaire_var)) + sd(!!sym(questionnaire_var))
+    )
+  
+  pred_data <- expand.grid(
+    direction = unique(data$direction),
+    consensus_numeric = unique(data$consensus_numeric),
+    switch_vs_stay = c(0, 1),
+    quest_score = c(probe_points$low, probe_points$mean, probe_points$high)
+  ) %>%
+    mutate(
+      quest_level = rep(c("-1 SD", "Mean", "+1 SD"), 
+                       each = length(unique(data$direction)) * 
+                         length(unique(data$consensus_numeric)) * 2),
+      direction = factor(direction),
+      switch_vs_stay = factor(switch_vs_stay)
+    )
+  
+  pred_data$age <- 0
+  pred_data[[questionnaire_var]] <- pred_data$quest_score
+  pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
+  
+  pred_data <- pred_data %>%
+    mutate(
+      consensus_level = case_when(
+        consensus_numeric == 2 ~ "4:0",
+        consensus_numeric == 1 ~ "3:1",
+        consensus_numeric == 0 ~ "2:2"
+      ),
+      consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0"))
+    )
+  
+  plots <- list()
+  for(choice in c("0", "1")) {
+    plot_data <- pred_data %>% filter(switch_vs_stay == choice)
+    
+    p <- ggplot(plot_data, 
+                aes(x = consensus_level, 
+                    y = predicted,
+                    color = direction,
+                    linetype = quest_level,
+                    group = interaction(direction, quest_level))) +
+      geom_line() +
+      geom_point(size = 3) +
+      labs(title = paste("Simple slopes analysis for", questionnaire_var, 
+                        "\nin", if(choice == "0") "Stay" else "Switch", "trials"),
+           x = "Consensus Level",
+           y = "Predicted Bet Difference",
+           color = "Direction",
+           linetype = paste(questionnaire_var, "Level")) +
+      scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+      theme_custom
+    
+    plots[[choice]] <- p
+  }
+  
+  list(
+    predictions = pred_data,
+    plots = plots,
+    model_summary = summary(model)
+  )
+}
+
+################## MODERATION ANALYSIS ###################
+
+run_moderation_analysis <- function(data, scale_name, subscales = NULL) {
+  data <- data %>%
+    mutate(
+      direction = as.factor(direction),
+      consensus_numeric = as.factor(consensus_numeric),
+      switch_vs_stay = as.factor(switch_vs_stay),
+      participant.id_in_session = as.factor(participant.id_in_session)
+    )
+  
+  # Main scale analysis
+  main_model_formula <- paste("bet_difference ~ direction * consensus_numeric * switch_vs_stay *", 
+                            "scale_name + age + (1|participant.id_in_session)")
+  
+  main_model <- lmer(as.formula(main_model_formula),
+                    data = data,
+                    control = lmerControl(optimizer = "bobyqa"))
+  
+  results <- list(
+    main = list(
+      scale = scale_name,
+      model = main_model,
+      anova = car::Anova(main_model, type = 2)
+    )
+  )
+  
+  # Subscale analyses
+  if (!is.null(subscales) && length(subscales) > 0) {
+    subscale_results <- list()
+    
+    for (subscale in subscales) {
+      # Create formula for subscale model
+      subscale_formula <- paste("bet_difference ~ direction * consensus_numeric * switch_vs_stay *", 
+                              subscale, "+ age + (1|participant.id_in_session)")
+      
+      # Fit subscale model
+      subscale_model <- lmer(as.formula(subscale_formula),
+                           data = data,
+                           control = lmerControl(optimizer = "bobyqa"))
+      
+      # Store results
+      subscale_results[[subscale]] <- list(
+        scale = subscale,
+        model = subscale_model,
+        anova = car::Anova(subscale_model, type = 2)
+      )
+    }
+    
+    results$subscales <- subscale_results
+  }
+  
+  return(results)
+}
+
+################## RESULTS FORMATTING ###################
+
+format_results <- function(model_results, moderation_results = NULL) {
+  output_text <- "BET DIFFERENCE BY CHOICE SWITCH AND CONSENSUS - STATISTICAL ANALYSIS RESULTS\n\n"
+  
+  # Add timestamp
+  output_text <- paste0(output_text, "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
+  
+  # Primary Analysis Results
+  output_text <- paste0(output_text, "PRIMARY ANALYSIS RESULTS:\n",
+                       "================================\n")
+  
+  for(i in 1:nrow(model_results)) {
+    output_text <- paste0(output_text,
+                         "\nQuestionnaire: ", model_results$questionnaire[i], "\n",
+                         "p-value: ", format.pval(model_results$p_value[i], digits = 3), "\n",
+                         "FDR-adjusted p-value: ", format.pval(model_results$p_adjusted[i], digits = 3), "\n",
+                         "AIC: ", round(model_results$aic[i], 2), "\n",
+                         "Residual normality (p): ", format.pval(model_results$diagnostics$resid_normality[i], digits = 3), "\n",
+                         "Model converged: ", !is.null(model_results$diagnostics$convergence[i]), "\n")
+  }
+  
+  # Moderation Results
+  if(!is.null(moderation_results)) {
+    output_text <- paste0(output_text, "\n\nMODERATION ANALYSIS RESULTS:\n",
+                         "================================\n")
+    
+    for(scale_name in names(moderation_results)) {
+      results <- moderation_results[[scale_name]]
+      
+      # Main scale results
+      output_text <- paste0(output_text, 
+                           "\nScale: ", results$main$scale, "\n",
+                           "----------------\n",
+                           "Main effects:\n",
+                           paste(capture.output(results$main$anova), collapse = "\n"), 
+                           "\n\n")
+      
+      # Subscale results
+      if(!is.null(results$subscales) && length(results$subscales) > 0) {
+        output_text <- paste0(output_text, "Subscale Results:\n",
+                             "----------------\n")
+        
+        for(subscale_name in names(results$subscales)) {
+          sub_result <- results$subscales[[subscale_name]]
+          output_text <- paste0(output_text,
+                               "\nSubscale: ", sub_result$scale, "\n",
+                               paste(capture.output(sub_result$anova), collapse = "\n"),
+                               "\n\n")
+        }
+      }
+    }
+  }
+  
+  return(output_text)
+}
+
+################## MAIN ANALYSIS FUNCTION ###################
+
+run_analysis <- function() {
+  # Read and process data
+  df <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+                 show_col_types = FALSE) %>%
+    process_data()
+  
+  # Define questionnaire variables and subscale mapping
+  questionnaire_vars <- c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10")
+  subscale_mapping <- list(
+    lsas = c("lsas_p", "lsas_s"),
+    dass = c("dass_a", "dass_d", "dass_s"),
+    ssms = c("ssms_cd", "ssms_ia"),
+    srp_sf = c("srp_sf_ipm", "srp_sf_ca", "srp_sf_els", "srp_sf_ct"),
+    ami = c("ami_es", "ami_sm", "ami_ba"),
+    aq_10 = NULL
+  )
+  
+  # Run models for all questionnaires
+  all_results <- map(questionnaire_vars, function(var) {
+    result <- run_questionnaire_models(var, df)
+    tibble(
+      questionnaire = result$questionnaire,
+      p_value = result$p_value,
+      p_adjusted = p.adjust(result$p_value, method = "fdr"),
+      aic = result$aic,
+      diagnostics = list(result$diagnostics)
+    )
+  })
+  
+  # Combine results
+  model_results <- bind_rows(all_results)
+  
+  # Identify significant results
+  significant_vars <- model_results %>%
+    filter(p_adjusted < SIGNIFICANCE_THRESHOLD) %>%
+    pull(questionnaire)
+  
+  # Create plots for all relationships
+  for(var in questionnaire_vars) {
+    plot_continuous_relationship(var, df, model_results)
+  }
+  
+  # Process subscales and run moderation analysis for significant results
+  moderation_results <- NULL
+  if(length(significant_vars) > 0) {
+      # Process subscale data
+      subscale_data_scaled <- process_subscale_data(df)
+      
+      df_with_subscales <- df %>%
+          left_join(subscale_data_scaled, by = "participant.id_in_session") %>%
+          mutate(
+              switch_vs_stay = factor(player.switch_vs_stay, levels = c(0, 1)),
+              direction = factor(direction, levels = c("Against group", "With group")),
+              consensus_numeric = factor(consensus_numeric, levels = c(0, 1, 2)),
+              participant.id_in_session = factor(participant.id_in_session)
+          )
+      
+      # Run moderation analyses for significant scales and their subscales
+      moderation_results <- map(significant_vars, function(scale) {
+
+          # Get subscales for this scale
+          subscales <- subscale_mapping[[scale]]
+          
+          # Make a copy of the data for this analysis
+          mod_data <- df_with_subscales
+          
+          # Clean up subscale names and data
+          if (!is.null(subscales)) {
+              for (subscale in subscales) {
+                  # Use the .x version of the subscale (from the first join)
+                  subscale_x <- paste0(subscale, ".x")
+                  if (subscale_x %in% names(mod_data)) {
+                      # Create clean version of subscale without suffix
+                      mod_data <- mod_data %>%
+                          mutate(!!subscale := get(subscale_x))
+                  } else {
+                      print(paste("WARNING: Subscale not found:", subscale_x))
+                  }
+              }
+          }
+          
+          # Rename main scale last to avoid conflicts
+          mod_data <- mod_data %>%
+              rename(scale_name = !!scale)
+          
+          # Run moderation analysis for main scale and subscales
+          result <- run_moderation_analysis(mod_data, scale, subscales)
+          
+          # Return results
+          result
+      })
+      names(moderation_results) <- significant_vars
+      
+    # Create additional plots for significant results
+    for(var in significant_vars) {
+      plot_median_split(var, df, model_results)
+      result <- run_questionnaire_models(var, df)
+      slopes_analysis <- analyze_simple_slopes(result$winning_model, var, df)
+      print(slopes_analysis$plots[["0"]])
+      print(slopes_analysis$plots[["1"]])
+    }
+  }
+  
+  # Format and save results
+  results_text <- format_results(model_results, moderation_results)
+  
+  # Create output directory if it doesn't exist
+  dir.create(here("output", "behav"), showWarnings = FALSE, recursive = TRUE)
+  
+  # Save results
+  writeLines(results_text, 
+            here("output", "behav", "bet_difference_by_choice_switch.txt"))
+  
+  # Save moderation results object for further analysis if needed
+  if(!is.null(moderation_results)) {
+    saveRDS(moderation_results, 
+            here("output", "behav", "moderation_results.rds"))
+  }
+  
+  return(list(
+    model_results = model_results,
+    significant_vars = significant_vars,
+    moderation_results = moderation_results
+  ))
+}
+
+################## RUN ANALYSES ###################
+
+# Set random seed for reproducibility
+set.seed(123)
+
+# Run the analysis
+results <- run_analysis()
+
+# Print summary of results
+cat("\nAnalysis complete.\n")
+cat("Number of significant questionnaires:", length(results$significant_vars), "\n")
+if(length(results$significant_vars) > 0) {
+  cat("Significant questionnaires:", paste(results$significant_vars, collapse = ", "), "\n")
+}
+
+# Print location of results file
+cat("\nDetailed results have been saved to:", 
+    here("output", "behav", "bet_difference_by_choice_switch.txt"), "\n")
+```
+
+
+### Choice accuracy and bet magnitude relative to reversal (Figs S2-B-C)
+
+Choice accuracy and bet magnitude relative to reversal (plus and minus 3 trials)
+
+```{r}
+# Read and prepare data
+df <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), show_col_types = FALSE)
+
+# Set significance threshold at the top of the script
+SIGNIFICANCE_THRESHOLD <- 0.1
+
+# First, let's see when reversals occur
+reversal_trials <- df %>% 
+  filter(group.reversal_happened == 1) %>%
+  select(group.trial_number) %>%
+  distinct()
+print("Reversal occurs on trials:")
+print(reversal_trials)
+
+# Prepare base questionnaire data first
+base_df <- df %>%
+  distinct(participant.id_in_session, .keep_all = TRUE) %>%
+  select(participant.id_in_session, 
+         # Main scales
+         ssms, dass, lsas, srp_sf, ami, aq_10,
+         # Subscales
+         lsas_p, lsas_s,
+         dass_a, dass_d, dass_s,
+         ssms_cd, ssms_ia,
+         srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct,
+         ami_es, ami_sm, ami_ba,
+         # Demographics
+         age, gender)
+
+# Function to format results text
+format_results <- function(model_results, moderation_results = NULL, outcome_name) {
+  output_text <- sprintf("ANALYSIS RESULTS FOR %s\n\n", toupper(outcome_name))
+  
+  # Add timestamp
+  output_text <- paste0(output_text, "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
+  
+  # Main results section
+  output_text <- paste0(output_text, "PRIMARY ANALYSIS RESULTS:\n",
+                       "================================\n")
+  
+  # Add main model results
+  for(i in 1:nrow(model_results)) {
+    output_text <- paste0(output_text,
+                         "\nQuestionnaire: ", model_results$questionnaire[i], "\n",
+                         "p-value: ", format.pval(model_results$p_value[i], digits = 3), "\n",
+                         "FDR-adjusted p-value: ", format.pval(model_results$p_adjusted[i], digits = 3), "\n",
+                         "AIC: ", round(model_results$aic[i], 2), "\n",
+                         "Residual normality (p): ", format.pval(model_results$resid_normality[i], digits = 3), "\n",
+                         "Model converged: ", model_results$model_converged[i], "\n")
+  }
+  
+  if(!is.null(moderation_results)) {
+    output_text <- paste0(output_text, "\n\nMODERATION ANALYSIS RESULTS:\n",
+                         "================================\n")
+    
+    for(scale_name in names(moderation_results)) {
+      results <- moderation_results[[scale_name]]
+      
+      # Print model comparison results
+      if(!is.null(results$model_comparison)) {
+        output_text <- paste0(output_text,
+                            "\nScale: ", scale_name, "\n",
+                            "Model comparison chi-square: ", 
+                            round(results$model_comparison$Chisq[2], 3), "\n",
+                            "p-value: ", 
+                            format.pval(results$model_comparison$`Pr(>Chisq)`[2], digits = 3), "\n")
+      }
+      
+      if(!is.null(results$subscales)) {
+        output_text <- paste0(output_text, "\nSubscale Results:\n")
+        for(sub_result in results$subscales) {
+          if(!is.null(sub_result)) {
+            output_text <- paste0(output_text,
+                                "\nSubscale: ", sub_result$scale, "\n")
+            if(!is.null(sub_result$model_comparison)) {
+              output_text <- paste0(output_text,
+                                  "Chi-square: ", 
+                                  round(sub_result$model_comparison$Chisq[2], 3), "\n",
+                                  "p-value: ", 
+                                  format.pval(sub_result$model_comparison$`Pr(>Chisq)`[2], digits = 3), "\n")
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return(output_text)
+}
+
+# Function to create analysis dataframe
+create_analysis_df <- function(df, outcome_var) {
+  analysis_df <- df %>%
+    select(
+      participant.id_in_session,
+      group.trial_number,
+      {{outcome_var}},
+      group.reversal_happened
+    ) %>%
+    # Get trials relative to reversal and check for complete windows
+    group_by(participant.id_in_session) %>%
+    mutate(
+      # For each trial, get its position relative to the closest reversal
+      trial_to_reversal = map_dbl(group.trial_number, function(x) {
+        reversal_trial <- reversal_trials$group.trial_number
+        relative_pos <- x - reversal_trial
+        if(any(abs(relative_pos) <= 3)) {
+          relative_pos[which.min(abs(relative_pos))]
+        } else {
+          NA
+        }
+      }),
+      # For each trial within a window, check if all 7 trials exist
+      complete_window = map_lgl(group.trial_number, function(x) {
+        reversal_trial <- reversal_trials$group.trial_number
+        rel_pos <- x - reversal_trial
+        if(any(abs(rel_pos) <= 3)) {
+          closest_reversal <- reversal_trial[which.min(abs(rel_pos))]
+          required_trials <- (closest_reversal - 3):(closest_reversal + 3)
+          all(required_trials %in% group.trial_number)
+        } else {
+          FALSE
+        }
+      })
+    ) %>%
+    # Keep only complete windows
+    filter(!is.na(trial_to_reversal) & complete_window) %>%
+    ungroup() %>%
+    # Join with questionnaire data
+    left_join(base_df, by = "participant.id_in_session") %>%
+    mutate(
+      trial_to_reversal = factor(trial_to_reversal),
+      participant.id_in_session = factor(participant.id_in_session),
+      # Scale questionnaire variables
+      across(c(ssms, dass, lsas, srp_sf, ami, aq_10, age), scale)
+    )
+  
+  return(analysis_df)
+}
+
+# Function to run questionnaire models
+run_questionnaire_models <- function(quest_var, data, outcome_var) {
+  print(paste("\nRunning models for:", quest_var))
+  
+  # Run models
+  model1 <- lmer(as.formula(paste(outcome_var, "~ trial_to_reversal *", 
+                                 quest_var, "+ age + (1|participant.id_in_session)")),
+                data = data,
+                control = lmerControl(optimizer = "bobyqa"))
+  
+  model2 <- lmer(as.formula(paste(outcome_var, "~ trial_to_reversal *", 
+                                 quest_var, "+ age + (1|participant.id_in_session) + (1|gender)")),
+                data = data,
+                control = lmerControl(optimizer = "bobyqa"))
+  
+  # Get best model
+  models_list <- list(model1, model2)
+  aic_values <- sapply(models_list, AIC)
+  winning_model <- models_list[[which.min(aic_values)]]
+  
+  # Get model statistics
+  model_anova <- car::Anova(winning_model, type = 2)
+  interaction_p <- model_anova[paste0("trial_to_reversal:", quest_var), "Pr(>Chisq)"]
+  
+  # Check model diagnostics
+  diagnostics <- list(
+    resid_normality = shapiro.test(residuals(winning_model))$p.value,
+    model_converged = !is.null(winning_model@optinfo$conv$opt)
+  )
+  
+  list(
+    questionnaire = quest_var,
+    winning_model = winning_model,
+    p_value = interaction_p,
+    aic = min(aic_values),
+    diagnostics = diagnostics
+  )
+}
+
+# Define subscale mapping
+subscale_mapping <- list(
+  lsas = c("lsas_p", "lsas_s"),
+  dass = c("dass_a", "dass_d", "dass_s"),
+  ssms = c("ssms_cd", "ssms_ia"),
+  srp_sf = c("srp_sf_ipm", "srp_sf_ca", "srp_sf_els", "srp_sf_ct"),
+  ami = c("ami_es", "ami_sm", "ami_ba"),
+  aq_10 = NULL
+)
+
+# Custom theme
+theme_custom <- theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "right",
+    plot.title = element_text(size = 12, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    axis.title = element_text(size = 10),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9)
+  )
+
+# Function to run moderation analysis
+run_moderation_analysis <- function(data, scale_name, subscales, outcome_var) {
+  # Rename scale variable to generic name for modeling
+  mod_data <- data %>%
+    rename(scale_name = !!scale_name)
+  
+  # Run base model
+  base_model <- lmer(as.formula(paste(outcome_var, "~ trial_to_reversal + age + (1|participant.id_in_session)")),
+                    data = mod_data,
+                    control = lmerControl(optimizer = "bobyqa"))
+  
+  # Run model with scale
+  scale_model <- lmer(as.formula(paste(outcome_var, "~ trial_to_reversal * scale_name + age + (1|participant.id_in_session)")),
+                     data = mod_data,
+                     control = lmerControl(optimizer = "bobyqa"))
+  
+  # Compare models
+  model_comparison <- anova(base_model, scale_model)
+  
+  results <- list(
+    scale = scale_name,
+    base_model = base_model,
+    model = scale_model,
+    model_comparison = model_comparison
+  )
+  
+  # Run subscale analyses if applicable
+  if(!is.null(subscales)) {
+    subscale_results <- list()
+    for(subscale in subscales) {
+      if(subscale %in% names(mod_data)) {
+        sub_model <- lmer(as.formula(paste(outcome_var, "~ trial_to_reversal * scale_name * ", 
+                                         subscale, "+ age + (1|participant.id_in_session)")),
+                         data = mod_data,
+                         control = lmerControl(optimizer = "bobyqa"))
+        
+        sub_comparison <- anova(scale_model, sub_model)
+        
+        subscale_results[[subscale]] <- list(
+          scale = subscale,
+          model = sub_model,
+          model_comparison = sub_comparison
+        )
+      }
+    }
+    results$subscales <- subscale_results
+  }
+  
+  return(results)
+}
+
+# Function to create plots
+create_plots <- function(data, result, outcome_var, is_percentage = FALSE) {
+  var <- result$questionnaire
+  
+  # Continuous relationship plot
+  summary_data <- data %>%
+    group_by(trial_to_reversal, .data[[var]]) %>%
+    summarise(
+      mean_outcome = mean(.data[[outcome_var]]),
+      se = sd(.data[[outcome_var]]) / sqrt(n()),
+      .groups = 'drop'
+    )
+  
+  if(is_percentage) {
+    summary_data$mean_outcome <- summary_data$mean_outcome * 100
+    summary_data$se <- summary_data$se * 100
+  }
+  
+  p1 <- ggplot(summary_data, 
+               aes(x = .data[[var]], 
+                   y = mean_outcome)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    facet_wrap(~trial_to_reversal) +
+    labs(x = var,
+         y = if(is_percentage) "Accuracy (%)" else "Bet magnitude",
+         title = paste("Effect of", var),
+         subtitle = paste("p =", format.pval(result$p_value, digits = 3))) +
+    theme_custom
+  
+  print(p1)
+  
+  # Median-split plot
+  summary_data_split <- data %>%
+    mutate(
+      quest_group = ifelse(.data[[var]] > median(.data[[var]]), "High", "Low")
+    ) %>%
+    group_by(trial_to_reversal, quest_group) %>%
+    summarise(
+      mean_outcome = mean(.data[[outcome_var]]),
+      se = sd(.data[[outcome_var]]) / sqrt(n()),
+      .groups = 'drop'
+    )
+  
+  if(is_percentage) {
+    summary_data_split$mean_outcome <- summary_data_split$mean_outcome * 100
+    summary_data_split$se <- summary_data_split$se * 100
+  }
+  
+  p2 <- ggplot(summary_data_split, 
+               aes(x = trial_to_reversal, 
+                   y = mean_outcome, 
+                   color = quest_group,
+                   group = quest_group)) +
+    geom_line() +
+    geom_point() +
+    geom_errorbar(aes(ymin = mean_outcome - se, 
+                      ymax = mean_outcome + se), 
+                  width = 0.2) +
+    labs(x = "Trial relative to reversal",
+         y = if(is_percentage) "Accuracy (%)" else "Bet magnitude",
+         title = paste("Effect of", var, "(Median-split)"),
+         subtitle = paste("p =", format.pval(result$p_value, digits = 3))) +
+    theme_custom
+  
+  print(p2)
+}
+
+# Function to create moderation plot
+create_moderation_plot <- function(model, title, outcome_var, is_percentage = FALSE) {
+  # Create prediction grid
+  pred_data <- expand.grid(
+    trial_to_reversal = unique(model@frame$trial_to_reversal),
+    scale_name = c(-1, 0, 1)  # -1 SD, Mean, +1 SD
+  )
+  pred_data$age <- 0  # Set age to mean (0 after scaling)
+  
+  # Get predictions
+  pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
+  if(is_percentage) pred_data$predicted <- pred_data$predicted * 100
+  
+  # Create plot
+  p <- ggplot(pred_data, 
+              aes(x = trial_to_reversal, 
+                  y = predicted, 
+                  color = factor(scale_name, 
+                               labels = c("-1 SD", "Mean", "+1 SD")),
+                  group = scale_name)) +
+    geom_line() +
+    geom_point() +
+    labs(x = "Trial relative to reversal",
+         y = if(is_percentage) "Accuracy (%)" else "Bet magnitude",
+         color = "Scale Score",
+         title = title) +
+    theme_custom
+  
+  print(p)
+}
+
+# Function to create moderation plots for subscales
+create_subscale_moderation_plot <- function(model, subscale, title, outcome_var, is_percentage = FALSE) {
+  # Create prediction grid
+  pred_data <- expand.grid(
+    trial_to_reversal = unique(model@frame$trial_to_reversal),
+    scale_name = 0,  # Hold main scale at mean
+    subscale = c(-1, 0, 1)  # -1 SD, Mean, +1 SD of subscale
+  )
+  pred_data$age <- 0  # Set age to mean
+  
+  # Get predictions
+  pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
+  if(is_percentage) pred_data$predicted <- pred_data$predicted * 100
+  
+  # Create plot
+  p <- ggplot(pred_data, 
+              aes(x = trial_to_reversal, 
+                  y = predicted, 
+                  color = factor(subscale, 
+                               labels = c("-1 SD", "Mean", "+1 SD")),
+                  group = subscale)) +
+    geom_line() +
+    geom_point() +
+    labs(x = "Trial relative to reversal",
+         y = if(is_percentage) "Accuracy (%)" else "Bet magnitude",
+         color = "Subscale Score",
+         title = title) +
+    theme_custom
+  
+  print(p)
+}
+
+# Main analysis function
+run_analysis <- function(outcome_var, is_percentage = FALSE, output_filename) {
+  # Create analysis dataset
+  analysis_df <- create_analysis_df(df, outcome_var)
+  
+  # Run questionnaire models
+  questionnaire_vars <- c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10")
+  all_results <- list()
+  
+  for(var in questionnaire_vars) {
+    result <- run_questionnaire_models(var, analysis_df, outcome_var)
+    all_results[[var]] <- tibble(
+      questionnaire = result$questionnaire,
+      p_value = result$p_value,
+      p_adjusted = p.adjust(result$p_value, method = "fdr"),
+      aic = result$aic,
+      resid_normality = result$diagnostics$resid_normality,
+      model_converged = result$diagnostics$model_converged
+    )
+  }
+  
+  model_results <- bind_rows(all_results)
+  
+  # Process significant results
+  significant_results <- model_results %>%
+    filter(p_adjusted < SIGNIFICANCE_THRESHOLD)
+  
+  # Run moderation analyses and create plots for significant results
+  moderation_results <- list()
+  
+  if(nrow(significant_results) > 0) {
+    for(i in 1:nrow(significant_results)) {
+      var <- significant_results$questionnaire[i]
+      
+      # Create plots
+      create_plots(analysis_df, 
+                  list(questionnaire = var, 
+                       p_value = significant_results$p_value[i]), 
+                  outcome_var, 
+                  is_percentage)
+      
+      # Run moderation analysis if subscales exist
+      if(var %in% names(subscale_mapping)) {
+        subscales <- subscale_mapping[[var]]
+        moderation_results[[var]] <- run_moderation_analysis(
+          analysis_df, 
+          var, 
+          subscales,
+          outcome_var
+        )
+        
+        # Plot main scale moderation
+        main_model <- moderation_results[[var]]$model
+        create_moderation_plot(
+          main_model,
+          paste("Moderation Effect of", var),
+          outcome_var,
+          is_percentage
+        )
+        
+        # Plot subscale moderations if significant
+        if(!is.null(moderation_results[[var]]$subscales)) {
+          for(sub_result in moderation_results[[var]]$subscales) {
+            if(!is.null(sub_result$model_comparison)) {
+              if(sub_result$model_comparison$`Pr(>Chisq)`[2] < SIGNIFICANCE_THRESHOLD) {
+                create_subscale_moderation_plot(
+                  sub_result$model,
+                  sub_result$scale,
+                  paste("Moderation Effect of", sub_result$scale),
+                  outcome_var,
+                  is_percentage
+                )
+              }
+            }
+          }
+        }
+      }
+    }
+  } else {
+    print("No significant relationships found after multiple comparison correction")
+  }
+  
+  # Format and save results
+  results_text <- format_results(
+    model_results, 
+    if(length(moderation_results) > 0) moderation_results else NULL,
+    outcome_var
+  )
+  
+  # Create output directory if it doesn't exist
+  dir.create(here("output", "behav"), showWarnings = FALSE, recursive = TRUE)
+  
+  # Save results
+  writeLines(results_text, here("output", "behav", paste0(output_filename, ".txt")))
+  
+  # Return results
+  list(
+    model_results = model_results,
+    moderation_results = moderation_results
+  )
+}
+
+# Run analyses for both outcomes with specific filenames
+accuracy_results <- run_analysis(
+  outcome_var = "player.choice1_accuracy",
+  is_percentage = TRUE,
+  output_filename = "choice_accuracy_by_trial_reversal"
+)
+
+bet_results <- run_analysis(
+  outcome_var = "player.bet1",
+  is_percentage = FALSE,
+  output_filename = "bet_magnitude_by_trial_reversal"
+)
+
+# Print overall summary using threshold variable
+cat("\nAnalysis Complete\n")
+cat("Number of significant results (Accuracy):", 
+    nrow(accuracy_results$model_results %>% filter(p_adjusted < SIGNIFICANCE_THRESHOLD)), "\n")
+cat("Number of significant results (Bet):", 
+    nrow(bet_results$model_results %>% filter(p_adjusted < SIGNIFICANCE_THRESHOLD)), "\n")
+```
+
+

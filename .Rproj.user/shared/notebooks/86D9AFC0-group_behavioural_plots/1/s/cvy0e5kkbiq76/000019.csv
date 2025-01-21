@@ -1,0 +1,26 @@
+"0","# Run bet magnitude analysis"
+"0","bet_results <- run_mixed_model_pipeline("
+"0","  data = data,"
+"0","  preprocessing_function = function(x) process_switch_accuracy_data(x, ""bet""),"
+"0","  model_formulas = get_switch_accuracy_formulas(""player.bet1""),"
+"0","  plot_function = create_switch_accuracy_plot,"
+"0","  analysis_name = ""Bet Magnitude by Switch and Consensus"","
+"0","  output_path = here(""output"", ""behav"", ""group"", "
+"0","                    ""bet_magnitude_by_switch_and_consensus.txt""),"
+"0","  additional_params = list("
+"0","    outcome_var = ""player.bet1"","
+"0","    y_label = ""Bet 1 magnitude on t + 1"","
+"0","    is_accuracy = FALSE,"
+"0","    emmeans_specs = c(""direction"", ""consensus_numeric"", ""choice_switch_across_trials"")"
+"0","  )"
+"0",")"
+"2","boundary (singular) fit: see help('isSingular')
+"
+"2","boundary (singular) fit: see help('isSingular')
+"
+"2","boundary (singular) fit: see help('isSingular')
+"
+"2","boundary (singular) fit: see help('isSingular')
+"
+"2","boundary (singular) fit: see help('isSingular')
+"

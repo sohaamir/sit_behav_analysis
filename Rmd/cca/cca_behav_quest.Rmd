@@ -1,0 +1,711 @@
+---
+title: "cca_behav_quest"
+author: "Aamir Sohail"
+date: "2025-01-11"
+output: html_document
+---
+
+# Description of this script
+
+This script runs the canonical correlation analyses between three sets of canonical variates (CVs):
+
+1. A behavioural CV containing:
+* Switch frequency under dissenting group consensus (lower % indicates pro-self-behaviour)
+* Stay frequency under confirming group consensus (lower % indicates pro-self-behaviour)
+* Bet difference under confirming consensus (positive values indicate increased confidence)
+* Bet difference under dissenting consensus (negative values indicate decreased confidence)
+
+2. A questionnaire CV consisting scores from each of the subscales of the questionnaire battery
+
+3. 
+
+The general pipeline for these analyses is as follows:
+
+1. 
+
+## Set-up and installation
+
+```{r setup, include=FALSE, message=FALSE, cache=TRUE, error=FALSE}
+# Install packages only if they are not already installed
+required_packages <- c("CCA", "tidyverse", "yacca", "ggplot2", "CCP", "PMA", "gridExtra", "here")
+install_if_missing <- required_packages[!required_packages %in% installed.packages()]
+if (length(install_if_missing) > 0) {
+  install.packages(install_if_missing, quietly = TRUE)
+}
+
+# Load libraries
+library(CCA)
+library(ggplot2)
+library(tidyverse)
+library(yacca)
+library(CCP)  # For permutation tests
+library(PMA)
+library(gridExtra)
+library(dplyr)
+library(knitr)
+library(here)
+```
+
+Generate synthetic data for testing
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Generate synthetic data
+n_participants <- 200  # Number of participants
+
+# Generate behavioral variables with some realistic correlations
+# Create base variables with some natural correlation
+behavior_base1 <- rnorm(n_participants)
+behavior_base2 <- rnorm(n_participants)
+
+# Generate behavioral data
+behavioral_data <- data.frame(
+  # Switch under dissent (40-60% range with some variation)
+  switch_dissent = pmin(pmax(45 + 10*behavior_base1 + rnorm(n_participants, 0, 5), 0), 100),
+  
+  # Stay under confirm (50-70% range)
+  stay_confirm = pmin(pmax(60 + 10*behavior_base1 - 5*behavior_base2 + rnorm(n_participants, 0, 5), 0), 100),
+  
+  # Bet difference under confirming (slight positive bias)
+  bet_diff_confirm = 0.2 + 0.3*behavior_base1 + 0.1*behavior_base2 + rnorm(n_participants, 0, 0.2),
+  
+  # Bet difference under dissenting (slight negative bias)
+  bet_diff_dissent = -0.2 - 0.2*behavior_base2 + rnorm(n_participants, 0, 0.2)
+)
+
+# Generate questionnaire data with realistic correlations
+# Create some base personality factors
+factor1 <- rnorm(n_participants)  # anxiety-related
+factor2 <- rnorm(n_participants)  # social-related
+factor3 <- rnorm(n_participants)  # mood-related
+factor4 <- rnorm(n_participants)  # personality-related
+
+questionnaire_data <- data.frame(
+  # LSAS (Social Anxiety) - correlated components
+  lsas_p = 20 + 5*factor1 + 3*factor2 + rnorm(n_participants, 0, 2),
+  lsas_s = 18 + 4*factor1 + 4*factor2 + rnorm(n_participants, 0, 2),
+  
+  # DASS (Depression Anxiety Stress) - correlated but distinct
+  dass_a = 5 + 2*factor1 + factor3 + rnorm(n_participants, 0, 1),
+  dass_d = 6 + factor1 + 2*factor3 + rnorm(n_participants, 0, 1),
+  dass_s = 7 + 1.5*factor1 + 1.5*factor3 + rnorm(n_participants, 0, 1),
+  
+  # SSMS (Social Media) - moderately correlated
+  ssms_cd = 15 + 2*factor2 + factor4 + rnorm(n_participants, 0, 2),
+  ssms_ia = 12 + 1.5*factor2 + 1.5*factor4 + rnorm(n_participants, 0, 2),
+  
+  # SRP (Personality) - distinct but related components
+  srp_sf_ipm = 10 + 2*factor4 + rnorm(n_participants, 0, 1),
+  srp_sf_ca = 8 + 1.5*factor4 + 0.5*factor1 + rnorm(n_participants, 0, 1),
+  srp_sf_els = 12 + 1.8*factor4 - 0.3*factor2 + rnorm(n_participants, 0, 1),
+  srp_sf_ct = 9 + 1.6*factor4 + 0.4*factor3 + rnorm(n_participants, 0, 1),
+  
+  # AMI (Additional measures) - somewhat independent
+  ami_es = 25 + 2*factor2 - factor3 + rnorm(n_participants, 0, 2),
+  ami_sm = 22 - 1.5*factor2 + factor4 + rnorm(n_participants, 0, 2),
+  ami_ba = 20 + factor2 + factor4 + rnorm(n_participants, 0, 2),
+  
+  # AQ-10 (Additional measure) - influenced by multiple factors
+  aq_10 = 5 + 0.5*factor1 + 0.5*factor2 + 0.5*factor3 + 0.5*factor4 + rnorm(n_participants, 0, 1)
+)
+
+# Combine into one dataset
+synthetic_data <- cbind(behavioral_data, questionnaire_data)
+
+# Save as CSV
+write.csv(synthetic_data, "synthetic_test_data.csv", row.names = FALSE)
+```
+
+## Behavioural-Questionnaire CCA
+
+Run the CCA between the behavioural and questionnaire CV's
+
+```{r}
+# Read and prepare data
+merged_data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), show_col_types = FALSE)
+
+# Prepare behavioral CV data
+behavioral_data <- merged_data %>%
+  group_by(participant.id_in_session) %>%
+  summarise(
+    switch_dissent = mean(player.switch_vs_stay[player.choice1_with < 0.5]) * 100,
+    stay_confirm = mean(1 - player.switch_vs_stay[player.choice1_with >= 0.5]) * 100,
+    bet_diff_confirm = mean(player.bet2[player.choice1_with >= 0.5] - 
+                          player.bet1[player.choice1_with >= 0.5]),
+    bet_diff_dissent = mean(player.bet2[player.choice1_with < 0.5] - 
+                          player.bet1[player.choice1_with < 0.5])
+  )
+
+# Prepare questionnaire CV data
+questionnaire_data <- merged_data %>%
+  group_by(participant.id_in_session) %>%
+  slice(1) %>%
+  select(participant.id_in_session,
+         lsas_p, lsas_s, 
+         dass_a, dass_d, dass_s,
+         ssms_cd, ssms_ia,
+         srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct,
+         ami_es, ami_sm, ami_ba,
+         aq_10)
+
+# Merge and z-score
+cca_data <- behavioral_data %>%
+  left_join(questionnaire_data, by = "participant.id_in_session") %>%
+  select(-participant.id_in_session)
+
+cca_data_scaled <- scale(cca_data) %>% as.data.frame() # replace cca_data with synthetic_data for testing
+
+# Prepare matrices for CCA
+X <- as.matrix(cca_data_scaled[, 1:4])  # Behavioral variables
+Y <- as.matrix(cca_data_scaled[, 5:19])  # Questionnaire variables
+
+# Function definitions
+check_normality <- function(X, Y) {
+  X_sw <- apply(X, 2, shapiro.test)
+  Y_sw <- apply(Y, 2, shapiro.test)
+  
+  X_qq <- lapply(1:ncol(X), function(i) {
+    ggplot(data.frame(sample = scale(X[,i])), aes(sample = sample)) +
+      stat_qq() + stat_qq_line() +
+      ggtitle(paste("QQ Plot: Behavioral Variable", i))
+  })
+  
+  Y_qq <- lapply(1:ncol(Y), function(i) {
+    ggplot(data.frame(sample = scale(Y[,i])), aes(sample = sample)) +
+      stat_qq() + stat_qq_line() +
+      ggtitle(paste("QQ Plot: Questionnaire Variable", i))
+  })
+  
+  return(list(X_qq = X_qq, Y_qq = Y_qq, X_sw = X_sw, Y_sw = Y_sw))
+}
+
+check_multicollinearity <- function(data_matrix, threshold = 0.9) {
+  cor_matrix <- cor(data_matrix)
+  high_cors <- which(abs(cor_matrix) > threshold & abs(cor_matrix) < 1, arr.ind = TRUE)
+  condition_number <- kappa(cor_matrix)
+  
+  list(
+    high_correlations = high_cors,
+    condition_number = condition_number,
+    correlation_matrix = cor_matrix
+  )
+}
+
+wilks_test <- function(cca_fit, n, p, q) {
+  k <- length(cca_fit$cor)
+  wilks <- rep(NA, k)
+  F_stats <- rep(NA, k)
+  p_values <- rep(NA, k)
+  df1 <- rep(NA, k)
+  df2 <- rep(NA, k)
+  
+  for(i in 1:k) {
+    wilks[i] <- prod((1 - cca_fit$cor[i:k]^2))
+    m <- n - 3/2 - (p + q)/2
+    p1 <- p - i + 1
+    q1 <- q - i + 1
+    d <- max(p1, q1)
+    df1[i] <- p1 * q1
+    df2[i] <- (n - p - q + 1) * d/2 + 1
+    
+    if(df2[i] > 0) {
+      F_stats[i] <- ((1 - wilks[i]^(1/d))/wilks[i]^(1/d)) * df2[i]/df1[i]
+      p_values[i] <- pf(F_stats[i], df1[i], df2[i], lower.tail = FALSE)
+    }
+  }
+  
+  data.frame(
+    Dimension = 1:k,
+    Canonical_Correlation = cca_fit$cor,
+    Wilks_Lambda = wilks,
+    F_statistic = F_stats,
+    df1 = df1,
+    df2 = df2,
+    p_value = p_values
+  )
+}
+
+bootstrap_ci <- function(X, Y, cca_fit, n_boot = 1000, alpha = 0.05) {
+  n_dims <- length(cca_fit$cor)
+  boot_cors <- matrix(NA, nrow = n_boot, ncol = n_dims)
+  
+  for(i in 1:n_boot) {
+    boot_idx <- sample(nrow(X), replace = TRUE)
+    tryCatch({
+      boot_cca <- cancor(X[boot_idx,], Y[boot_idx, 1:nrow(cca_fit$ycoef)])
+      if(!is.null(boot_cca$cor)) {
+        boot_cors[i,] <- boot_cca$cor[1:n_dims]
+      }
+    }, error = function(e) {
+      boot_cors[i,] <- NA
+    })
+  }
+  
+  boot_cors <- na.omit(boot_cors)
+  ci_lower <- apply(boot_cors, 2, quantile, probs = alpha/2, na.rm = TRUE)
+  ci_upper <- apply(boot_cors, 2, quantile, probs = 1 - alpha/2, na.rm = TRUE)
+  
+  data.frame(
+    correlation = cca_fit$cor[1:n_dims],
+    ci_lower = ci_lower,
+    ci_upper = ci_upper
+  )
+}
+
+enhanced_commonality <- function(X, Y, cca_fit, loadings_X, loadings_Y, threshold = 0.3) {
+  struct_coef_X <- cor(X, X %*% cca_fit$xcoef)
+  struct_coef_Y <- cor(Y, Y %*% cca_fit$ycoef)
+  
+  func_coef_X <- cca_fit$xcoef * apply(X, 2, sd)
+  func_coef_Y <- cca_fit$ycoef * apply(Y, 2, sd)
+  
+  compare_coefficients <- function(struct, func, names) {
+    data.frame(
+      Variable = names,
+      Loading = struct[,1],
+      Weight = func[,1],
+      Discrepancy = abs(struct[,1] - func[,1]),
+      Suppression = struct[,1] * func[,1] < 0 |
+        (abs(struct[,1]) < threshold & abs(func[,1]) > threshold) |
+        (abs(struct[,1]) > threshold & abs(func[,1]) < threshold)
+    )
+  }
+  
+  X_comparison <- compare_coefficients(struct_coef_X, func_coef_X, colnames(X))
+  Y_comparison <- compare_coefficients(struct_coef_Y, func_coef_Y, colnames(Y))
+  
+  calc_commonality <- function(data, coef, loadings, threshold) {
+    high_impact_vars <- which(abs(loadings[,1]) >= threshold | abs(coef[,1]) >= threshold)
+    
+    if(length(high_impact_vars) > 0) {
+      unique_var <- sapply(high_impact_vars, function(i) {
+        mod <- lm(data[,i] ~ data %*% coef[,1])
+        summary(mod)$r.squared
+      })
+      
+      total_var <- loadings[high_impact_vars,1]^2
+      common_var <- total_var - unique_var
+      
+      data.frame(
+        Variable = colnames(data)[high_impact_vars],
+        Unique = unique_var,
+        Common = common_var,
+        Total = total_var
+      )
+    }
+  }
+  
+  X_commonality <- calc_commonality(X, func_coef_X, loadings_X, threshold)
+  Y_commonality <- calc_commonality(Y, func_coef_Y, loadings_Y, threshold)
+  
+  list(
+    X_structure_function = X_comparison,
+    Y_structure_function = Y_comparison,
+    X_commonality = X_commonality,
+    Y_commonality = Y_commonality
+  )
+}
+
+plot_loadings_structure <- function(data_frame, title) {
+  ggplot(data_frame, aes(x = Loading, y = Weight)) +
+    geom_point() +
+    geom_text(aes(label = Variable), hjust = -0.1) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    ggtitle(title) +
+    theme_minimal()
+}
+
+plot_results <- function(X, Y, Y_subset, cca_fit, loadings_X, loadings_Y) {
+  # Calculate cross-loadings
+  cross_loadings_X <- cor(X, Y_subset %*% cca_fit$ycoef)
+  cross_loadings_Y <- cor(Y_subset, X %*% cca_fit$xcoef)
+  
+  # Calculate total contribution
+  total_contribution <- abs(loadings_Y[,1] * cca_fit$ycoef[,1])
+  
+  # Create data frames for plotting
+  questionnaire_data <- data.frame(
+    Variable = colnames(Y_subset),
+    Loadings = loadings_Y[,1],
+    Weights = cca_fit$ycoef[,1],
+    CrossLoadings = cross_loadings_Y[,1],
+    TotalContribution = total_contribution
+  )
+  
+  # Create the four panels
+  p1 <- ggplot(questionnaire_data, aes(x = reorder(Variable, Loadings), y = Loadings)) +
+    geom_bar(stat = "identity", fill = "grey") +
+    coord_flip() +
+    labs(title = "A) Loadings", x = "", y = "Loadings") +
+    theme_minimal() +
+    theme(axis.text.y = element_text(size = 8))
+  
+  p2 <- ggplot(questionnaire_data, aes(x = reorder(Variable, CrossLoadings), y = CrossLoadings)) +
+    geom_bar(stat = "identity", fill = "grey") +
+    coord_flip() +
+    labs(title = "B) Cross-Loadings", x = "", y = "Cross-Loadings") +
+    theme_minimal() +
+    theme(axis.text.y = element_text(size = 8))
+  
+  p3 <- ggplot(questionnaire_data, aes(x = reorder(Variable, Weights), y = Weights)) +
+    geom_bar(stat = "identity", fill = "grey") +
+    coord_flip() +
+    labs(title = "C) Weights", x = "", y = "Weights") +
+    theme_minimal() +
+    theme(axis.text.y = element_text(size = 8))
+  
+  # Sort and select top contributors for panel D
+  top_contributors <- questionnaire_data %>%
+    arrange(desc(TotalContribution)) %>%
+    head(10)
+    
+  p4 <- ggplot(top_contributors, 
+               aes(x = reorder(Variable, TotalContribution), y = TotalContribution)) +
+    geom_bar(stat = "identity", fill = "grey") +
+    coord_flip() +
+    labs(title = "D) Total Contribution", 
+         x = "", 
+         y = "Total Contribution on predicting\nprosocial canonical variate") +
+    theme_minimal() +
+    theme(axis.text.y = element_text(size = 8))
+  
+  grid.arrange(p1, p2, p3, p4, ncol = 2)
+}
+
+# Run analyses
+# Initial checks
+normality_results <- check_normality(X, Y)
+X_multi <- check_multicollinearity(X)
+Y_multi <- check_multicollinearity(Y)
+
+# Print multicollinearity results
+cat("\nMulticollinearity Check Results:\n")
+cat("\nBehavioral Variables:\n")
+print(X_multi$condition_number)
+if(nrow(X_multi$high_correlations) > 0) {
+  cat("\nHigh correlations found between behavioral variables:\n")
+  print(X_multi$high_correlations)
+}
+
+cat("\nQuestionnaire Variables:\n")
+print(Y_multi$condition_number)
+if(nrow(Y_multi$high_correlations) > 0) {
+  cat("\nHigh correlations found between questionnaire variables:\n")
+  print(Y_multi$high_correlations)
+}
+
+# Run CCA
+print("Original questionnaire variables:")
+print(colnames(Y))
+
+cca_fit <- cancor(X, Y)
+Y_subset <- Y[, 1:nrow(cca_fit$ycoef)]
+
+# Add diagnostic checks here
+print("\nRetained questionnaire variables:")
+print(colnames(Y_subset))
+
+# Function to check removed variables and their correlations
+check_removed_vars <- function(original_Y, subset_Y) {
+  original_vars <- colnames(original_Y)
+  retained_vars <- colnames(subset_Y)
+  removed_vars <- setdiff(original_vars, retained_vars)
+  
+  if(length(removed_vars) > 0) {
+    cat("\nVariables removed in CCA:\n")
+    print(removed_vars)
+    
+    # Check correlations of removed variables
+    cor_matrix <- cor(original_Y)
+    for(var in removed_vars) {
+      high_cors <- which(abs(cor_matrix[var,]) > 0.8 & 
+                        names(cor_matrix[var,]) != var)
+      if(length(high_cors) > 0) {
+        cat("\nHigh correlations (>0.8) for", var, "with:\n")
+        print(cor_matrix[var, high_cors, drop=FALSE])
+      }
+    }
+  } else {
+    cat("\nNo variables were removed in CCA\n")
+  }
+}
+
+# Run the check
+check_removed_vars(Y, Y_subset)
+
+n_dims <- min(ncol(X), ncol(Y_subset))
+
+# Calculate loadings
+loadings_X <- cor(X, X %*% cca_fit$xcoef[, seq_len(n_dims), drop=FALSE])
+loadings_Y <- cor(Y_subset, Y_subset %*% cca_fit$ycoef[, seq_len(n_dims), drop=FALSE])
+cross_loadings_X <- cor(X, Y_subset %*% cca_fit$ycoef[, seq_len(n_dims), drop=FALSE])
+cross_loadings_Y <- cor(Y_subset, X %*% cca_fit$xcoef[, seq_len(n_dims), drop=FALSE])
+
+# Run statistical tests
+significance_tests <- wilks_test(cca_fit, nrow(X), ncol(X), ncol(Y_subset))
+bootstrap_results <- bootstrap_ci(X, Y, cca_fit)
+commonality_results <- enhanced_commonality(X, Y_subset, cca_fit, loadings_X, loadings_Y)
+
+# Print canonical correlation results
+cat("\nCanonical Correlation Analysis Results\n")
+cat("=====================================\n\n")
+
+cat("Canonical Correlations and Significance:\n")
+for(i in 1:nrow(significance_tests)) {
+  cat(sprintf(
+    "Dimension %d: r = %.3f (%.3f, %.3f), Wilks' λ = %.3f, F(%d,%d) = %.2f, p = %.4f\n",
+    i,
+    significance_tests$Canonical_Correlation[i],
+    bootstrap_results$ci_lower[i],
+    bootstrap_results$ci_upper[i],
+    significance_tests$Wilks_Lambda[i],
+    significance_tests$df1[i],
+    significance_tests$df2[i],
+    significance_tests$F_statistic[i],
+    significance_tests$p_value[i]
+  ))
+}
+
+# Generate and display plot
+plots <- plot_results(X, Y, Y_subset, cca_fit, loadings_X, loadings_Y)
+
+# Print structure and commonality results after the plot
+cat("\nStructure-Function Analysis:\n")
+cat("\nBehavioral Variables:\n")
+print(commonality_results$X_structure_function)
+cat("\nQuestionnaire Variables:\n")
+print(commonality_results$Y_structure_function)
+
+cat("\nCommonality Analysis:\n")
+cat("\nBehavioral Variables:\n")
+print(commonality_results$X_commonality)
+cat("\nQuestionnaire Variables:\n")
+print(commonality_results$Y_commonality)
+
+# Function to calculate variance explained
+canonical_r_squared <- function(cca_fit) {
+  r_squared <- cca_fit$cor^2
+  prop_variance <- r_squared / sum(r_squared)
+  cumulative <- cumsum(prop_variance)
+  
+  data.frame(
+    Dimension = seq_along(r_squared),
+    R_squared = r_squared,
+    Proportion = prop_variance,
+    Cumulative = cumulative
+  )
+}
+
+# Function to calculate effect sizes (using Cohen's guidelines)
+compute_effect_sizes <- function(cca_fit) {
+  # Cohen's guidelines: small = 0.10, medium = 0.30, large = 0.50
+  effect_sizes <- data.frame(
+    Dimension = seq_along(cca_fit$cor),
+    Correlation = cca_fit$cor,
+    Effect_Size = case_when(
+      abs(cca_fit$cor) >= 0.50 ~ "Large",
+      abs(cca_fit$cor) >= 0.30 ~ "Medium",
+      abs(cca_fit$cor) >= 0.10 ~ "Small",
+      TRUE ~ "Negligible"
+    )
+  )
+  return(effect_sizes)
+}
+
+# Function to create scree plot
+create_scree_plot <- function(cca_fit) {
+  variance_explained <- canonical_r_squared(cca_fit)
+  
+  p <- ggplot(variance_explained, aes(x = Dimension)) +
+    geom_line(aes(y = R_squared), linewidth = 1) +
+    geom_point(aes(y = R_squared), size = 3) +
+    scale_x_continuous(breaks = seq_along(cca_fit$cor)) +
+    labs(title = "Scree Plot of Canonical Correlations",
+         x = "Dimension",
+         y = "Squared Canonical Correlation") +
+    theme_minimal()
+  
+  return(p)
+}
+
+# Save results to file
+write_results <- function(filename) {
+  sink(filename)
+  
+  # Add diagnostics section at the beginning
+  cat("\nDIAGNOSTIC CHECKS\n")
+  cat("================\n\n")
+  
+  cat("Variables in Analysis:\n")
+  cat("Original questionnaire variables: ", paste(colnames(Y), collapse=", "), "\n")
+  cat("Retained questionnaire variables: ", paste(colnames(Y_subset), collapse=", "), "\n\n")
+  
+  # Add removed variables info
+  original_vars <- colnames(Y)
+  retained_vars <- colnames(Y_subset)
+  removed_vars <- setdiff(original_vars, retained_vars)
+  if(length(removed_vars) > 0) {
+    cat("Variables removed in CCA: ", paste(removed_vars, collapse=", "), "\n")
+    
+    # Show correlations for removed variables
+    cor_matrix <- cor(Y)
+    for(var in removed_vars) {
+      high_cors <- which(abs(cor_matrix[var,]) > 0.8 & names(cor_matrix[var,]) != var)
+      if(length(high_cors) > 0) {
+        cat("\nHigh correlations (>0.8) for", var, "with:\n")
+        print(cor_matrix[var, high_cors, drop=FALSE])
+      }
+    }
+  }
+  
+  cat("\nMulticollinearity Condition Numbers:\n")
+  cat("Behavioral Variables:", X_multi$condition_number, "\n")
+  cat("Questionnaire Variables:", Y_multi$condition_number, "\n\n")
+  
+  # Then continue with existing output
+  cat("\nCANONICAL CORRELATION ANALYSIS RESULTS\n")
+  cat("=====================================\n\n")
+  
+  # Canonical Correlations section (this works fine)
+  cat("CANONICAL CORRELATIONS AND SIGNIFICANCE:\n")
+  for(i in 1:nrow(significance_tests)) {
+    cat(sprintf(
+      "Dimension %d: r = %.2f (CI: %.2f, %.2f)\n   Wilks' λ = %.3f, F(%d,%d) = %.2f, p = %.3f\n",
+      i,
+      significance_tests$Canonical_Correlation[i],
+      bootstrap_results$ci_lower[i],
+      bootstrap_results$ci_upper[i],
+      significance_tests$Wilks_Lambda[i],
+      significance_tests$df1[i],
+      significance_tests$df2[i],
+      significance_tests$F_statistic[i],
+      significance_tests$p_value[i]
+    ))
+  }
+  
+  # Structure-Function Analysis section
+  cat("\nSTRUCTURE-FUNCTION ANALYSIS:\n")
+  cat("\nBehavioral Variables:\n")
+  if(!is.null(commonality_results$X_structure_function)) {
+    x_struct <- commonality_results$X_structure_function
+    x_struct$Variable <- unlist(x_struct$Variable)
+    cat(sprintf("%-25s %10s %10s %12s %12s\n", 
+                "Variable", "Loading", "Weight", "Discrepancy", "Suppression"))
+    cat(sprintf("%-25s %10.3f %10.3f %12.3f %12s\n", 
+                x_struct$Variable, 
+                x_struct$Loading, 
+                x_struct$Weight,
+                x_struct$Discrepancy,
+                x_struct$Suppression))
+  }
+  
+  cat("\nQuestionnaire Variables:\n")
+  if(!is.null(commonality_results$Y_structure_function)) {
+    y_struct <- commonality_results$Y_structure_function
+    cat(sprintf("%-15s %10s %10s %12s %12s\n", 
+                "Variable", "Loading", "Weight", "Discrepancy", "Suppression"))
+    cat(sprintf("%-15s %10.3f %10.3f %12.3f %12s\n", 
+                y_struct$Variable, 
+                y_struct$Loading, 
+                y_struct$Weight,
+                y_struct$Discrepancy,
+                y_struct$Suppression))
+  }
+  
+  # Commonality Analysis section
+  cat("\nCOMMONALITY ANALYSIS:\n")
+  cat("\nBehavioral Variables (|loading| or |weight| >= 0.3):\n")
+  if(!is.null(commonality_results$X_commonality)) {
+    x_comm <- commonality_results$X_commonality
+    cat(sprintf("%-25s %10s %10s %10s\n", 
+                "Variable", "Unique", "Common", "Total"))
+    cat(sprintf("%-25s %10.3f %10.3f %10.3f\n", 
+                x_comm$Variable, 
+                x_comm$Unique,
+                x_comm$Common,
+                x_comm$Total))
+  }
+  
+  cat("\nQuestionnaire Variables (|loading| or |weight| >= 0.3):\n")
+  if(!is.null(commonality_results$Y_commonality)) {
+    y_comm <- commonality_results$Y_commonality
+    cat(sprintf("%-15s %10s %10s %10s\n", 
+                "Variable", "Unique", "Common", "Total"))
+    cat(sprintf("%-15s %10.3f %10.3f %10.3f\n", 
+                y_comm$Variable, 
+                y_comm$Unique,
+                y_comm$Common,
+                y_comm$Total))
+  }
+  
+  cat("\nINTERPRETATION GUIDELINES:\n")
+  cat("- Loadings/Weights >= |0.3| are considered meaningful\n")
+  cat("- Suppression effects indicate potential complex relationships\n")
+  cat("- Common variance indicates shared contribution with other variables\n")
+  cat("- Unique variance indicates independent contribution\n")
+  
+  # Add variance explained section
+  cat("\nVARIANCE EXPLAINED:\n")
+  variance_explained <- canonical_r_squared(cca_fit)
+  cat(sprintf("%-10s %12s %12s %12s\n", 
+              "Dimension", "R-squared", "Proportion", "Cumulative"))
+  cat(sprintf("%-10d %12.3f %12.3f %12.3f\n", 
+              variance_explained$Dimension,
+              variance_explained$R_squared,
+              variance_explained$Proportion,
+              variance_explained$Cumulative))
+  
+  # Add effect sizes section
+  cat("\nEFFECT SIZES:\n")
+  effect_sizes <- compute_effect_sizes(cca_fit)
+  cat(sprintf("%-10s %12s %15s\n", 
+              "Dimension", "Correlation", "Effect Size"))
+  cat(sprintf("%-10d %12.3f %15s\n", 
+              effect_sizes$Dimension,
+              effect_sizes$Correlation,
+              effect_sizes$Effect_Size))
+  
+  sink()
+}
+
+# Also add variable labels
+variable_labels <- list(
+  "switch_dissent" = "Switch Frequency (Dissent)",
+  "stay_confirm" = "Stay Frequency (Confirm)",
+  "bet_diff_confirm" = "Bet Difference (Confirm)",
+  "bet_diff_dissent" = "Bet Difference (Dissent)",
+  "lsas_p" = "LSAS Performance",
+  "lsas_s" = "LSAS Social",
+  "dass_a" = "DASS Anxiety",
+  "dass_d" = "DASS Depression",
+  "dass_s" = "DASS Stress",
+  "ssms_cd" = "SSMS Cognitive Decline",
+  "ssms_ia" = "SSMS Internet Addiction",
+  "srp_sf_ipm" = "SRP Interpersonal Manipulation",
+  "srp_sf_ca" = "SRP Callous Affect",
+  "srp_sf_els" = "SRP Erratic Lifestyle",
+  "srp_sf_ct" = "SRP Criminal Tendencies",
+  "ami_es" = "AMI Emotional Support",
+  "ami_sm" = "AMI Social Media",
+  "ami_ba" = "AMI Behavioral Addiction",
+  "aq_10" = "AQ-10 Score"
+)
+
+# Add to the functions that create data frames
+commonality_results$X_structure_function$Variable <- 
+  variable_labels[commonality_results$X_structure_function$Variable]
+
+write_results(here("output", "cca", "data", "cca_detailed_results.txt"))
+
+# Create and display scree plot
+scree_plot <- create_scree_plot(cca_fit)
+print(scree_plot)
+```
+
+
+
+
+

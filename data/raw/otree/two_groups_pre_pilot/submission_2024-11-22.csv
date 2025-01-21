@@ -1,0 +1,11 @@
+﻿participant.id_in_session,participant.code,participant.label,participant._is_bot,participant._index_in_pages,participant._max_page_index,participant._current_app_name,participant._current_page_name,participant.time_started_utc,participant.visited,participant.mturk_worker_id,participant.mturk_assignment_id,participant.payoff,player.id_in_group,player.role,player.payoff,player.task_understanding,player.engagement,player.influence,player.real_players,player.attention_focus,group.id_in_subsession,subsession.round_number,session.code,session.label,session.mturk_HITId,session.mturk_HITGroupId,session.comment,session.is_demo
+1,sxxuaxk5,65c34e7714a39c42c8e0133d,0,273,273,submission,Submit,15:47.9,1,,,0,1,,0,74,21,73,74,25,1,1,hdjbyvy7,,,,,0
+2,oen9ip7t,,0,273,273,submission,Submit,16:44.5,1,,,0,2,,0,76,27,74,73,33,1,1,hdjbyvy7,,,,,0
+3,eubmwdyp,,0,273,273,submission,Submit,16:46.4,1,,,0,3,,0,81,80,30,78,32,1,1,hdjbyvy7,,,,,0
+4,rytg1017,,0,273,273,submission,Submit,16:47.8,1,,,0,4,,0,82,64,21,73,72,1,1,hdjbyvy7,,,,,0
+5,skndrsih,,0,273,273,submission,Submit,16:50.0,1,,,0,5,,0,29,73,22,27,44,1,1,hdjbyvy7,,,,,0
+6,2menpamr,,0,273,273,submission,Submit,16:51.8,1,,,0,6,,0,78,82,76,17,31,1,1,hdjbyvy7,,,,,0
+7,8a69l965,,0,273,273,submission,Submit,17:21.4,1,,,0,7,,0,75,83,25,20,74,1,1,hdjbyvy7,,,,,0
+8,u2t5csme,,0,273,273,submission,Submit,17:24.0,1,,,0,8,,0,29,78,19,21,29,1,1,hdjbyvy7,,,,,0
+9,j136zh8t,,0,273,273,submission,Submit,17:26.7,1,,,0,9,,0,78,31,30,76,87,1,1,hdjbyvy7,,,,,0
+10,kfm04f2d,,0,273,273,submission,Submit,17:30.8,1,,,0,10,,0,26,77,72,39,21,1,1,hdjbyvy7,,,,,0

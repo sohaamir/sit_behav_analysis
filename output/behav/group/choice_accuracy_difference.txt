@@ -1,0 +1,16 @@
+CHOICE ANALYSIS
+==============
+
+Run on: 2025-01-16 14:15:10
+
+T-TEST RESULTS
+=============
+t = -3.015
+df = 5999
+p = 2.581e-03
+95% CI [-4.401, -0.933]
+
+DESCRIPTIVE STATISTICS
+=====================
+Choice 1: 52.00 (SE = 0.65)
+Choice 2: 49.33 (SE = 0.65)
