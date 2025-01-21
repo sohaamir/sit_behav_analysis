@@ -373,7 +373,7 @@ bet_params <- list(
   )
 )
 
-################## RUN ANALYSES AND SAVE OUTPUT ###################
+################## RUN ANALYSES AND SAVE OUTPUT ####################
 # Read data
 data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
                  show_col_types = FALSE)

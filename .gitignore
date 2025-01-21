@@ -3,6 +3,7 @@
 .Rhistory
 .RData
 .Ruserdata
+.Rproj.user/
 
 # Temporary files
 *.Rproj.user/

@@ -692,7 +692,7 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
       geom_point(size = 3) +
       geom_errorbar(aes(ymin = mean_outcome - se, 
                         ymax = mean_outcome + se), 
-                    width = 0.1,
+                    width = 0.05,
                     linewidth = 0.8) +
       scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
       facet_grid(trial_type ~ quest_group) +  # trial_type on y-axis, quest_group columns
@@ -720,7 +720,7 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
       geom_point(size = 3) +
       geom_errorbar(aes(ymin = mean_outcome - se, 
                         ymax = mean_outcome + se), 
-                    width = 0.1,
+                    width = 0.05,
                     linewidth = 0.8) +
       scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
       facet_wrap(~ quest_group, ncol = 2) +  # Side by side plots for Low/High
