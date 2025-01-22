@@ -32,7 +32,8 @@ conflicts_prefer(effectsize::eta_squared)
 # Valid analysis types for validation
 VALID_ANALYSIS_TYPES <- c(
   "choice_consensus",    # Original choice/bet by consensus analysis
-  "switch_difference"    # Switch difference analysis
+  "switch_difference",   # Switch difference analysis
+  "within_trial_switch"  # Within-trial switch analysis
 )
 
 # Plot types for directory structure
@@ -90,11 +91,18 @@ save_analysis_plots <- function(results, analysis_type, base_dir) {
 
 ################## CORE MODEL PIPELINE ###################
 run_model_pipeline <- function(data, params, output_path) {
-  # Print trial counts once at the start if this is switch_difference analysis
+  # Print trial counts based on analysis type
   if(params$analysis_type == "switch_difference") {
     cat("\n===== Trial Type Summary =====\n")
     stay_count <- sum(data$choice_switch_across_trials == 0, na.rm = TRUE)
     switch_count <- sum(data$choice_switch_across_trials == 1, na.rm = TRUE)
+    cat(sprintf("Stay trials: %d\n", stay_count))
+    cat(sprintf("Switch trials: %d\n", switch_count))
+    cat("============================\n")
+  } else if(params$analysis_type == "within_trial_switch") {
+    cat("\n===== Trial Type Summary =====\n")
+    stay_count <- sum(data$player.switch_vs_stay == 0, na.rm = TRUE)
+    switch_count <- sum(data$player.switch_vs_stay == 1, na.rm = TRUE)
     cat(sprintf("Stay trials: %d\n", stay_count))
     cat(sprintf("Switch trials: %d\n", switch_count))
     cat("============================\n")
@@ -117,7 +125,7 @@ run_model_pipeline <- function(data, params, output_path) {
     message(sprintf("\nProcessing: %s", var))
     
     # Process data
-    processed_data <- params$preprocessing_fn(data, var)
+    processed_data <- params$preprocessing_fn(data, var, params)
     
     # Run analysis with winning model structure
     analysis_results <- run_individual_analysis(
@@ -186,16 +194,23 @@ run_model_pipeline <- function(data, params, output_path) {
 run_pooled_model_selection <- function(data, params) {
   # Create pooled dataset for initial model selection
   pooled_data <- map_dfr(params$questionnaire_vars, function(var) {
-    processed <- params$preprocessing_fn(data, var)
+    processed <- params$preprocessing_fn(data, var, params)
     
-    # Base columns to select
+    # Base columns to select based on analysis type
     base_cols <- c("participant.id_in_session", "consensus_level", 
-                   "direction", "outcome_value", "age", "gender", 
+                   "direction", "age", "gender", 
                    "scale_name")
     
-    # Add switch_difference if it's a switch_difference analysis
+    # Add appropriate outcome and switch variables based on analysis type
     if(params$analysis_type == "switch_difference") {
-      base_cols <- c(base_cols, "switch_difference")
+      base_cols <- c(base_cols, "switch_difference", "outcome_value")
+    } else if(params$analysis_type == "within_trial_switch") {
+      base_cols <- c(base_cols, "switch_vs_stay", "mean_outcome")
+      # Rename mean_outcome to outcome_value for consistency
+      processed <- processed %>%
+        rename(outcome_value = mean_outcome)
+    } else {
+      base_cols <- c(base_cols, "outcome_value")
     }
     
     processed %>%
@@ -289,8 +304,15 @@ run_individual_analysis <- function(processed_data, winning_model, var, params) 
   # Get ANOVA results for main model
   main_anova <- car::Anova(main_model, type = 2)
   
-  # Extract p-value for three-way interaction
-  interaction_term <- "consensus_level:direction:scale_name"
+  # Extract p-value for interaction based on analysis type
+  if(params$analysis_type == "within_trial_switch") {
+    interaction_term <- "consensus_level:direction:switch_vs_stay:scale_name"
+  } else if(params$analysis_type == "switch_difference") {
+    interaction_term <- "consensus_level:direction:switch_difference:scale_name"
+  } else {
+    interaction_term <- "consensus_level:direction:scale_name"
+  }
+  
   raw_p <- main_anova[interaction_term, "Pr(>Chisq)"]
   
   # Only print if significant
@@ -397,7 +419,13 @@ theme_custom <- theme_classic() +  # Changed from theme_minimal()
   )
 
 ################## PLOTTING FUNCTIONS ###################
-generate_all_plots <- function(processed_data, moderation_results, var, params) {
+generate_all_plots <- function(processed_data, moderation_results, var, params, display_name) {
+  print("Data structure for plotting:")
+  print(str(processed_data))
+  print("Levels of factors:")
+  print(levels(processed_data$switch_vs_stay))
+  print(levels(processed_data$consensus_level))
+  print(levels(processed_data$direction))
   current_plots <- list()
   
   # Main scale plots
@@ -459,7 +487,7 @@ generate_all_plots <- function(processed_data, moderation_results, var, params) 
     return(NULL)
   })
   
-  # Add subscale plots
+  # Add subscale plots if they exist
   if(!is.null(moderation_results$subscale_results)) {
     for(subscale in names(moderation_results$subscale_results)) {
       sub_results <- moderation_results$subscale_results[[subscale]]
@@ -590,10 +618,23 @@ plot_continuous_relationship <- function(data, var, outcome_var, results, params
   if(params$analysis_type == "switch_difference") {
     plot_data <- plot_data %>%
       mutate(
-        # Create trial_type factor based on switch_difference
         trial_type = factor(if_else(switch_difference == 0, "Stay", "Switch"), 
                             levels = c("Stay", "Switch")),
-        # Ensure consensus_level is properly ordered
+        consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
+        direction = factor(direction, levels = c("Against group", "With group"))
+      )
+  } else if(params$analysis_type == "within_trial_switch") {
+    plot_data <- plot_data %>%
+      mutate(
+        switch_vs_stay = factor(switch_vs_stay, 
+                                levels = c(0, 1),
+                                labels = c("Stay trials", "Switch trials")),
+        consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
+        direction = factor(direction, levels = c("Against group", "With group"))
+      )
+  } else {
+    plot_data <- plot_data %>%
+      mutate(
         consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
         direction = factor(direction, levels = c("Against group", "With group"))
       )
@@ -617,19 +658,6 @@ plot_continuous_relationship <- function(data, var, outcome_var, results, params
       .groups = 'drop'
     )
   
-  # Update y-axis label based on analysis type and plot type
-  y_label <- if(params$analysis_type == "switch_difference") {
-    if(grepl("accuracy", params$y_label, ignore.case = TRUE)) {
-      "Choice 1 accuracy on trial t + 1"
-    } else if(grepl("bet", params$y_label, ignore.case = TRUE)) {
-      "Bet magnitude on trial t + 1"
-    } else {
-      params$y_label
-    }
-  } else {
-    params$y_label
-  }
-  
   # Base plot setup
   p <- ggplot(plot_data, 
               aes(x = .data[[var]], 
@@ -639,8 +667,8 @@ plot_continuous_relationship <- function(data, var, outcome_var, results, params
                 formula = y ~ x,
                 se = TRUE) +
     labs(x = display_name,
-         y = y_label,
-         title = paste("Relationship between", display_name, "and", y_label),
+         y = params$y_label,
+         title = paste("Relationship between", display_name, "and", params$y_label),
          subtitle = subtitle_text,
          caption = paste("Effect sizes (r) range:", 
                          round(min(effects$correlation), 3), "to",
@@ -651,6 +679,9 @@ plot_continuous_relationship <- function(data, var, outcome_var, results, params
   # Add specific faceting based on analysis type
   if(params$analysis_type == "switch_difference") {
     p <- p + facet_grid(trial_type ~ consensus_level) +
+      theme(panel.spacing = unit(1, "lines"))
+  } else if(params$analysis_type == "within_trial_switch") {
+    p <- p + facet_grid(switch_vs_stay ~ consensus_level) +
       theme(panel.spacing = unit(1, "lines"))
   } else if(params$analysis_type == "choice_consensus") {
     p <- p + facet_wrap(~consensus_level)
@@ -692,7 +723,7 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
       geom_point(size = 3) +
       geom_errorbar(aes(ymin = mean_outcome - se, 
                         ymax = mean_outcome + se), 
-                    width = 0.05,
+                    width = 0.1,
                     linewidth = 0.8) +
       scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
       facet_grid(trial_type ~ quest_group) +  # trial_type on y-axis, quest_group columns
@@ -702,7 +733,39 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
            subtitle = subtitle_text) +
       theme_custom
     
-  } else {
+  } else if(params$analysis_type == "within_trial_switch") {
+    summary_data <- data %>%
+      group_by(consensus_level, direction, quest_group, switch_vs_stay) %>%
+      summarise(
+        mean_outcome = mean(outcome_value),
+        se = sd(outcome_value) / sqrt(n()),
+        .groups = 'drop'
+      )
+    
+    # Create labels for switch/stay
+    switch_labels <- c("0" = "Stay trials", "1" = "Switch trials")
+    
+    p <- ggplot(summary_data, 
+                aes(x = consensus_level, 
+                    y = mean_outcome, 
+                    color = direction,
+                    group = direction)) +
+      geom_line(linewidth = 1.2) +
+      geom_point(size = 3) +
+      geom_errorbar(aes(ymin = mean_outcome - se, 
+                        ymax = mean_outcome + se), 
+                    width = 0.1,
+                    linewidth = 0.8) +
+      scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+      facet_grid(switch_vs_stay ~ quest_group, 
+                 labeller = labeller(switch_vs_stay = switch_labels)) +  
+      labs(x = "Consensus Level",
+           y = params$y_label,
+           title = paste("Effect of", display_name, "(Median-split)"),
+           subtitle = subtitle_text) +
+      theme_custom
+    
+  } else {  # choice_consensus
     summary_data <- data %>%
       group_by(consensus_level, direction, quest_group) %>%
       summarise(
@@ -720,7 +783,7 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
       geom_point(size = 3) +
       geom_errorbar(aes(ymin = mean_outcome - se, 
                         ymax = mean_outcome + se), 
-                    width = 0.05,
+                    width = 0.1,
                     linewidth = 0.8) +
       scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
       facet_wrap(~ quest_group, ncol = 2) +  # Side by side plots for Low/High
@@ -761,51 +824,67 @@ plot_moderation_effects <- function(model, data, var, raw_p = NULL, adj_p = NULL
       age = 0
     ) %>%
       mutate(trial_type = factor(ifelse(switch_difference == 0, "Stay", "Switch"), 
-                                 levels = c("Stay", "Switch")))
+                                 levels = c("Stay", "Switch"))) %>%
+      filter(!(consensus_level == "2:2" & direction == "With group"))
     
-    # Generate predictions
-    pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
-    if(params$is_percentage) pred_data$predicted <- pred_data$predicted * 100
-    
-    # Create plot with trial_type faceting
-    p <- ggplot(pred_data, 
-                aes(x = scale_name, 
-                    y = predicted, 
-                    color = direction)) +
-      geom_line() +
-      facet_grid(trial_type ~ consensus_level) +  # Removed ncol argument
-      labs(title = paste("Moderation effect of", display_name),
-           subtitle = subtitle_text,
-           x = paste(display_name, "score (standardized)"),
-           y = params$y_label) +
-      common_theme +
-      color_scheme
+  } else if(params$analysis_type == "within_trial_switch") {
+    pred_data <- expand.grid(
+      consensus_level = levels(data$consensus_level),
+      direction = levels(data$direction),
+      switch_vs_stay = c(0, 1),
+      scale_name = seq(from = -2, to = 2, length.out = 100),
+      age = 0
+    ) %>%
+      mutate(switch_vs_stay = factor(switch_vs_stay, 
+                                     levels = c(0, 1),
+                                     labels = c("Stay trials", "Switch trials"))) %>%
+      filter(!(consensus_level == "2:2" & direction == "With group"))
     
   } else if(params$analysis_type == "choice_consensus") {
-    # Original code for choice_consensus
     pred_data <- expand.grid(
       consensus_level = levels(data$consensus_level),
       direction = levels(data$direction),
       scale_name = seq(from = -2, to = 2, length.out = 100),
       age = 0
-    )
-    
-    pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
-    if(params$is_percentage) pred_data$predicted <- pred_data$predicted * 100
-    
+    ) %>%
+      filter(!(consensus_level == "2:2" & direction == "With group"))
+  }
+  
+  # Generate predictions
+  pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
+  if(params$is_percentage) pred_data$predicted <- pred_data$predicted * 100
+  
+  # Create appropriate plot based on analysis type
+  if(params$analysis_type == "switch_difference") {
     p <- ggplot(pred_data, 
                 aes(x = scale_name, 
                     y = predicted, 
                     color = direction)) +
       geom_line() +
-      facet_wrap(~consensus_level) +
-      labs(title = paste("Moderation effect of", display_name),
-           subtitle = subtitle_text,
-           x = paste(display_name, "score (standardized)"),
-           y = params$y_label) +
-      common_theme +
-      color_scheme
+      facet_grid(trial_type ~ consensus_level)
+  } else if(params$analysis_type == "within_trial_switch") {
+    p <- ggplot(pred_data, 
+                aes(x = scale_name, 
+                    y = predicted, 
+                    color = direction)) +
+      geom_line() +
+      facet_grid(switch_vs_stay ~ consensus_level)
+  } else {
+    p <- ggplot(pred_data, 
+                aes(x = scale_name, 
+                    y = predicted, 
+                    color = direction)) +
+      geom_line() +
+      facet_wrap(~consensus_level)
   }
+  
+  p <- p +
+    labs(title = paste("Moderation effect of", display_name),
+         subtitle = subtitle_text,
+         x = paste(display_name, "score (standardized)"),
+         y = params$y_label) +
+    common_theme +
+    color_scheme
   
   return(list(
     plot = p,
@@ -815,7 +894,7 @@ plot_moderation_effects <- function(model, data, var, raw_p = NULL, adj_p = NULL
   ))
 }
 
-plot_simple_slopes <- function(model, var, data, raw_p = NULL, adj_p = NULL, params, display_name) {
+plot_simple_slopes <- function(model, data, var, raw_p = NULL, adj_p = NULL, params, display_name) {
   if(!params$analysis_type %in% VALID_ANALYSIS_TYPES) {
     stop(paste("Invalid analysis type. Must be one of:", 
                paste(VALID_ANALYSIS_TYPES, collapse = ", ")))
@@ -833,116 +912,82 @@ plot_simple_slopes <- function(model, var, data, raw_p = NULL, adj_p = NULL, par
   color_scheme <- scale_color_manual(values = c("Against group" = "red", "With group" = "blue"))
   
   if(params$analysis_type == "switch_difference") {
-    # Create prediction grid
     pred_data <- expand.grid(
       consensus_level = levels(data$consensus_level),
       direction = levels(data$direction),
       switch_difference = c(0, 1),
-      scale_name = seq(-1, 1, by = 1),  # -1 SD, Mean, +1 SD
+      scale_name = seq(-1, 1, by = 1),
       age = 0
     ) %>%
-      mutate(
-        trial_type = factor(ifelse(switch_difference == 0, "Stay", "Switch"), 
-                            levels = c("Stay", "Switch"))
-      )
+      mutate(trial_type = factor(ifelse(switch_difference == 0, "Stay", "Switch"), 
+                                 levels = c("Stay", "Switch"))) %>%
+      filter(!(consensus_level == "2:2" & direction == "With group"))
     
-    # Generate predictions
-    pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
-    if(params$is_percentage) pred_data$predicted <- pred_data$predicted * 100
-    
-    # Reshape data to get ribbon bounds
-    ribbon_data <- pred_data %>%
-      group_by(consensus_level, direction, trial_type) %>%
-      summarise(
-        ymin = predicted[scale_name == -1],
-        ymean = predicted[scale_name == 0],
-        ymax = predicted[scale_name == 1],
-        .groups = 'drop'
-      )
-    
-    # Create plot with ribbons
-    p <- ggplot() +
-      # Add ribbons using the SD bounds
-      geom_ribbon(data = ribbon_data,
-                  aes(x = consensus_level, 
-                      ymin = ymin,
-                      ymax = ymax,
-                      fill = direction,
-                      group = direction), 
-                  alpha = 0.2) +
-      # Add mean lines
-      geom_line(data = ribbon_data,
-                aes(x = consensus_level, 
-                    y = ymean,
-                    color = direction,
-                    group = direction),
-                linewidth = 1) +
-      # Add points
-      geom_point(data = ribbon_data,
-                 aes(x = consensus_level, 
-                     y = ymean,
-                     color = direction),
-                 size = 3) +
-      facet_wrap(~trial_type, ncol = 2) +
-      scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
-      scale_fill_manual(values = c("Against group" = "#f36a7b", "With group" = "#3f9fef")) +
-      labs(title = paste("Simple slopes analysis for", display_name),
-           subtitle = subtitle_text,
-           x = "Consensus Level",
-           y = params$y_label,
-           color = "Direction") +
-      common_theme
+  } else if(params$analysis_type == "within_trial_switch") {
+    pred_data <- expand.grid(
+      consensus_level = levels(data$consensus_level),
+      direction = levels(data$direction),
+      switch_vs_stay = c(0, 1),
+      scale_name = seq(-1, 1, by = 1),
+      age = 0
+    ) %>%
+      mutate(switch_vs_stay = factor(switch_vs_stay,
+                                     levels = c(0, 1),
+                                     labels = c("Stay trials", "Switch trials"))) %>%
+      filter(!(consensus_level == "2:2" & direction == "With group"))
     
   } else if(params$analysis_type == "choice_consensus") {
-    # Create prediction grid
     pred_data <- expand.grid(
       consensus_level = levels(data$consensus_level),
       direction = levels(data$direction),
       scale_name = seq(-1, 1, by = 1),
       age = 0
-    )
-    
-    pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
-    if(params$is_percentage) pred_data$predicted <- pred_data$predicted * 100
-    
-    # Reshape data to get ribbon bounds
-    ribbon_data <- pred_data %>%
-      group_by(consensus_level, direction) %>%
-      summarise(
-        ymin = predicted[scale_name == -1],
-        ymean = predicted[scale_name == 0],
-        ymax = predicted[scale_name == 1],
-        .groups = 'drop'
-      )
-    
-    p <- ggplot() +
-      geom_ribbon(data = ribbon_data,
-                  aes(x = consensus_level, 
-                      ymin = ymin,
-                      ymax = ymax,
-                      fill = direction,
-                      group = direction), 
-                  alpha = 0.2) +
-      geom_line(data = ribbon_data,
-                aes(x = consensus_level, 
-                    y = ymean,
-                    color = direction,
-                    group = direction),
-                linewidth = 1) +
-      geom_point(data = ribbon_data,
-                 aes(x = consensus_level, 
-                     y = ymean,
-                     color = direction),
-                 size = 3) +
-      scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
-      scale_fill_manual(values = c("Against group" = "#f36a7b", "With group" = "#3f9fef")) +
-      labs(title = paste("Simple slopes analysis for", display_name),
-           subtitle = subtitle_text,
-           x = "Consensus Level",
-           y = params$y_label,
-           color = "Direction") +
-      common_theme
+    ) %>%
+      filter(!(consensus_level == "2:2" & direction == "With group"))
   }
+  
+  # Generate predictions
+  pred_data$predicted <- predict(model, newdata = pred_data, re.form = NA)
+  if(params$is_percentage) pred_data$predicted <- pred_data$predicted * 100
+  
+  # Create ribbon data
+  ribbon_data <- pred_data %>%
+    group_by(consensus_level, direction) %>%
+    summarise(
+      ymin = predicted[scale_name == -1],
+      ymean = predicted[scale_name == 0],
+      ymax = predicted[scale_name == 1],
+      .groups = 'drop'
+    )
+  
+  # Create plot with ribbons
+  p <- ggplot() +
+    geom_ribbon(data = ribbon_data,
+                aes(x = consensus_level, 
+                    ymin = ymin,
+                    ymax = ymax,
+                    fill = direction,
+                    group = direction), 
+                alpha = 0.2) +
+    geom_line(data = ribbon_data,
+              aes(x = consensus_level, 
+                  y = ymean,
+                  color = direction,
+                  group = direction),
+              linewidth = 1) +
+    geom_point(data = ribbon_data,
+               aes(x = consensus_level, 
+                   y = ymean,
+                   color = direction),
+               size = 3) +
+    scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+    scale_fill_manual(values = c("Against group" = "#f36a7b", "With group" = "#3f9fef")) +
+    labs(title = paste("Simple slopes analysis for", display_name),
+         subtitle = subtitle_text,
+         x = "Consensus Level",
+         y = params$y_label,
+         color = "Direction") +
+    common_theme
   
   return(p)
 }
@@ -1002,6 +1047,14 @@ check_model_diagnostics <- function(model, params) {
         switch_diff_distribution = shapiro.test(model_frame$switch_difference)
       )
     }, error = function(e) NULL)
+  } else if(params$analysis_type == "within_trial_switch") {
+    # Additional checks specific to within-trial switch analysis
+    within_trial_diagnostics <- tryCatch({
+      list(
+        switch_stay_counts = table(model_frame$switch_vs_stay),
+        switch_stay_distribution = chisq.test(table(model_frame$switch_vs_stay))
+      )
+    }, error = function(e) NULL)
   }
   
   # Compile results
@@ -1034,6 +1087,8 @@ check_model_diagnostics <- function(model, params) {
   # Add analysis-specific diagnostics
   if(params$analysis_type == "switch_difference" && !is.null(switch_diff_diagnostics)) {
     diagnostics$switch_difference <- switch_diff_diagnostics
+  } else if(params$analysis_type == "within_trial_switch" && !is.null(within_trial_diagnostics)) {
+    diagnostics$within_trial <- within_trial_diagnostics
   }
   
   return(diagnostics)
@@ -1358,13 +1413,19 @@ format_results <- function(all_results, analysis_name, params) {
                         format.pval(diag$assumptions$homoscedasticity_p, digits = 3), "\n",
                         "Outliers: ", diag$outliers$n_outliers, "\n")
   
-  # Add switch difference diagnostics if applicable
+  # Add analysis-specific diagnostics
   if(params$analysis_type == "switch_difference" && !is.null(diag$switch_difference)) {
     output_text <- paste0(output_text,
                           "Switch difference range: ", 
                           paste(round(diag$switch_difference$switch_diff_range, 3), collapse = " to "), "\n",
                           "Switch difference normality p: ",
                           format.pval(diag$switch_difference$switch_diff_distribution$p.value, digits = 3), "\n")
+  } else if(params$analysis_type == "within_trial_switch" && !is.null(diag$within_trial)) {
+    output_text <- paste0(output_text,
+                          "Switch vs Stay counts:\n",
+                          paste(capture.output(diag$within_trial$switch_stay_counts), collapse = "\n"), "\n",
+                          "Switch vs Stay distribution chi-square p: ",
+                          format.pval(diag$within_trial$switch_stay_distribution$p.value, digits = 3), "\n")
   }
   output_text <- paste0(output_text, "\n")
   
@@ -1402,6 +1463,18 @@ format_results <- function(all_results, analysis_name, params) {
       
       output_text <- paste0(output_text,
                             "Switch difference x Consensus x Direction interaction:\n",
+                            "Raw p = ", format.pval(raw_p, digits = 3), "\n",
+                            "FDR-adjusted p = ", format.pval(adj_p, digits = 3),
+                            "\n")
+    } else if(params$analysis_type == "within_trial_switch") {
+      output_text <- paste0(output_text,
+                            "\nINTERACTION RESULTS:\n===================\n")
+      # Extract p-values from results structure
+      raw_p <- results$moderation_results$main_results$raw_p
+      adj_p <- results$moderation_results$main_results$adj_p
+      
+      output_text <- paste0(output_text,
+                            "Within-trial switch x Consensus x Direction interaction:\n",
                             "Raw p = ", format.pval(raw_p, digits = 3), "\n",
                             "FDR-adjusted p = ", format.pval(adj_p, digits = 3),
                             "\n")

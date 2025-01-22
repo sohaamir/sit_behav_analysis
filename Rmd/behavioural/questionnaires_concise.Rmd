@@ -65,7 +65,13 @@ preprocess_consensus_data <- function(data, outcome_type, questionnaire_var, gro
         player.choice1_with %in% c(0.25, 0.75) ~ "3:1",
         player.choice1_with == 0.5 ~ "2:2"
       ),
-      direction = if_else(player.choice1_with >= 0.5, "With group", "Against group"),
+      direction = case_when(
+        # Put 2:2 in Against group (or With group if specified)
+        consensus_level == "2:2" ~ if(group_2_2_in_with) "With group" else "Against group",
+        # For other conditions, split based on direction
+        player.choice1_with >= 0.5 ~ "With group",
+        TRUE ~ "Against group"
+      ),
       consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
       direction = factor(direction, levels = c("Against group", "With group"))
     )
@@ -109,7 +115,7 @@ preprocess_consensus_data <- function(data, outcome_type, questionnaire_var, gro
       gender = factor(gender)
     )
 
-  # Scale subscales if they exist - now using the same standardization approach
+  # Scale subscales if they exist
   if (!is.null(subscales)) {
     for (subscale in subscales) {
       scaled_data[[subscale]] <- as.numeric(scale(scaled_data[[subscale]]))
@@ -151,8 +157,8 @@ consensus_model_formulas <- list(
 # Define parameters for switch analysis
 switch_params <- list(
   analysis_type = "choice_consensus",
-  preprocessing_fn = function(data, var) {
-    preprocess_consensus_data(data, "switch", var, FALSE, switch_params)
+  preprocessing_fn = function(data, var, params) {
+    preprocess_consensus_data(data, "switch", var, group_2_2_in_with = FALSE, params)  # Explicitly set 2:2 to Against group
   },
   model_formulas = consensus_model_formulas,
   questionnaire_vars = c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10"),
@@ -172,8 +178,8 @@ switch_params <- list(
 # Define parameters for bet analysis
 bet_params <- list(
   analysis_type = "choice_consensus",
-  preprocessing_fn = function(data, var) {
-    preprocess_consensus_data(data, "bet", var, FALSE, bet_params)
+  preprocessing_fn = function(data, var, params) {
+    preprocess_consensus_data(data, "bet", var, group_2_2_in_with = FALSE, params)  # Explicitly set 2:2 to Against group
   },
   model_formulas = consensus_model_formulas,
   questionnaire_vars = c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10"),
@@ -197,7 +203,7 @@ data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"),
 
 # Define directory structure
 questionnaire_dir <- here("output", "behav", "questionnaire")
-analysis_dir <- file.path(questionnaire_dir, "ch_switch_and_bet_mag_by_consensus")
+analysis_dir <- file.path(questionnaire_dir, "ch_switch_and_bet_diff_by_consensus_within_trials")
 
 # Create main output directories for plots and txt
 plot_base_dir <- file.path(analysis_dir, "plots")
@@ -222,7 +228,7 @@ bet_results <- run_model_pipeline(
 
 # Save plots for both analyses
 save_analysis_plots(switch_results, "choice_switch", analysis_dir)
-save_analysis_plots(bet_results, "bet_magnitude", analysis_dir)
+save_analysis_plots(bet_results, "bet_difference", analysis_dir)
 ```
 
 ## Choice accuracy and bet magnitude as a function of switch difference across trials (Choice 2 - Choice 1), by group consensus and direction
@@ -242,9 +248,7 @@ preprocess_switch_diff_data <- function(data, outcome_type, questionnaire_var, p
   base_data <- data %>%
     filter(!is.na(choice_switch_across_trials)) %>%
     mutate(
-      # Keep original binary coding without standardization
-      switch_difference = choice_switch_across_trials,  # Just 0 or 1
-      # Create trial_type factor from original values
+      switch_difference = choice_switch_across_trials,  
       trial_type = factor(if_else(choice_switch_across_trials == 0, "Stay", "Switch"), 
                          levels = c("Stay", "Switch")),
       consensus_level = case_when(
@@ -252,7 +256,13 @@ preprocess_switch_diff_data <- function(data, outcome_type, questionnaire_var, p
         player.choice1_with %in% c(0.25, 0.75) ~ "3:1",
         player.choice1_with == 0.5 ~ "2:2"
       ),
-      direction = if_else(player.choice1_with >= 0.5, "With group", "Against group"),
+      direction = case_when(
+        # Put 2:2 in Against group
+        consensus_level == "2:2" ~ "Against group",
+        # For other conditions, split based on direction
+        player.choice1_with >= 0.5 ~ "With group",
+        TRUE ~ "Against group"
+      ),
       consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
       direction = factor(direction, levels = c("Against group", "With group"))
     )
@@ -334,8 +344,8 @@ switch_diff_model_formulas <- list(
 # Define parameters for accuracy analysis
 accuracy_params <- list(
   analysis_type = "switch_difference",
-  preprocessing_fn = function(data, var) {
-    preprocess_switch_diff_data(data, "accuracy", var, accuracy_params)
+  preprocessing_fn = function(data, var, params) {  # Added params parameter
+    preprocess_switch_diff_data(data, "accuracy", var, params)  # Pass params through
   },
   model_formulas = switch_diff_model_formulas,
   questionnaire_vars = c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10"),
@@ -355,8 +365,8 @@ accuracy_params <- list(
 # Define parameters for bet analysis
 bet_params <- list(
   analysis_type = "switch_difference",
-  preprocessing_fn = function(data, var) {
-    preprocess_switch_diff_data(data, "bet", var, bet_params)
+  preprocessing_fn = function(data, var, params) {  # Added params parameter
+    preprocess_switch_diff_data(data, "bet", var, params)  # Pass params through
   },
   model_formulas = switch_diff_model_formulas,
   questionnaire_vars = c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10"),
@@ -407,3 +417,148 @@ bet_results <- run_model_pipeline(
 save_analysis_plots(accuracy_results, "choice_accuracy", analysis_dir)
 save_analysis_plots(bet_results, "bet_magnitude", analysis_dir)
 ```
+
+## Supplementary analyses
+
+Bet difference as a function of choice switching on the current trial and group consensus (Fig Supp 2A)
+
+```{r setup, include=FALSE, message=FALSE}
+rm(list=ls())
+
+# Source the core pipeline functions
+source(here("R", "questionnaire_mixed_models.R"))
+
+################## SPECIFIC PREPROCESSING ###################
+preprocess_within_trial_data <- function(data, questionnaire_var, params) {
+  # Get subscales for the current questionnaire
+  subscales <- params$subscale_mapping[[questionnaire_var]]
+  
+  # Create base transformations
+  base_data <- data %>%
+    mutate(
+      switch_vs_stay = factor(player.switch_vs_stay),
+      consensus_level = case_when(
+        player.choice1_with %in% c(0, 1) ~ "4:0",
+        player.choice1_with %in% c(0.25, 0.75) ~ "3:1",
+        player.choice1_with == 0.5 ~ "2:2"
+      ),
+      direction = case_when(
+        consensus_level == "2:2" ~ "Against group",
+        player.choice1_with >= 0.5 ~ "With group",
+        TRUE ~ "Against group"
+      ),
+      consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
+      direction = factor(direction, levels = c("Against group", "With group")),
+      outcome_value = player.bet2 - player.bet1
+    )
+  
+  # Aggregate data
+  aggregated_data <- base_data %>%
+    group_by(participant.id_in_session, consensus_level, direction, switch_vs_stay) %>%
+    summarise(
+      mean_outcome = mean(outcome_value),
+      .groups = 'drop'
+    )
+  
+  # Join with questionnaire data and scale
+  scaled_data <- aggregated_data %>%
+    left_join(
+      base_data %>%
+        group_by(participant.id_in_session) %>%
+        slice(1) %>%
+        select(participant.id_in_session, 
+               !!questionnaire_var, 
+               age,
+               gender,
+               !!!syms(subscales)),
+      by = "participant.id_in_session"
+    ) %>%
+    mutate(
+      scale_name = as.numeric(scale(.data[[questionnaire_var]])),
+      age = as.numeric(scale(age)),
+      gender = factor(gender)
+    )
+
+  # Scale subscales if they exist
+  if (!is.null(subscales)) {
+    for (subscale in subscales) {
+      scaled_data[[subscale]] <- as.numeric(scale(scaled_data[[subscale]]))
+    }
+  }
+
+  return(scaled_data)
+}
+
+################## MODEL FORMULAS ###################
+within_trial_model_formulas <- list(
+  m1 = list(
+    formula = outcome_value ~ consensus_level + direction + switch_vs_stay + scale_name + 
+              age + (1|participant.id_in_session),
+    description = "Main effects only"
+  ),
+  m2 = list(
+    formula = outcome_value ~ (consensus_level + direction + switch_vs_stay + scale_name)^2 + 
+              age + (1|participant.id_in_session),
+    description = "Two-way interactions"
+  ),
+  m3 = list(
+    formula = outcome_value ~ consensus_level * direction * switch_vs_stay * scale_name + 
+              age + (1|participant.id_in_session),
+    description = "Three-way interaction"
+  ),
+  m4 = list(
+    formula = outcome_value ~ consensus_level * direction * switch_vs_stay * scale_name + 
+              age + (1 + switch_vs_stay|participant.id_in_session),
+    description = "Three-way with random slope for within-trial switching"
+  ),
+  m5 = list(
+    formula = outcome_value ~ consensus_level * direction * switch_vs_stay * scale_name + 
+              age + (1 + switch_vs_stay|participant.id_in_session) + (1|gender),
+    description = "Full model with gender"
+  )
+)
+
+# Define parameters for within-trial switch analysis
+within_trial_params <- list(
+  analysis_type = "within_trial_switch",
+  preprocessing_fn = function(data, var, params) {
+    preprocess_within_trial_data(data, var, params)
+  },
+  model_formulas = within_trial_model_formulas,
+  questionnaire_vars = c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10"),
+  analysis_name = "Bet Difference by Within-Trial Choice Switch",
+  y_label = "Bet difference (Bet 2 - Bet 1)",
+  is_percentage = FALSE,
+  subscale_mapping = list(
+    lsas = c("lsas_p", "lsas_s"),
+    dass = c("dass_a", "dass_d", "dass_s"),
+    ssms = c("ssms_cd", "ssms_ia"),
+    srp_sf = c("srp_sf_ipm", "srp_sf_ca", "srp_sf_els", "srp_sf_ct"),
+    ami = c("ami_es", "ami_sm", "ami_ba"),
+    aq_10 = NULL
+  )
+)
+
+################## RUN ANALYSES AND SAVE OUTPUT ###################
+# Read data
+data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+                 show_col_types = FALSE)
+
+# Define directory structure
+questionnaire_dir <- here("output", "behav", "questionnaire")
+analysis_dir <- file.path(questionnaire_dir, "bet_diff_by_within_trial_switch")
+
+# Create directories
+dir.create(file.path(analysis_dir, "txt"), recursive = TRUE, showWarnings = FALSE)
+
+# Run analysis
+within_trial_results <- run_model_pipeline(
+  data = data,
+  params = within_trial_params,
+  output_path = file.path(analysis_dir, "txt", "bet_difference_by_within_trial_switch.txt")
+)
+
+# Save plots
+save_analysis_plots(within_trial_results, "within_trial_switch", analysis_dir)
+```
+

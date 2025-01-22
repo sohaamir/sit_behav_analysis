@@ -1,0 +1,76 @@
+---
+title: "chunk_preprocessing_validation"
+author: "Aamir Sohail"
+date: "2025-01-21"
+output: html_document
+---
+
+# Chunk 1
+
+```r
+data %>%
+  mutate(
+    consensus_level = case_when(
+      player.choice1_with %in% c(0, 1) ~ "4:0",
+      player.choice1_with %in% c(0.25, 0.75) ~ "3:1",
+      player.choice1_with == 0.5 ~ "2:2"
+    ),
+    direction = case_when(
+      # Put 2:2 in Against group
+      consensus_level == "2:2" ~ "Against group",
+      # For other conditions, split based on direction
+      player.choice1_with >= 0.5 ~ "With group",
+      TRUE ~ "Against group"
+    ),
+    consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
+    direction = factor(direction, levels = c("Against group", "With group"))
+  ) %>%
+  group_by(consensus_level, direction) %>%
+  summarise(
+    n_trials = n(),
+    pct_total = round(n()/n() * 100, 1),
+    mean_switch_prob = mean(player.switch_vs_stay) * 100,
+    mean_bet_diff = mean(player.bet2 - player.bet1),
+    n_participants = n_distinct(participant.id_in_session),
+    trials_per_participant = n()/n_distinct(participant.id_in_session),
+    .groups = 'drop'
+  )
+```
+
+# Chunk 2
+
+```r
+data %>%
+  filter(!is.na(choice_switch_across_trials)) %>%
+  mutate(
+    consensus_level = case_when(
+      player.choice1_with %in% c(0, 1) ~ "4:0",
+      player.choice1_with %in% c(0.25, 0.75) ~ "3:1",
+      player.choice1_with == 0.5 ~ "2:2"
+    ),
+    direction = case_when(
+      # Put 2:2 in Against group
+      consensus_level == "2:2" ~ "Against group",
+      # For other conditions, split based on direction
+      player.choice1_with >= 0.5 ~ "With group",
+      TRUE ~ "Against group"
+    ),
+    trial_type = factor(if_else(choice_switch_across_trials == 0, "Stay", "Switch"), 
+                       levels = c("Stay", "Switch")),
+    consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
+    direction = factor(direction, levels = c("Against group", "With group"))
+  ) %>%
+  group_by(consensus_level, direction, trial_type) %>%
+  summarise(
+    n_trials = n(),
+    pct_total = round(n()/nrow(.) * 100, 1),
+    mean_accuracy = mean(player.choice1_accuracy) * 100,
+    mean_bet = mean(player.bet1),
+    n_participants = n_distinct(participant.id_in_session),
+    trials_per_participant = n()/n_distinct(participant.id_in_session),
+    .groups = 'drop'
+  )
+```
+
+# Chunk 3
+
