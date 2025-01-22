@@ -66,15 +66,14 @@ preprocess_consensus_data <- function(data, outcome_type, questionnaire_var, gro
         player.choice1_with == 0.5 ~ "2:2"
       ),
       direction = case_when(
-        # Put 2:2 in Against group (or With group if specified)
         consensus_level == "2:2" ~ if(group_2_2_in_with) "With group" else "Against group",
-        # For other conditions, split based on direction
         player.choice1_with >= 0.5 ~ "With group",
         TRUE ~ "Against group"
       ),
       consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
       direction = factor(direction, levels = c("Against group", "With group"))
-    )
+    ) %>%
+    filter(!(consensus_level == "2:2" & direction == "With group"))
 
   # Process outcome variable
   outcome_data <- if(outcome_type == "switch") {
@@ -226,7 +225,7 @@ bet_results <- run_model_pipeline(
   output_path = file.path(txt_base_dir, "bet_difference_by_group_consensus.txt")
 )
 
-# Save plots for both analyses
+# Save plots for both analyses (chunk 1)
 save_analysis_plots(switch_results, "choice_switch", analysis_dir)
 save_analysis_plots(bet_results, "bet_difference", analysis_dir)
 ```
@@ -257,15 +256,14 @@ preprocess_switch_diff_data <- function(data, outcome_type, questionnaire_var, p
         player.choice1_with == 0.5 ~ "2:2"
       ),
       direction = case_when(
-        # Put 2:2 in Against group
         consensus_level == "2:2" ~ "Against group",
-        # For other conditions, split based on direction
         player.choice1_with >= 0.5 ~ "With group",
         TRUE ~ "Against group"
       ),
       consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
       direction = factor(direction, levels = c("Against group", "With group"))
-    )
+    ) %>%
+    filter(!(consensus_level == "2:2" & direction == "With group"))
 
   # Process outcome variable based on type
   outcome_data <- if(outcome_type == "accuracy") {
@@ -350,7 +348,7 @@ accuracy_params <- list(
   model_formulas = switch_diff_model_formulas,
   questionnaire_vars = c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10"),
   analysis_name = "Choice Accuracy by Switch Difference",
-  y_label = "Choice accuracy (%)",
+  y_label = "Choice 1 accuracy on t + 1 (%)",
   is_percentage = TRUE,
   subscale_mapping = list(
     lsas = c("lsas_p", "lsas_s"),
@@ -371,7 +369,7 @@ bet_params <- list(
   model_formulas = switch_diff_model_formulas,
   questionnaire_vars = c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10"),
   analysis_name = "Bet Magnitude by Switch Difference",
-  y_label = "Bet magnitude",
+  y_label = "Bet 1 magnitude on t + 1",
   is_percentage = FALSE,
   subscale_mapping = list(
     lsas = c("lsas_p", "lsas_s"),
@@ -413,7 +411,7 @@ bet_results <- run_model_pipeline(
   output_path = file.path(txt_base_dir, "bet_magnitude_by_switch_difference.txt")
 )
 
-# Save plots for both analyses
+# Save plots for both analyses (chunk 2)
 save_analysis_plots(accuracy_results, "choice_accuracy", analysis_dir)
 save_analysis_plots(bet_results, "bet_magnitude", analysis_dir)
 ```
@@ -449,14 +447,15 @@ preprocess_within_trial_data <- function(data, questionnaire_var, params) {
       ),
       consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
       direction = factor(direction, levels = c("Against group", "With group")),
-      outcome_value = player.bet2 - player.bet1
-    )
+      bet_difference = player.bet2 - player.bet1
+    ) %>%
+    filter(!(consensus_level == "2:2" & direction == "With group"))
   
   # Aggregate data
   aggregated_data <- base_data %>%
     group_by(participant.id_in_session, consensus_level, direction, switch_vs_stay) %>%
     summarise(
-      mean_outcome = mean(outcome_value),
+      outcome_value = mean(bet_difference),  # Changed from mean_outcome to outcome_value
       .groups = 'drop'
     )
   
@@ -558,7 +557,7 @@ within_trial_results <- run_model_pipeline(
   output_path = file.path(analysis_dir, "txt", "bet_difference_by_within_trial_switch.txt")
 )
 
-# Save plots
+# Save plots (chunk 3)
 save_analysis_plots(within_trial_results, "within_trial_switch", analysis_dir)
 ```
 
