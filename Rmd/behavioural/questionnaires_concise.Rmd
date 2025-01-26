@@ -7,7 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE, message=FALSE, cache=TRUE}
 # Install packages only if they are not already installed
-required_packages <- c("ggplot2", "tidyverse", "ggpubr", "rstatix", "ez", "lme4", "lmerTest", "car", "emmeans", "MuMIn", "psych", "interactions", "effects", "here", "lm.beta", "effectsize", "parallel")
+required_packages <- c("ggplot2", "tidyverse", "ggpubr", "rstatix", "ez", "lme4", "lmerTest", "car", "emmeans", "MuMIn", "psych", "interactions", "effects", "here", "lm.beta", "effectsize", "parallel", "gridExtra", "grid")
 install_if_missing <- required_packages[!required_packages %in% installed.packages()]
 if (length(install_if_missing) > 0) {
   install.packages(install_if_missing, quietly = TRUE)
@@ -35,11 +35,14 @@ library(conflicted)
 library(lm.beta)
 library(effectsize)
 library(parallel)
+library(gridExtra)
+library(grid)
 
 conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
 conflicts_prefer(lmerTest::lmer)
 conflicts_prefer(effectsize::eta_squared)
+conflicts_prefer(effectsize::cohens_d)
 ```
 
 ## Within-trial choice switch probability and bet difference by group consensus and direction
@@ -561,7 +564,7 @@ within_trial_results <- run_model_pipeline(
 save_analysis_plots(within_trial_results, "within_trial_switch", analysis_dir)
 ```
 
-## Choice accuracy and bet magnitude by trial position relative to reversal
+## Questionnaire effects on choice accuracy and bet magnitude around reversals
 
 ```{r setup, include=FALSE, message=FALSE}
 rm(list=ls())
@@ -569,230 +572,176 @@ rm(list=ls())
 # Source the core pipeline functions
 source(here("R", "questionnaire_mixed_models.R"))
 
-################## SPECIFIC PREPROCESSING ###################
-preprocess_reversal_data <- function(data, outcome_type, questionnaire_var, params) {
-  
-  # Get subscales for the current questionnaire
-  subscales <- params$subscale_mapping[[questionnaire_var]]
-  
-  # Create base transformations with trial position relative to reversal
-  base_data <- data %>%
-    group_by(participant.id_in_session) %>%
-    mutate(
-      trial_to_reversal = sapply(seq_along(group.trial_number), function(i) {
-        curr_trial <- group.trial_number[i]
-        reversal_trials <- which(group.reversal_happened == 1)
-        if(length(reversal_trials) == 0) return(NA)
-        distances <- abs(curr_trial - reversal_trials)
-        min_dist <- min(distances)
-        if(min_dist <= 3) {
-          return(curr_trial - reversal_trials[which.min(distances)])
-        } else {
-          return(NA)
-        }
-      })
-    ) %>%
-    filter(!is.na(trial_to_reversal)) %>%
-    ungroup()
-
-  # Add these two critical checks:
-  print("After trial_to_reversal calculation:")
-  print("1. Distribution of trials relative to reversal:")
-  print(table(base_data$trial_to_reversal))
-  
-  print("2. Checking if accuracy columns still exist:")
-  print("Available columns:")
-  print(names(base_data))
-  
-  trial_summary <- base_data %>%
-    group_by(trial_to_reversal) %>%
-    summarise(
-      n_trials = n(),
-      mean_choice1_accuracy = if("player.choice1_accuracy" %in% colnames(base_data)) 
-                               mean(player.choice1_accuracy, na.rm = TRUE) * 100 else NA,
-      mean_choice2_accuracy = if("player.choice2_accuracy" %in% colnames(base_data)) 
-                               mean(player.choice2_accuracy, na.rm = TRUE) * 100 else NA,
-      mean_bet1 = if("player.bet1" %in% colnames(base_data)) 
-                    mean(player.bet1, na.rm = TRUE) else NA,
-      mean_bet2 = if("player.bet2" %in% colnames(base_data)) 
-                    mean(player.bet2, na.rm = TRUE) else NA,
-      n_participants = n_distinct(participant.id_in_session),
-      .groups = 'drop'
-    )
-  
-  print(trial_summary)
-
-  # Process outcome variables based on type
-  wide_data <- if(outcome_type == "accuracy") {
-    print("\nProcessing accuracy data:")
-    temp_data <- base_data %>%
-      group_by(participant.id_in_session, trial_to_reversal, gender) %>%
-      summarise(
-        choice1_accuracy = mean(player.choice1_accuracy, na.rm = TRUE),
-        choice2_accuracy = mean(player.choice2_accuracy, na.rm = TRUE),
-        .groups = 'drop'
-      )
-  } else {
-    print("\nProcessing bet data:")
-    temp_data <- base_data %>%
-      group_by(participant.id_in_session, trial_to_reversal, gender) %>%
-      summarise(
-        choice1_accuracy = mean(player.bet1, na.rm = TRUE),
-        choice2_accuracy = mean(player.bet2, na.rm = TRUE),
-        .groups = 'drop'
-      )
-  }
-
-  # Convert to long format
-  print("\nConverting to long format:")
-  long_data <- wide_data %>%
-    pivot_longer(
-      cols = c(choice1_accuracy, choice2_accuracy),
-      names_to = "choice_type",
-      values_to = "outcome_value"
-    ) %>%
-    mutate(
-      choice_type = factor(
-        ifelse(choice_type == "choice1_accuracy", "Choice 1", "Choice 2"),
-        levels = c("Choice 1", "Choice 2")
-      )
-    )
-
-  # Join with questionnaire data and scale variables
-  scaled_data <- long_data %>%
-    left_join(
-      base_data %>%
-        group_by(participant.id_in_session) %>%
-        slice(1) %>%
-        select(participant.id_in_session, 
-               !!questionnaire_var, 
-               age,
-               !!!syms(subscales)),
-      by = "participant.id_in_session"
-    ) %>%
-    mutate(
-      scale_name = as.numeric(scale(.data[[questionnaire_var]])),
-      age = as.numeric(scale(age)),
-      gender = factor(gender),
-      trial_to_reversal = factor(trial_to_reversal)
-    )
-
-  # Print final data check
-  print("\nFinal scaled data summary:")
-  print(str(scaled_data))
-  print(summary(scaled_data))
-
-  # Scale subscales if they exist
-  if (!is.null(subscales)) {
-    for (subscale in subscales) {
-      scaled_data[[subscale]] <- as.numeric(scale(scaled_data[[subscale]]))
-    }
-  }
-
-  if(params$is_percentage) {
-    scaled_data$outcome_value <- scaled_data$outcome_value * 100
-  }
-
-  return(scaled_data)
-}
-
-################## MODEL FORMULAS ###################
-reversal_model_formulas <- list(
-  m1 = list(
-    formula = outcome_value ~ trial_to_reversal + choice_type + scale_name + 
-              age + (1|participant.id_in_session),
-    description = "Main effects only"
-  ),
-  m2 = list(
-    formula = outcome_value ~ (trial_to_reversal + choice_type + scale_name)^2 + 
-              age + (1|participant.id_in_session),
-    description = "Two-way interactions"
-  ),
-  m3 = list(
-    formula = outcome_value ~ trial_to_reversal * choice_type * scale_name + 
-              age + (1|participant.id_in_session),
-    description = "Three-way interaction"
-  )
-)
-
-# Define parameters for accuracy analysis
-accuracy_params <- list(
-  analysis_type = "reversal_learning",
-  preprocessing_fn = function(data, var, params) {
-    preprocess_reversal_data(data, "accuracy", var, params)
-  },
-  model_formulas = reversal_model_formulas,
-  questionnaire_vars = c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10"),
-  analysis_name = "Choice Accuracy by Trial Position",
-  y_label = "Choice accuracy (%)",
-  is_percentage = TRUE,
-  subscale_mapping = list(
-    lsas = c("lsas_p", "lsas_s"),
-    dass = c("dass_a", "dass_d", "dass_s"),
-    ssms = c("ssms_cd", "ssms_ia"),
-    srp_sf = c("srp_sf_ipm", "srp_sf_ca", "srp_sf_els", "srp_sf_ct"),
-    ami = c("ami_es", "ami_sm", "ami_ba"),
-    aq_10 = NULL
-  )
-)
-
-# Define parameters for bet analysis
-bet_params <- list(
-  analysis_type = "reversal_learning",
-  preprocessing_fn = function(data, var, params) {
-    preprocess_reversal_data(data, "bet", var, params)
-  },
-  model_formulas = reversal_model_formulas,
-  questionnaire_vars = c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10"),
-  analysis_name = "Bet Magnitude by Trial Position",
-  y_label = "Bet magnitude",
-  is_percentage = FALSE,
-  subscale_mapping = list(
-    lsas = c("lsas_p", "lsas_s"),
-    dass = c("dass_a", "dass_d", "dass_s"),
-    ssms = c("ssms_cd", "ssms_ia"),
-    srp_sf = c("srp_sf_ipm", "srp_sf_ca", "srp_sf_els", "srp_sf_ct"),
-    ami = c("ami_es", "ami_sm", "ami_ba"),
-    aq_10 = NULL
-  )
-)
-
-################## RUN ANALYSES AND SAVE OUTPUT ###################
 # Read data
 data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
                  show_col_types = FALSE)
 
+################## PRE-PROCESSING ###################
+# Get reversal trials
+reversal_trials <- data %>% 
+  filter(group.reversal_happened == 1) %>%
+  select(group.trial_number) %>%
+  distinct()
+
+# Process data
+reversal_data <- data %>%
+  select(
+    participant.id_in_session,
+    group.trial_number,
+    player.choice1_accuracy,
+    player.choice2_accuracy,
+    player.bet1,
+    player.bet2,
+    group.reversal_happened,
+    # Main scales
+    ssms, dass, lsas, srp_sf, ami, aq_10,
+    # Subscales
+    lsas_p, lsas_s,
+    dass_a, dass_d, dass_s,
+    ssms_cd, ssms_ia,
+    srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct,
+    ami_es, ami_sm, ami_ba,
+    # Demographics
+    age, gender
+  ) %>%
+  # Get trials relative to reversal and check for complete windows
+  group_by(participant.id_in_session) %>%
+  mutate(
+    # For each trial, get its position relative to the closest reversal
+    trial_to_reversal = map_dbl(group.trial_number, function(x) {
+      reversal_trial <- reversal_trials$group.trial_number
+      relative_pos <- x - reversal_trial
+      if(any(abs(relative_pos) <= 3)) {
+        relative_pos[which.min(abs(relative_pos))]
+      } else {
+        NA
+      }
+    }),
+    # For each trial within a window, check if all 7 trials exist
+    complete_window = map_lgl(group.trial_number, function(x) {
+      reversal_trial <- reversal_trials$group.trial_number
+      rel_pos <- x - reversal_trial
+      if(any(abs(rel_pos) <= 3)) {
+        closest_reversal <- reversal_trial[which.min(abs(rel_pos))]
+        required_trials <- (closest_reversal - 3):(closest_reversal + 3)
+        all(required_trials %in% group.trial_number)
+      } else {
+        FALSE
+      }
+    })
+  ) %>%
+  # Keep only complete windows
+  filter(!is.na(trial_to_reversal) & complete_window) %>%
+  ungroup() %>%
+  mutate(
+    trial_to_reversal = factor(trial_to_reversal),
+    participant.id_in_session = factor(participant.id_in_session),
+    # Scale questionnaire variables and age
+    across(c(ssms, dass, lsas, srp_sf, ami, aq_10, age), scale)
+  )
+
+# Print summary of data
+cat("\nReversal Analysis Data Summary:\n")
+cat("Number of participants:", n_distinct(reversal_data$participant.id_in_session), "\n")
+cat("Number of complete reversal windows:", n_distinct(reversal_data$group.trial_number), "\n")
+
+################## DIRECTORY SETUP ###################
+# Define questionnaire variables
+questionnaire_vars <- c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10")
+
 # Define directory structure
 questionnaire_dir <- here("output", "behav", "questionnaire")
-analysis_dir <- file.path(questionnaire_dir, "choice_accuracy_and_bet_magnitude_by_reversal_trial_position")
+analysis_dir <- file.path(questionnaire_dir, "reversal_analysis")
 
-# Create directories
-dir.create(file.path(analysis_dir, "txt"), recursive = TRUE, showWarnings = FALSE)
+# Create main output directories for plots and txt
+plot_base_dir <- file.path(analysis_dir, "plots")
+txt_base_dir <- file.path(analysis_dir, "txt")
 
-# Run analyses
-accuracy_results <- run_model_pipeline(
-  data = data,
-  params = accuracy_params,
-  output_path = file.path(analysis_dir, "txt", "choice_accuracy_by_trial_position.txt")
-)
+# Create specific plot subdirectories
+plot_choice_dir <- file.path(plot_base_dir, "median_split", "choice")
+plot_bet_dir <- file.path(plot_base_dir, "median_split", "bet")
 
-bet_results <- run_model_pipeline(
-  data = data,
-  params = bet_params,
-  output_path = file.path(analysis_dir, "txt", "bet_magnitude_by_trial_position.txt")
-)
+# Create all directories
+dir.create(txt_base_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(plot_choice_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(plot_bet_dir, recursive = TRUE, showWarnings = FALSE)
 
-# Save plots (for chunk 4)
-save_analysis_plots(accuracy_results, "choice_accuracy", analysis_dir)
-save_analysis_plots(bet_results, "bet_magnitude", analysis_dir)
+################## ANALYSIS AND SAVING ###################
+# Initialize combined results text
+all_choice_results <- ""
+all_bet_results <- ""
+
+# Run analysis for each questionnaire
+for(var in questionnaire_vars) {
+  # Create plots and get test results
+  results <- plot_median_split_reversal(reversal_data, var, NULL, NULL, var)
+  
+  # Save plots in appropriate directories
+  ggsave(
+    filename = file.path(plot_choice_dir, paste0(var, "_choice_reversal.png")),
+    plot = results$choice_plot,
+    width = 5,
+    height = 7
+  )
+  
+  ggsave(
+    filename = file.path(plot_bet_dir, paste0(var, "_bet_reversal.png")),
+    plot = results$bet_plot,
+    width = 5,
+    height = 7
+  )
+  
+  # Format and append results
+  formatted_results <- format_results_reversal(results$test_results, 
+                                             results$summary_data, 
+                                             var)
+  
+  all_choice_results <- paste0(all_choice_results, formatted_results$choice_text, "\n\n")
+  all_bet_results <- paste0(all_bet_results, formatted_results$bet_text, "\n\n")
+  
+  # Process subscales if they exist
+  if(!is.null(SUBSCALE_MAPPING[[var]])) {
+    for(subscale in SUBSCALE_MAPPING[[var]]) {
+      subscale_results <- plot_median_split_reversal(reversal_data, 
+                                                   subscale, 
+                                                   NULL, 
+                                                   NULL, 
+                                                   subscale)
+      
+      # Save subscale plots
+      ggsave(
+        filename = file.path(plot_choice_dir, paste0(subscale, "_choice_reversal.png")),
+        plot = subscale_results$choice_plot,
+        width = 5,
+        height = 7
+      )
+      
+      ggsave(
+        filename = file.path(plot_bet_dir, paste0(subscale, "_bet_reversal.png")),
+        plot = subscale_results$bet_plot,
+        width = 5,
+        height = 7
+      )
+      
+      # Format and append subscale results
+      formatted_results <- format_results_reversal(subscale_results$test_results,
+                                                 subscale_results$summary_data,
+                                                 subscale)
+      
+      all_choice_results <- paste0(all_choice_results, formatted_results$choice_text, "\n\n")
+      all_bet_results <- paste0(all_bet_results, formatted_results$bet_text, "\n\n")
+    }
+  }
+}
+
+# Save combined results
+writeLines(all_choice_results, 
+          file.path(txt_base_dir, "combined_choice_reversal_results.txt"))
+writeLines(all_bet_results, 
+          file.path(txt_base_dir, "combined_bet_reversal_results.txt"))
+
+# Print analysis completion message
+cat("\nAnalysis complete.\n")
+cat("Results saved in:", analysis_dir, "\n")
 ```
-
-
-
-
-
-
-
-
-
 
