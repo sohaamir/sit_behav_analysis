@@ -2214,3 +2214,76 @@ format_results_reversal <- function(test_results, summary_data, var_name) {
   
   return(list(choice_text = choice_text, bet_text = bet_text))
 }
+
+# Specific formatting function for bet and choice accuracy differences
+format_results_overall <- function(main_results, subscale_results = NULL, params) {
+  output_text <- sprintf("%s - STATISTICAL ANALYSIS RESULTS\n\n", 
+                         toupper(params$analysis_name))
+  output_text <- paste0(output_text, 
+                        "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
+  
+  # Format main results
+  output_text <- paste0(output_text, "PRIMARY ANALYSIS RESULTS:\n",
+                        "================================\n")
+  
+  for(i in 1:nrow(main_results)) {
+    result <- main_results[i,]
+    output_text <- paste0(output_text,
+                          sprintf("\nQuestionnaire: %s\n", result$questionnaire),
+                          "\nChoice Analysis:\n",
+                          sprintf("p-value: %s\n", format.pval(result$choice_p, digits = 3)),
+                          sprintf("FDR-adjusted p-value: %s\n", format.pval(result$choice_p_adj, digits = 3)),
+                          sprintf("Correlation (r): %.3f [%.3f, %.3f]\n", 
+                                  result$choice_r, result$choice_r_ci_low, result$choice_r_ci_high),
+                          sprintf("Standardized beta: %.3f\n", result$choice_beta),
+                          sprintf("R²: %.3f\n", result$choice_r2),
+                          sprintf("F-statistic: F(1,%d) = %.2f\n", result$choice_df - 2, result$choice_f),
+                          sprintf("Residual normality: %s\n", format.pval(result$choice_resid_norm, digits = 3)),
+                          "\nBet Analysis:\n",
+                          sprintf("p-value: %s\n", format.pval(result$bet_p, digits = 3)),
+                          sprintf("FDR-adjusted p-value: %s\n", format.pval(result$bet_p_adj, digits = 3)),
+                          sprintf("Correlation (r): %.3f [%.3f, %.3f]\n", 
+                                  result$bet_r, result$bet_r_ci_low, result$bet_r_ci_high),
+                          sprintf("Standardized beta: %.3f\n", result$bet_beta),
+                          sprintf("R²: %.3f\n", result$bet_r2),
+                          sprintf("F-statistic: F(1,%d) = %.2f\n", result$bet_df - 2, result$bet_f),
+                          sprintf("Residual normality: %s\n\n", format.pval(result$bet_resid_norm, digits = 3)))
+  }
+  
+  # Format subscale results if they exist
+  if(!is.null(subscale_results) && nrow(subscale_results) > 0) {
+    output_text <- paste0(output_text, "\nSUBSCALE ANALYSIS RESULTS:\n",
+                          "================================\n")
+    
+    for(scale in unique(subscale_results$parent_scale)) {
+      output_text <- paste0(output_text, "\nParent Scale: ", scale, "\n")
+      
+      scale_results <- subscale_results %>% filter(parent_scale == scale)
+      for(i in 1:nrow(scale_results)) {
+        result <- scale_results[i,]
+        output_text <- paste0(output_text,
+                              sprintf("\nSubscale: %s\n", result$questionnaire),
+                              "\nChoice Analysis:\n",
+                              sprintf("p-value: %s\n", format.pval(result$choice_p, digits = 3)),
+                              sprintf("FDR-adjusted p-value: %s\n", format.pval(result$choice_p_adj, digits = 3)),
+                              sprintf("Correlation (r): %.3f [%.3f, %.3f]\n", 
+                                      result$choice_r, result$choice_r_ci_low, result$choice_r_ci_high),
+                              sprintf("Standardized beta: %.3f\n", result$choice_beta),
+                              sprintf("R²: %.3f\n", result$choice_r2),
+                              sprintf("F-statistic: F(1,%d) = %.2f\n", result$choice_df - 2, result$choice_f),
+                              sprintf("Residual normality: %s\n", format.pval(result$choice_resid_norm, digits = 3)),
+                              "\nBet Analysis:\n",
+                              sprintf("p-value: %s\n", format.pval(result$bet_p, digits = 3)),
+                              sprintf("FDR-adjusted p-value: %s\n", format.pval(result$bet_p_adj, digits = 3)),
+                              sprintf("Correlation (r): %.3f [%.3f, %.3f]\n", 
+                                      result$bet_r, result$bet_r_ci_low, result$bet_r_ci_high),
+                              sprintf("Standardized beta: %.3f\n", result$bet_beta),
+                              sprintf("R²: %.3f\n", result$bet_r2),
+                              sprintf("F-statistic: F(1,%d) = %.2f\n", result$bet_df - 2, result$bet_f),
+                              sprintf("Residual normality: %s\n\n", format.pval(result$bet_resid_norm, digits = 3)))
+      }
+    }
+  }
+  
+  return(output_text)
+}

@@ -45,6 +45,261 @@ conflicts_prefer(effectsize::eta_squared)
 conflicts_prefer(effectsize::cohens_d)
 ```
 
+## Plot average choice accuracy and bet magnitude 
+
+```{r setup, include=FALSE, message=FALSE}
+rm(list=ls())
+
+# Source the core pipeline functions
+source(here("R", "questionnaire_mixed_models.R"))
+
+################## SPECIFIC PREPROCESSING ###################
+prepare_participant_data <- function(data) {
+  # Main questionnaires 
+  main_scales <- c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10")
+  
+  # Get all possible subscales from SUBSCALE_MAPPING
+  all_subscales <- unlist(SUBSCALE_MAPPING[names(SUBSCALE_MAPPING) != "aq_10"])
+  
+  # Create full list of variables we want to keep
+  all_vars <- unique(c(main_scales, all_subscales))
+  
+  # First create summary data
+  summary_data <- data %>%
+    group_by(participant.id_in_session) %>%
+    summarise(
+      choice_accuracy_diff = mean(player.choice2_accuracy - player.choice1_accuracy) * 100,
+      bet_magnitude_diff = mean(player.bet2 - player.bet1),
+      .groups = 'drop'
+    )
+  
+  # Then join with questionnaire data
+  questionnaire_data <- data %>%
+    group_by(participant.id_in_session) %>%
+    slice(1) %>%
+    select(participant.id_in_session, all_of(all_vars), age)
+  
+  # Join and scale
+  full_data <- summary_data %>%
+    left_join(questionnaire_data, by = "participant.id_in_session") %>%
+    mutate(
+      across(c(all_of(all_vars), age), scale)
+    )
+  
+  return(full_data)
+}
+
+################## ANALYSIS FUNCTIONS ###################
+analyze_single_measure <- function(data, questionnaire, measure, outcome_var) {
+  model <- lm(paste(outcome_var, "~", questionnaire, "+ age"), data = data)
+  model_stats <- summary(model)
+  
+  cor_test <- cor.test(data[[questionnaire]], data[[outcome_var]])
+  
+  list(
+    p_value = model_stats$coefficients[2,4],
+    r_value = cor_test$estimate,
+    r_ci_low = cor_test$conf.int[1],
+    r_ci_high = cor_test$conf.int[2],
+    beta = lm.beta::lm.beta(model)$standardized.coefficients[2],
+    resid_norm = shapiro.test(residuals(model))$p.value,
+    r2 = model_stats$r.squared,
+    f_stat = model_stats$fstatistic["value"],
+    df = nrow(data)
+  )
+}
+
+analyze_questionnaire_effects <- function(questionnaire, data) {
+  choice_results <- analyze_single_measure(data, questionnaire, "choice", "choice_accuracy_diff")
+  bet_results <- analyze_single_measure(data, questionnaire, "bet", "bet_magnitude_diff")
+  
+  tibble(
+    questionnaire = questionnaire,
+    choice_p = choice_results$p_value,
+    bet_p = bet_results$p_value,
+    choice_r = choice_results$r_value,
+    bet_r = bet_results$r_value,
+    choice_r_ci_low = choice_results$r_ci_low,
+    choice_r_ci_high = choice_results$r_ci_high,
+    bet_r_ci_low = bet_results$r_ci_low,
+    bet_r_ci_high = bet_results$r_ci_high,
+    choice_beta = choice_results$beta,
+    bet_beta = bet_results$beta,
+    choice_resid_norm = choice_results$resid_norm,
+    bet_resid_norm = bet_results$resid_norm,
+    choice_r2 = choice_results$r2,
+    bet_r2 = bet_results$r2,
+    choice_f = choice_results$f_stat,
+    choice_df = choice_results$df,
+    bet_f = bet_results$f_stat,
+    bet_df = bet_results$df
+  )
+}
+
+################## PLOTTING FUNCTIONS ###################
+plot_relationship <- function(questionnaire, measure = "choice", data = participant_data, results_df) {
+  measure_vars <- list(
+    choice = list(
+      y_var = "choice_accuracy_diff",
+      y_lab = "Choice accuracy difference (%)",
+      fill_color = "#1f77b4",
+      prefix = "choice"
+    ),
+    bet = list(
+      y_var = "bet_magnitude_diff",
+      y_lab = "Bet magnitude difference",
+      fill_color = "#2ca02c",
+      prefix = "bet"
+    )
+  )[[measure]]
+  
+  vars <- measure_vars
+  stats <- results_df[results_df$questionnaire == questionnaire, ]
+  
+  p <- ggplot(data, aes(x = .data[[questionnaire]], y = .data[[vars$y_var]])) +
+    geom_smooth(method = "lm", color = vars$fill_color, fill = "grey80") +
+    labs(
+      x = questionnaire,
+      y = vars$y_lab,
+      title = paste("Effect of", questionnaire, "on", measure),
+      subtitle = sprintf(
+        "r = %.3f [%.3f, %.3f], β = %.3f, p = %.3f\nR² = %.3f, F(%d,%d) = %.2f",
+        stats[[paste0(vars$prefix, "_r")]],
+        stats[[paste0(vars$prefix, "_r_ci_low")]],
+        stats[[paste0(vars$prefix, "_r_ci_high")]],
+        stats[[paste0(vars$prefix, "_beta")]],
+        stats[[paste0(vars$prefix, "_p")]],
+        stats[[paste0(vars$prefix, "_r2")]],
+        1,
+        stats[[paste0(vars$prefix, "_df")]] - 2,
+        stats[[paste0(vars$prefix, "_f")]]
+      )
+    ) +
+    theme_custom
+
+  return(p)
+}
+
+################## RUN ANALYSIS ###################
+# Read data
+data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+                show_col_types = FALSE)
+
+# Define directory structure
+questionnaire_dir <- here("output", "behav", "questionnaire")
+analysis_dir <- file.path(questionnaire_dir, "overall_choice_and_bet_effects")
+
+# Create output directories
+plot_base_dir <- file.path(analysis_dir, "plots")
+txt_base_dir <- file.path(analysis_dir, "txt")
+
+# Create specific plot subdirectories for choice and bet analyses
+plot_choice_dir <- file.path(plot_base_dir, "choice")
+plot_bet_dir <- file.path(plot_base_dir, "bet")
+
+# Create subdirectories for main scales and subscales within each analysis type
+dir.create(file.path(plot_choice_dir, "continuous"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(plot_choice_dir, "subscales"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(plot_bet_dir, "continuous"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(plot_bet_dir, "subscales"), recursive = TRUE, showWarnings = FALSE)
+dir.create(txt_base_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Run main analyses
+participant_data <- prepare_participant_data(data)
+questionnaires <- c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10")
+results <- map_df(questionnaires, ~analyze_questionnaire_effects(.x, participant_data))
+
+# Add FDR correction
+results <- results %>%
+  mutate(
+    choice_p_adj = p.adjust(choice_p, method = "fdr"),
+    bet_p_adj = p.adjust(bet_p, method = "fdr")
+  )
+
+# Run subscale analyses
+subscale_results <- map_df(questionnaires, function(quest) {
+  if(!is.null(SUBSCALE_MAPPING[[quest]])) {
+    map_df(SUBSCALE_MAPPING[[quest]], function(subscale) {
+      result <- analyze_questionnaire_effects(subscale, participant_data)
+      result$parent_scale <- quest
+      return(result)
+    })
+  }
+}) %>%
+  filter(!is.na(parent_scale)) %>%
+  group_by(parent_scale) %>%
+  mutate(
+    choice_p_adj = p.adjust(choice_p, method = "fdr"),
+    bet_p_adj = p.adjust(bet_p, method = "fdr")
+  ) %>%
+  ungroup()
+
+# Plot and save main scale relationships
+for(quest in questionnaires) {
+  # Choice plots
+  p_choice <- plot_relationship(quest, "choice", participant_data, results)
+  ggsave(
+    filename = file.path(plot_choice_dir, "continuous", paste0(quest, ".png")),
+    plot = p_choice,
+    width = 8,
+    height = 6
+  )
+  
+  # Bet plots
+  p_bet <- plot_relationship(quest, "bet", participant_data, results)
+  ggsave(
+    filename = file.path(plot_bet_dir, "continuous", paste0(quest, ".png")),
+    plot = p_bet,
+    width = 8,
+    height = 6
+  )
+}
+
+# Plot subscale relationships
+for(scale in unique(subscale_results$parent_scale)) {
+  scale_results <- subscale_results %>% filter(parent_scale == scale)
+  
+  for(subscale in scale_results$questionnaire) {
+    # Choice plots
+    p_choice <- plot_relationship(subscale, "choice", participant_data, scale_results)
+    ggsave(
+      filename = file.path(plot_choice_dir, "subscales", paste0(subscale, ".png")),
+      plot = p_choice,
+      width = 8,
+      height = 6
+    )
+    
+    # Bet plots
+    p_bet <- plot_relationship(subscale, "bet", participant_data, scale_results)
+    ggsave(
+      filename = file.path(plot_bet_dir, "subscales", paste0(subscale, ".png")),
+      plot = p_bet,
+      width = 8,
+      height = 6
+    )
+  }
+}
+
+# Create params list for format_results
+analysis_params <- list(
+  analysis_type = "overall_effects",
+  preprocessing_fn = prepare_participant_data,
+  questionnaire_vars = questionnaires,
+  analysis_name = "Overall Choice and Bet Effects",
+  subscale_mapping = SUBSCALE_MAPPING
+)
+
+# Format and save text results
+results_text <- format_results_overall(results, subscale_results, analysis_params)
+writeLines(results_text, file.path(txt_base_dir, "choice_and_bet_magnitude.txt"))
+
+# Print analysis completion message
+cat("\nAnalysis complete.\n")
+cat("Results saved in:", analysis_dir, "\n")
+```
+
+
+
 ## Within-trial choice switch probability and bet difference by group consensus and direction
 
 ```{r setup, include=FALSE, message=FALSE}
