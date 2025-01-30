@@ -1,0 +1,159 @@
+---
+title: "cca_behav_quest"
+author: "Aamir Sohail"
+date: "2025-01-11"
+output: html_document
+---
+
+# Description of this script
+
+This script runs the canonical correlation analyses between three sets of canonical variates (CVs):
+
+1. A behavioural CV containing:
+* Switch frequency under dissenting group consensus (lower % indicates pro-self-behaviour)
+* Stay frequency under confirming group consensus (lower % indicates pro-self-behaviour)
+* Bet difference under confirming consensus (positive values indicate increased confidence)
+* Bet difference under dissenting consensus (negative values indicate decreased confidence)
+
+2. A questionnaire CV consisting scores from each of the subscales of the questionnaire battery
+
+## Set-up and installation
+
+```{r setup, include=FALSE, message=FALSE, cache=TRUE, error=FALSE}
+# Install packages only if they are not already installed
+required_packages <- c("CCA", "tidyverse", "yacca", "ggplot2", "CCP", "PMA", 
+                      "gridExtra", "here", "MVN", "corrplot", "mvtnorm", "boot", "caret", "moments")
+install_if_missing <- required_packages[!required_packages %in% installed.packages()]
+if (length(install_if_missing) > 0) {
+  install.packages(install_if_missing, quietly = TRUE)
+}
+
+# Load libraries
+library(CCA)
+library(ggplot2)
+library(tidyverse)
+library(yacca)
+library(CCP)
+library(PMA)
+library(gridExtra)
+library(dplyr)
+library(knitr)
+library(here)
+library(MVN)
+library(corrplot)
+library(mvtnorm)
+library(boot)
+library(caret)
+library(moments)
+```
+
+Plot a correlation matrix of questionnaire scores
+
+```{r}
+rm(list=ls())
+
+# Read and process data
+merged_data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), show_col_types = FALSE)
+
+# Create correlation matrix dataframe with one row per participant
+questionnaire_data <- merged_data %>%
+  group_by(participant.id_in_session) %>%
+  slice(1) %>%  # Take first instance of each participant
+  select(ssms, dass, lsas, srp_sf, ami, aq_10) %>%
+  ungroup()
+
+# Calculate correlation matrix
+cor_matrix <- cor(questionnaire_data, method = "pearson")
+
+# If you want p-values for the correlations
+cor_test <- psych::corr.test(questionnaire_data)
+
+# Visualize using corrplot
+corrplot(cor_matrix, 
+         method = "color",
+         type = "upper",
+         addCoef.col = "black",
+         number.cex = 0.7,
+         tl.col = "black",
+         tl.srt = 45,
+         diag = FALSE)
+```
+
+## Behavioural-Questionnaire CCA
+
+Run the CCA between the behavioural and questionnaire CV's
+
+```{r setup, include=FALSE, message=FALSE}
+rm(list=ls())
+
+# Source the core pipeline functions
+source(here("R", "cca.R"))
+
+# Read and prepare data
+merged_data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+                       show_col_types = FALSE)
+
+# Prepare behavioral CV data
+behavioral_data <- merged_data %>%
+  group_by(participant.id_in_session) %>%
+  summarise(
+    switch_dissent = mean(player.switch_vs_stay[player.choice1_with < 0.5]) * 100,
+    stay_confirm = mean(1 - player.switch_vs_stay[player.choice1_with >= 0.5]) * 100,
+    bet_diff_confirm = mean(player.bet2[player.choice1_with >= 0.5] - 
+                          player.bet1[player.choice1_with >= 0.5]),
+    bet_diff_dissent = mean(player.bet2[player.choice1_with < 0.5] - 
+                          player.bet1[player.choice1_with < 0.5])
+  )
+
+# Prepare questionnaire CV data
+questionnaire_data <- merged_data %>%
+  group_by(participant.id_in_session) %>%
+  slice(1) %>%  
+  select(
+         lsas_p, lsas_s, 
+         dass_a, dass_d, dass_s,
+         ssms_cd, ssms_ia,
+         srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct,
+         ami_es, ami_sm, ami_ba,
+         aq_10
+  ) %>%
+  ungroup()
+
+# Merge and z-score
+cca_data <- behavioral_data %>%
+  left_join(questionnaire_data, by = "participant.id_in_session") %>%
+  select(-participant.id_in_session)
+ 
+cca_data_scaled <- scale(cca_data) %>% as.data.frame()
+
+# Prepare matrices for CCA
+X <- as.matrix(cca_data_scaled[, 1:4])  # Behavioral variables
+Y <- as.matrix(cca_data_scaled[, 5:19])  # Questionnaire variables
+
+# Create correlation matrix dataframe with one row per participant
+questionnaire_data <- merged_data %>%
+  group_by(participant.id_in_session) %>%
+  slice(1) %>%  
+  select(ssms, dass, lsas, srp_sf, ami, aq_10) %>%
+  ungroup()
+
+# Calculate correlation matrix
+cor_matrix <- cor(questionnaire_data, method = "pearson")
+
+# Visualize using corrplot
+corrplot(cor_matrix, 
+         method = "color",
+         type = "upper",
+         addCoef.col = "black",
+         number.cex = 0.7,
+         tl.col = "black",
+         tl.srt = 45,
+         diag = FALSE)
+
+# Set output directory
+output_dir <- here("output", "cca", "cca_function")
+
+# Run CCA analysis
+results <- run_cca_analysis(X, Y, output_dir)
+```
+
