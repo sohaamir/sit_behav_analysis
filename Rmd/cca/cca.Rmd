@@ -151,7 +151,7 @@ corrplot(cor_matrix,
          diag = FALSE)
 
 # Set output directory
-output_dir <- here("output", "cca", "cca_function")
+output_dir <- here("output", "cca", "behavioural_questionnaire_cca")
 
 # Run CCA analysis
 results <- run_cca_analysis(X, Y, output_dir)

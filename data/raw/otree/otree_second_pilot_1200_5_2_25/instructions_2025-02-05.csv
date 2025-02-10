@@ -1,0 +1,21 @@
+﻿participant.id_in_session,participant.code,participant.label,participant._is_bot,participant._index_in_pages,participant._max_page_index,participant._current_app_name,participant._current_page_name,participant.time_started_utc,participant.visited,participant.mturk_worker_id,participant.mturk_assignment_id,participant.payoff,player.id_in_group,player.role,player.payoff,player.prolific_id,group.id_in_subsession,subsession.round_number,session.code,session.label,session.mturk_HITId,session.mturk_HITGroupId,session.comment,session.is_demo
+1,zcf1egr7,5c4338d8a04c050001a0a876,0,278,278,submission,Submit,2025-02-05 11:50:45.966159,1,,,0.0,1,,0.0,5c4338d8a04c050001a0a876,1,1,d6lvy1ol,,,,,0
+2,0r57elef,607d6e86f96c147cf2b3223c,0,278,278,submission,Submit,2025-02-05 11:59:52.669938,1,,,0.0,2,,0.0,607d6e86f96c147cf2b3223c,1,1,d6lvy1ol,,,,,0
+3,uro33w1j,5e3c759575109a055e99b38a,0,278,278,submission,Submit,2025-02-05 12:00:04.597039,1,,,0.0,3,,0.0,5e3c759575109a055e99b38a,1,1,d6lvy1ol,,,,,0
+4,v5uzjzeq,67862f57b5350ebed10fac1f,0,278,278,submission,Submit,2025-02-05 12:00:08.722873,1,,,0.0,4,,0.0,67862f57b5350ebed10fac1f,1,1,d6lvy1ol,,,,,0
+5,r0epnh5n,622bb4f79c52ad04bb91e752,0,278,278,submission,Submit,2025-02-05 12:00:12.160237,1,,,0.0,5,,0.0,622bb4f79c52ad04bb91e752,1,1,d6lvy1ol,,,,,0
+6,c8le880w,66095082185479f7db42d782,0,278,278,submission,Submit,2025-02-05 12:00:21.436295,1,,,0.0,6,,0.0,66095082185479f7db42d782,1,1,d6lvy1ol,,,,,0
+7,fe87ewee,610d4df86c4abc6b5ced6fa0,0,278,278,submission,Submit,2025-02-05 12:00:22.787471,1,,,0.0,7,,0.0,610d4df86c4abc6b5ced6fa0,1,1,d6lvy1ol,,,,,0
+8,vmj6j5sf,5e3024d69366c7000c4025ff,0,278,278,submission,Submit,2025-02-05 12:00:26.939095,1,,,0.0,8,,0.0,5e3024d69366c7000c4025ff,1,1,d6lvy1ol,,,,,0
+9,ljjdyf5m,607f63ce9ffa404fca0400a9,0,12,278,practice_task,WaitPage1,2025-02-05 12:00:38.595190,1,,,0.0,9,,0.0,607f63ce9ffa404fca0400a9,1,1,d6lvy1ol,,,,,0
+10,rdw7kh1f,5d08aa3601331e0001b48923,0,12,278,practice_task,WaitPage1,2025-02-05 12:00:40.647620,1,,,0.0,10,,0.0,5d08aa3601331e0001b48923,1,1,d6lvy1ol,,,,,0
+11,ilvocnr8,66cdd069637121e241f7a40a,0,278,278,submission,Submit,2025-02-05 12:00:41.547855,1,,,0.0,11,,0.0,66cdd069637121e241f7a40a,1,1,d6lvy1ol,,,,,0
+12,sla165sp,5aa696af6219a30001c75d2a,0,278,278,submission,Submit,2025-02-05 12:00:50.755104,1,,,0.0,12,,0.0,5aa696af6219a30001c75d2a,1,1,d6lvy1ol,,,,,0
+13,sy2jizw1,5e1b6da99debf5393dfba2dc,0,12,278,practice_task,WaitPage1,2025-02-05 12:01:05.541355,1,,,0.0,13,,0.0,5e1b6da99debf5393dfba2dc,1,1,d6lvy1ol,,,,,0
+14,c6jit37a,5aa297fe1ade740001b94bb7,0,12,278,practice_task,WaitPage1,2025-02-05 12:02:50.470559,1,,,0.0,14,,0.0,5aa297fe1ade740001b94bb7,1,1,d6lvy1ol,,,,,0
+15,inywr80n,5c9f46a912505500018d191b,0,4,278,instructions,TaskInstructionsPage1,2025-02-05 12:16:07.780796,1,,,0.0,15,,0.0,5c9f46a912505500018d191b,1,1,d6lvy1ol,,,,,0
+16,7vbggryl,,0,0,278,,,,0,,,0.0,16,,0.0,,1,1,d6lvy1ol,,,,,0
+17,55xz493m,,0,0,278,,,,0,,,0.0,17,,0.0,,1,1,d6lvy1ol,,,,,0
+18,o7o3dfqr,,0,0,278,,,,0,,,0.0,18,,0.0,,1,1,d6lvy1ol,,,,,0
+19,2jqa0u9a,,0,0,278,,,,0,,,0.0,19,,0.0,,1,1,d6lvy1ol,,,,,0
+20,o6ydcay7,,0,0,278,,,,0,,,0.0,20,,0.0,,1,1,d6lvy1ol,,,,,0

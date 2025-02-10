@@ -1,0 +1,890 @@
+---
+title: "otree_data_preprocessing"
+author: "Aamir Sohail"
+date: "2025-02-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+# Install packages only if they are not already installed
+required_packages <- c("ggplot2", "tidyverse", "readr", "here", "ggstatsplot")
+install_if_missing <- required_packages[!required_packages %in% installed.packages()]
+if (length(install_if_missing) > 0) {
+  install.packages(install_if_missing, quietly = TRUE)
+}
+
+# Load required libraries
+library(tidyverse)
+library(ggplot2)
+library(readr)
+library(here)
+library(ggstatsplot)
+```
+
+# Submission data checks (for feedback values)
+
+First let's combine submission data for checks
+```{r}
+# Read the CSV files
+data_05 <- read_csv(here("data", "raw", "otree", "otree_second_pilot_1200_5_2_25", "submission_2025-02-05.csv"), 
+                    show_col_types = FALSE)
+data_07 <- read_csv(here("data", "raw", "otree", "otree_third_pilot_1200_7_2_25", "submission_2025-02-07.csv"), 
+                    show_col_types = FALSE)
+
+# Get the maximum participant ID from data_07
+max_id <- max(data_07$participant.id_in_session)
+
+# Adjust the participant IDs in data_05
+data_05_adjusted <- data_05 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id)
+
+# Bind the datasets and select specific columns
+combined_data <- bind_rows(data_07, data_05_adjusted) %>%
+  # Filter for non-NA main_task_bonus
+  filter(!is.na(player.main_task_bonus)) %>%
+  # Select specific columns
+  select(participant.id_in_session,
+         participant.code,
+         participant.label,
+         player.id_in_group,
+         player.main_task_bonus,
+         player.task_understanding,
+         player.task_difficulty,
+         player.engagement,
+         player.influence,
+         player.real_players,
+         player.attention_focus)
+
+# Save the combined dataset
+write_csv(combined_data, 
+          here("data", "raw", "otree", "combined_submissions.csv"))
+```
+
+And let's plot the feedback values from the submission data
+```{r}
+# Reshape the combined_data to long format
+long_data <- combined_data %>%
+  select(player.task_understanding, 
+         player.task_difficulty, 
+         player.engagement, 
+         player.influence, 
+         player.real_players, 
+         player.attention_focus) %>%
+  pivot_longer(cols = everything(),
+               names_to = "measure",
+               values_to = "score") %>%
+  mutate(measure = str_remove(measure, "player."))
+
+# Calculate means
+means <- long_data %>%
+  group_by(measure) %>%
+  summarise(mean_score = mean(score, na.rm = TRUE))
+
+# Create the plot
+ggplot(long_data, aes(x = measure, y = score)) +
+  geom_violin(fill = "gray90", alpha = 0.5) +
+  geom_jitter(width = 0.1, alpha = 0.6, size = 1.5) +
+  geom_point(data = means, aes(y = mean_score), 
+             color = "red", size = 3) +
+  geom_text(data = means, 
+            aes(y = 110, label = sprintf("%.1f", mean_score)),  # Fixed position at y=110
+            size = 4.5) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    plot.margin = margin(1, 0.5, 0.5, 1, "cm")
+  ) +
+  labs(x = NULL,
+       y = "Score",
+       title = NULL) +
+  scale_y_continuous(limits = c(-5, 120))  # Increased to make room for labels at 110
+```
+
+# Main task data preprocessing
+
+Now let's combine the main task data
+```{r}
+rm(list=ls())
+
+# Read the CSV files
+data_05 <- read_csv(here("data", "raw", "otree", "otree_second_pilot_1200_5_2_25", "main_task_2025-02-05.csv"), 
+                   show_col_types = FALSE)
+data_07 <- read_csv(here("data", "raw", "otree", "otree_third_pilot_1200_7_2_25", "main_task_2025-02-07.csv"), 
+                   show_col_types = FALSE)
+
+# Get the maximum participant ID from data_07
+max_id <- max(data_07$participant.id_in_session)
+
+# Adjust the participant IDs in data_05
+data_05_adjusted <- data_05 %>%
+ mutate(participant.id_in_session = participant.id_in_session + max_id)
+
+# Bind the datasets
+# This will automatically fill missing columns with NA
+combined_data <- bind_rows(data_07, data_05_adjusted)
+
+# Save the combined dataset
+write_csv(combined_data, 
+         here("data", "raw", "otree", "combined_main_task.csv"))
+```
+
+Subset the main task data by removing unneeded columns and converting rewards to -1 and 1
+```{r}
+rm(list=ls())
+
+# Read the CSV file
+data <- read_csv(here("data", "raw", "otree", "combined_main_task.csv"), show_col_types = FALSE)
+
+# Remove unneeded columns
+data <- data[, !(names(data) %in% c(
+  "participant._is_bot", "participant._index_in_pages", "player.last_check_time",
+  "participant._max_page_index", "participant._current_app_name", 
+  "participant._current_page_name", "participant.time_started_utc",
+  "participant.visited", "participant.mturk_worker_id",
+  "participant.mturk_assignment_id", "participant.payoff",
+  "player.role", "player.payoff", "player.consecutive_missed_checks",
+  "player.individual_page_load_time", "player.base_payoff",
+  "player.manual_second_choice", "player.disconnection_streak",
+  "player.is_bot", "player.last_connection_time", "player.last_check_time",
+  "group.current_round", "group.second_bet_timer_ended_executed",
+  "group.next_round_transition_time", "group.reversal_rounds",
+  "group.bet_container_displayed", "group.remaining_images_displayed",
+  "group.round_reward_set", "group.intertrial_interval", "group.all_players_loaded",
+  "group.players_loaded_count", "group.disconnected_players",
+  "group.bot_players", "group.active_bots",
+  "group.disconnection_streaks", "session.code",
+  "session.label", "session.mturk_HITId",
+  "session.mturk_HITGroupId", "session.comment",
+  "session.is_demo"
+))]
+
+
+# Convert rewards to -1 and 1 instead of 0 and 1
+data$player.trial_reward[data$player.trial_reward == 0] <- -1
+data$player.loss_or_gain[data$player.loss_or_gain == 0] <- -1
+data$player.player1_loss_or_gain[data$player.player1_loss_or_gain == 0] <- -1
+data$player.player2_loss_or_gain[data$player.player2_loss_or_gain == 0] <- -1
+data$player.player3_loss_or_gain[data$player.player3_loss_or_gain == 0] <- -1
+data$player.player4_loss_or_gain[data$player.player4_loss_or_gain == 0] <- -1
+```
+
+Convert choice with/against to decimals instead of raw numbers
+```{r}
+# Convert choice with/against to decimals instead of raw numbers
+# Create a function to apply the division
+divide_by_4 <- function(x) {
+  ifelse(x == 0, 0, x/4)
+}
+
+# Apply the transformation to each column
+data$player.choice1_with <- divide_by_4(data$player.choice1_with)
+data$player.choice1_against <- divide_by_4(data$player.choice1_against)
+data$player.choice2_with <- divide_by_4(data$player.choice2_with)
+data$player.choice2_against <- divide_by_4(data$player.choice2_against)
+```
+
+Remove trials where the player left and list the number of trials per participant
+```{r}
+# Remove trials where the player left
+data <- data %>% 
+  filter(!is.na(player.my_page_load_time))
+
+# List the number of trials per participant
+data %>%
+  count(participant.id_in_session) %>%
+  arrange(participant.id_in_session)
+```
+
+Save the preprocessed data
+```{r}
+# First create the directory structure (remove pilots if not a pilot)
+dir.create(here("data", "preprocessed", "otree", "pilots"), recursive = TRUE)
+
+# Save the preprocessed data (remove pilots if not a pilot)
+write_csv(data, here("data", "preprocessed", "otree", "pilots", "main_task_combined.csv"))
+```
+
+# Main task data checks and exclusions 
+
+Load in the data
+```{r}
+rm(list=ls())
+
+data <- read_csv(here("data", "preprocessed", "otree", "pilots", "main_task_combined.csv"), show_col_types = FALSE)
+```
+
+
+Run several checks, including:
+
+Check the number of manual responses per participant (choices and bets)
+Check the total number of trials where all choices and bets were made manually
+Check the number of times image A and image B was selected manually
+Check the average manual bet 1 and bet 2
+
+```{r}
+summary_df <- data %>%
+  group_by(participant.id_in_session, participant.label) %>%
+  summarise(
+    sum_choice_one = sum(player.computer_choice_one, na.rm = TRUE),
+    sum_choice_two = sum(player.computer_choice_two, na.rm = TRUE),
+    sum_bet_one = sum(player.computer_bet_one, na.rm = TRUE),
+    sum_bet_two = sum(player.computer_bet_two, na.rm = TRUE),
+    
+    total_manual_trials = sum(player.computer_choice_one == 0 & 
+                            player.computer_choice_two == 0 & 
+                            player.computer_bet_one == 0 & 
+                            player.computer_bet_two == 0, na.rm = TRUE),
+    
+    # Count trials where computer_choice is 0
+    count_choice_one_zero = sum(player.computer_choice_one == 0, na.rm = TRUE),
+    count_choice_two_zero = sum(player.computer_choice_two == 0, na.rm = TRUE),
+    
+    # Count 1s and 2s only when respective computer_choice is 0
+    count_ones_image_one = sum(player.chosen_image_one_binary == '1' & 
+                              player.computer_choice_one == 0, na.rm = TRUE),
+    count_twos_image_one = sum(player.chosen_image_one_binary == '2' & 
+                              player.computer_choice_one == 0, na.rm = TRUE),
+    count_ones_image_two = sum(player.chosen_image_two_binary == '1' & 
+                              player.computer_choice_two == 0, na.rm = TRUE),
+    count_twos_image_two = sum(player.chosen_image_two_binary == '2' & 
+                              player.computer_choice_two == 0, na.rm = TRUE),
+    
+    # Average bets when computer bets are 0
+    avg_bet_one = mean(player.bet1[player.computer_bet_one == 0], na.rm = TRUE),
+    avg_bet_two = mean(player.bet2[player.computer_bet_two == 0], na.rm = TRUE)
+  )
+
+# Identify participants with too few manual trials
+low_manual_participants <- summary_df %>%
+  filter(total_manual_trials < 45) %>%
+  select(participant.id_in_session, participant.label, total_manual_trials) %>%
+  mutate(Reason = "Too few trials where all responses were manually made")
+
+# Save to CSV
+write.csv(low_manual_participants,
+          file = "excluded_otree_subjects.csv",
+          row.names = FALSE)
+
+# Print to console
+cat("Participants with fewer than 45 manual trials:\n")
+print(low_manual_participants)
+```
+
+
+Get the participants with too many choices of the same image
+```{r}
+# First read existing data and add the new column with NA values
+if(file.exists("excluded_otree_subjects.csv")) {
+  existing_data <- read.csv("excluded_otree_subjects.csv") %>%
+    mutate(count_ones_image_one = NA)  # Add new column with NAs
+} else {
+  existing_data <- data.frame()
+}
+
+# Create new entries with NA for total_manual_trials
+high_ones_participants <- summary_df %>%
+  filter(count_ones_image_one > 40) %>%
+  select(participant.id_in_session, participant.label, count_ones_image_one) %>%
+  mutate(
+    total_manual_trials = NA,
+    Reason = "Too many choices of the same image"
+  )
+
+# Combine and write back to CSV
+combined_data <- rbind(existing_data, high_ones_participants)
+write.csv(combined_data, 
+          file = "excluded_otree_subjects.csv",
+          row.names = FALSE)
+
+# Still print to console
+cat("Participants with count_ones_image_one above 40:\n")
+print(high_ones_participants)
+```
+
+
+Remove participants with too few manual trials and too many choices of the same image
+
+```{r}
+# Read the CSV with excluded participants
+excluded_participants <- read.csv("excluded_otree_subjects.csv") %>%
+  distinct(participant.label)  # Get unique participant labels
+
+# Filter out these participants from the main data
+filtered_data <- data %>%
+  filter(!participant.label %in% excluded_participants$participant.label)
+
+# Print how many participants were excluded
+cat("Number of participants excluded:", nrow(excluded_participants), "\n")
+
+write_csv(filtered_data, here("data", "preprocessed", "otree", "pilots", "main_task_combined_filtered.csv"))
+```
+
+
+# Perform basic checks and visualizations of the cleaned oTree data
+
+Load the filtered data
+```{r}
+rm(list=ls())
+
+data <- read_csv(here("data", "preprocessed", "otree", "pilots", "main_task_combined_filtered.csv"), show_col_types = FALSE)
+```
+
+
+Re-calculate the checks from before:
+
+- Check the number of manual responses per participant (choices and bets)
+- Check the total number of trials where all choices and bets were made manually
+- Check the number of times image A and image B was selected manually
+- Check the average manual bet 1 and bet 2
+
+```{r}
+summary_df <- data %>%
+  group_by(participant.id_in_session, participant.label) %>%
+  summarise(
+    sum_choice_one = sum(player.computer_choice_one, na.rm = TRUE),
+    sum_choice_two = sum(player.computer_choice_two, na.rm = TRUE),
+    sum_bet_one = sum(player.computer_bet_one, na.rm = TRUE),
+    sum_bet_two = sum(player.computer_bet_two, na.rm = TRUE),
+    
+    total_manual_trials = sum(player.computer_choice_one == 0 & 
+                            player.computer_choice_two == 0 & 
+                            player.computer_bet_one == 0 & 
+                            player.computer_bet_two == 0, na.rm = TRUE),
+    
+    # Count trials where computer_choice is 0
+    count_choice_one_zero = sum(player.computer_choice_one == 0, na.rm = TRUE),
+    count_choice_two_zero = sum(player.computer_choice_two == 0, na.rm = TRUE),
+    
+    # Count 1s and 2s only when respective computer_choice is 0
+    count_ones_image_one = sum(player.chosen_image_one_binary == '1' & 
+                              player.computer_choice_one == 0, na.rm = TRUE),
+    count_twos_image_one = sum(player.chosen_image_one_binary == '2' & 
+                              player.computer_choice_one == 0, na.rm = TRUE),
+    count_ones_image_two = sum(player.chosen_image_two_binary == '1' & 
+                              player.computer_choice_two == 0, na.rm = TRUE),
+    count_twos_image_two = sum(player.chosen_image_two_binary == '2' & 
+                              player.computer_choice_two == 0, na.rm = TRUE),
+    
+    # Average bets when computer bets are 0
+    avg_bet_one = mean(player.bet1[player.computer_bet_one == 0], na.rm = TRUE),
+    avg_bet_two = mean(player.bet2[player.computer_bet_two == 0], na.rm = TRUE)
+  )
+```
+
+Plot the number of time image 1 was chosen manually, and the average bet sizes
+```{r}
+# Reshape data for the count_ones plot
+counts_data <- summary_df %>%
+  select(participant.id_in_session, count_ones_image_one, count_ones_image_two) %>%
+  pivot_longer(cols = c(count_ones_image_one, count_ones_image_two),
+               names_to = "choice_type",
+               values_to = "count")
+
+# Rest of your original code...
+bets_data <- summary_df %>%
+  select(participant.id_in_session, avg_bet_one, avg_bet_two) %>%
+  pivot_longer(cols = c(avg_bet_one, avg_bet_two),
+               names_to = "bet_type",
+               values_to = "average_bet")
+
+# Create violin plot for count_ones
+count_plot <- ggbetweenstats(
+  data = counts_data,
+  x = choice_type,
+  y = count,
+  title = "Distribution of '1' Choices by Image Type",
+  xlab = "Choice Type",
+  ylab = "Count of '1' Choices",
+  type = "nonparametric",
+  package = "ggsci",
+  palette = "nrc_npg",
+  messages = FALSE
+)
+
+# Create violin plot for average bets
+bets_plot <- ggbetweenstats(
+  data = bets_data,
+  x = bet_type,
+  y = average_bet,
+  title = "Distribution of Average Bets",
+  xlab = "Bet Type",
+  ylab = "Average Bet",
+  type = "nonparametric",
+  package = "ggsci",
+  palette = "nrc_npg",
+  messages = FALSE
+)
+
+# Display plots
+count_plot
+bets_plot
+```
+
+Calculate and plot the proportion of each image chosen for each block for both choices, and the accuracy
+Ideally, you would expect for the proportion of each image chosen to be around 0.6-0.7 for each block
+```{r}
+# Function to process data and create plots and tables
+analyze_choices <- function(data, choice_column, computer_column, prop_title) {
+  # Calculate proportions, counts, and accuracy
+  participant_blocks <- data %>%
+    filter(!!sym(computer_column) == 0) %>%
+    mutate(block = case_when(
+      subsession.round_number <= 15 ~ "1-15",
+      subsession.round_number <= 32 ~ "16-32",
+      subsession.round_number <= 47 ~ "33-47",
+      TRUE ~ "48-60"
+    )) %>%
+    group_by(participant.id_in_session, block) %>%
+    summarize(
+      ones_count = sum(!!sym(choice_column) == 1),
+      twos_count = sum(!!sym(choice_column) == 2),
+      total_trials = n(),
+      prop_ones = mean(!!sym(choice_column) == 1),
+      prop_twos = mean(!!sym(choice_column) == 2),
+      .groups = 'drop'
+    ) %>%
+    mutate(
+      ones_fraction = sprintf("%d/%d", ones_count, total_trials),
+      twos_fraction = sprintf("%d/%d", twos_count, total_trials),
+      accuracy = case_when(
+        block %in% c("1-15", "33-47") ~ prop_ones,
+        block %in% c("16-32", "48-60") ~ prop_twos
+      )
+    )
+  
+  # Create counts table
+  counts_table <- participant_blocks %>%
+    select(participant.id_in_session, block, ones_fraction, twos_fraction)
+  
+  # Create final dataset for choice plotting
+  blocks_final <- participant_blocks %>%
+    pivot_longer(
+      cols = c(prop_ones, prop_twos),
+      names_to = "choice",
+      values_to = "proportion"
+    )
+  
+  # Run paired t-tests for choices
+  significance_tests <- blocks_final %>%
+    group_by(block) %>%
+    summarize(
+      p_value = t.test(
+        proportion[choice == "prop_ones"],
+        proportion[choice == "prop_twos"],
+        paired = TRUE
+      )$p.value,
+      significance = case_when(
+        p_value < 0.001 ~ "***",
+        p_value < 0.01 ~ "**",
+        p_value < 0.05 ~ "*",
+        TRUE ~ "ns"
+      ),
+      y_pos = max(proportion) + 0.1
+    )
+  
+  # Create choice plot
+  choice_plot <- ggplot(blocks_final, aes(x = block, y = proportion, color = choice)) +
+    geom_jitter(width = 0.2, alpha = 0.5) +
+    stat_summary(fun = mean, geom = "point", size = 3) +
+    stat_summary(fun = mean, geom = "line", aes(group = choice)) +
+    geom_text(data = significance_tests, 
+              aes(x = block, y = y_pos, label = significance),
+              color = "black") +
+    theme_minimal() +
+    labs(
+      title = prop_title,
+      x = "Trial Block",
+      y = "Proportion",
+      color = "Choice"
+    ) +
+    scale_color_manual(
+      values = c("prop_ones" = "blue", "prop_twos" = "red"),
+      labels = c("prop_ones" = "Ones", "prop_twos" = "Twos")
+    )
+  
+  return(list(plot = choice_plot, 
+             data = participant_blocks,
+             counts = counts_table))
+}
+
+# Function to process accuracy data
+process_accuracy_data <- function(data, choice_column, computer_column, choice_label) {
+  participant_blocks <- data %>%
+    filter(!!sym(computer_column) == 0) %>%
+    mutate(block = case_when(
+      subsession.round_number <= 15 ~ "1-15",
+      subsession.round_number <= 32 ~ "16-32",
+      subsession.round_number <= 47 ~ "33-47",
+      TRUE ~ "48-60"
+    )) %>%
+    group_by(participant.id_in_session, block) %>%
+    summarize(
+      ones_count = sum(!!sym(choice_column) == 1),
+      twos_count = sum(!!sym(choice_column) == 2),
+      total_trials = n(),
+      prop_ones = mean(!!sym(choice_column) == 1),
+      prop_twos = mean(!!sym(choice_column) == 2),
+      .groups = 'drop'
+    ) %>%
+    mutate(
+      accuracy = case_when(
+        block %in% c("1-15", "33-47") ~ prop_ones,
+        block %in% c("16-32", "48-60") ~ prop_twos
+      ),
+      choice_type = choice_label
+    )
+  
+  return(participant_blocks)
+}
+
+# Run analyses for proportion plots
+results_one <- analyze_choices(data, 
+                             "player.chosen_image_one_binary", 
+                             "player.computer_choice_one", 
+                             "Proportion of 1's and 2's by Block (First Choice)")
+results_two <- analyze_choices(data, 
+                             "player.chosen_image_two_binary", 
+                             "player.computer_choice_two", 
+                             "Proportion of 1's and 2's by Block (Second Choice)")
+
+# Process data for accuracy plot
+accuracy_one <- process_accuracy_data(data, 
+                                    "player.chosen_image_one_binary", 
+                                    "player.computer_choice_one", 
+                                    "First Choice")
+accuracy_two <- process_accuracy_data(data, 
+                                    "player.chosen_image_two_binary", 
+                                    "player.computer_choice_two", 
+                                    "Second Choice")
+
+# Combine accuracy data
+combined_accuracy <- rbind(accuracy_one, accuracy_two)
+
+# Create combined accuracy plot
+accuracy_plot <- ggplot(combined_accuracy, 
+                       aes(x = block, y = accuracy, color = choice_type)) +
+  geom_jitter(width = 0.2, alpha = 0.3) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  stat_summary(fun = mean, geom = "line", aes(group = choice_type)) +
+  theme_minimal() +
+  labs(
+    title = "Mean Accuracy by Block for Both Choices",
+    x = "Trial Block",
+    y = "Accuracy",
+    color = "Choice"
+  ) +
+  scale_color_manual(values = c("First Choice" = "blue", "Second Choice" = "red"))
+
+# Display plots
+results_one$plot
+results_two$plot
+accuracy_plot
+
+# Display tables
+print("Counts for First Choice:")
+print(results_one$counts)
+print("Counts for Second Choice:")
+print(results_two$counts)
+```
+
+
+Reaction time for manual choices and bets
+```{r}
+# Calculate timing means with specific column order
+timing_summary_df <- data %>%
+  group_by(participant.id_in_session) %>%
+  summarise(
+    mean_initial_choice_time = mean(player.initial_choice_time[player.computer_choice_one == 0], na.rm = TRUE),
+    mean_initial_bet_time = mean(player.initial_bet_time[player.computer_bet_one == 0], na.rm = TRUE),
+    mean_second_choice_time = mean(player.second_choice_time[player.computer_choice_two == 0], na.rm = TRUE),
+    mean_second_bet_time = mean(player.second_bet_time[player.computer_bet_two == 0], na.rm = TRUE)
+  )
+
+# Create a manual ordering vector
+order_levels <- c("mean_initial_choice_time", 
+                 "mean_initial_bet_time",
+                 "mean_second_choice_time", 
+                 "mean_second_bet_time")
+
+nice_labels <- c("Initial Choice Time",
+                "Initial Bet Time",
+                "Second Choice Time",
+                "Second Bet Time")
+
+# Reshape data for plotting
+timing_data <- timing_summary_df %>%
+  pivot_longer(cols = -participant.id_in_session,
+               names_to = "timing_type",
+               values_to = "time") %>%
+  mutate(timing_type = factor(timing_type, 
+                             levels = order_levels,
+                             labels = nice_labels))
+
+# Create violin plot
+ggbetweenstats(
+  data = timing_data,
+  x = timing_type,
+  y = time,
+  title = "Distribution of Response Times",
+  xlab = "Response Type",
+  ylab = "Time (seconds)",
+  type = "nonparametric",
+  package = "ggsci",
+  palette = "nrc_npg",
+  messages = FALSE
+) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Cumulative earnings over trials from choice 2
+```{r}
+# First, create a starting point dataframe
+start_points <- data %>%
+  select(participant.id_in_session) %>%
+  distinct() %>%
+  mutate(subsession.round_number = 0,
+         player.choice2_sum_earnings = 0)
+
+# Combine with original data
+data_with_start <- bind_rows(start_points, data)
+
+# Now use this in the plot
+ggplot() +
+  # Individual participant lines with high transparency
+  geom_line(data = data_with_start, 
+            aes(x = subsession.round_number, 
+                y = player.choice2_sum_earnings, 
+                group = participant.id_in_session,
+                color = factor(participant.id_in_session)),
+            alpha = 0.2) +
+  # Smoothed mean line with standard error
+  geom_smooth(data = data_with_start,
+             aes(x = subsession.round_number, y = player.choice2_sum_earnings),
+             color = "blue",
+             size = 1.5,
+             se = TRUE,
+             method = "loess") +
+  # Vertical lines
+  geom_vline(xintercept = 16, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = 33, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = 48, linetype = "dashed", color = "red") +
+  labs(title = "Cumulative Score Over Trials by Participant (Choice 2 Outcome)",
+       subtitle = "Blue line shows smoothed mean score with standard error bands",
+       x = "Trial Number",
+       y = "Score") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+# Testing to see if players make choices significantly different from chance
+
+Read the combined main task data from above
+```{r}
+rm(list=ls())
+
+data <- read_csv(here("data", "preprocessed", "otree", "pilots", "main_task_combined_filtered.csv"), show_col_types = FALSE)
+```
+
+Check player choice accuracy across valid trials for both choices combined
+```{r}
+# Calculate the player choice accuracy across valid trials
+summary_df <- data %>%
+  group_by(participant.id_in_session) %>%
+  summarise(
+    total_choice1_accuracy = sum(ifelse(player.computer_choice_one != 1, player.choice1_accuracy, 0), na.rm = TRUE),
+    total_choice2_accuracy = sum(ifelse(player.computer_choice_two != 1, player.choice2_accuracy, 0), na.rm = TRUE),
+    number_of_trials = n(),
+    valid_trials_choice1 = sum(player.computer_choice_one != 1),
+    valid_trials_choice2 = sum(player.computer_choice_two != 1)
+  )
+```
+
+Run binomial tests to check if the player choice accuracy is significantly different from chance, for choice 1 and choice 2 separately and combined
+```{r}
+# Add binomial test results and percentage accuracy for all three categories
+summary_df <- summary_df %>%
+  mutate(
+    # Choice 1
+    percentage_accuracy_choice1 = (total_choice1_accuracy / valid_trials_choice1) * 100,
+    binom_p_value_choice1 = map2_dbl(
+      total_choice1_accuracy, valid_trials_choice1,
+      ~binom.test(.x, .y, p = 0.5)$p.value
+    ),
+    # Choice 2
+    percentage_accuracy_choice2 = (total_choice2_accuracy / valid_trials_choice2) * 100,
+    binom_p_value_choice2 = map2_dbl(
+      total_choice2_accuracy, valid_trials_choice2,
+      ~binom.test(.x, .y, p = 0.5)$p.value
+    ),
+    # Combined (keeping your existing calculations)
+    total_combined_accuracy = total_choice1_accuracy + total_choice2_accuracy,
+    total_valid_trials = valid_trials_choice1 + valid_trials_choice2,
+    percentage_accuracy_combined = (total_combined_accuracy / total_valid_trials) * 100,
+    binom_p_value_combined = map2_dbl(
+      total_combined_accuracy, total_valid_trials,
+      ~binom.test(.x, .y, p = 0.5)$p.value
+    )
+  )
+
+# Look at significant results for all three categories
+significant_results <- summary_df %>%
+  summarise(
+    significant_choice1 = sum(binom_p_value_choice1 < 0.05, na.rm = TRUE),
+    significant_choice2 = sum(binom_p_value_choice2 < 0.05, na.rm = TRUE),
+    significant_combined = sum(binom_p_value_combined < 0.05, na.rm = TRUE),
+    total_participants = n(),
+    mean_accuracy_choice1 = mean(percentage_accuracy_choice1),
+    sd_accuracy_choice1 = sd(percentage_accuracy_choice1),
+    mean_accuracy_choice2 = mean(percentage_accuracy_choice2),
+    sd_accuracy_choice2 = sd(percentage_accuracy_choice2),
+    mean_accuracy_combined = mean(percentage_accuracy_combined),
+    sd_accuracy_combined = sd(percentage_accuracy_combined)
+  )
+
+# Individual results
+summary_df %>%
+  select(participant.id_in_session, 
+         percentage_accuracy_choice1, percentage_accuracy_choice2, percentage_accuracy_combined,
+         binom_p_value_choice1, binom_p_value_choice2, binom_p_value_combined) %>%
+  mutate(across(starts_with("percentage"), ~round(., 2)),
+         across(starts_with("binom"), ~round(., 3)))
+
+# Aggregate tests for all three categories
+aggregate_test_choice1 <- binom.test(
+  sum(summary_df$total_choice1_accuracy), 
+  sum(summary_df$valid_trials_choice1), 
+  p = 0.5
+)
+
+aggregate_test_choice2 <- binom.test(
+  sum(summary_df$total_choice2_accuracy), 
+  sum(summary_df$valid_trials_choice2), 
+  p = 0.5
+)
+
+aggregate_test_combined <- binom.test(
+  sum(summary_df$total_combined_accuracy), 
+  sum(summary_df$total_valid_trials), 
+  p = 0.5
+)
+
+# Print aggregate results
+print("Aggregate results for Choice 1:")
+print(aggregate_test_choice1)
+print("Aggregate results for Choice 2:")
+print(aggregate_test_choice2)
+print("Aggregate results for Combined Choices:")
+print(aggregate_test_combined)
+
+# Create long format data for plotting
+plot_data <- summary_df %>%
+  select(participant.id_in_session, 
+         Choice1 = percentage_accuracy_choice1,
+         Choice2 = percentage_accuracy_choice2,
+         Combined = percentage_accuracy_combined) %>%
+  pivot_longer(cols = c(Choice1, Choice2, Combined),
+               names_to = "choice_type",
+               values_to = "accuracy")
+
+# Calculate means for labels
+means <- plot_data %>%
+  group_by(choice_type) %>%
+  summarise(mean_accuracy = mean(accuracy, na.rm = TRUE))
+
+# Create the plot
+ggplot(plot_data, aes(x = choice_type, y = accuracy)) +
+  geom_violin(fill = "gray90", alpha = 0.5) +
+  geom_jitter(width = 0.1, alpha = 0.6, size = 1.5) +
+  geom_point(data = means, aes(y = mean_accuracy), 
+             color = "red", size = 3) +
+  geom_text(data = means, 
+            aes(y = 110, label = sprintf("%.1f", mean_accuracy)),
+            size = 4.5) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    plot.margin = margin(1, 0.5, 0.5, 1, "cm")
+  ) +
+  labs(x = NULL,
+       y = "Percentage Accuracy",
+       title = NULL) +
+  scale_y_continuous(limits = c(-5, 120))
+```
+
+
+# Subsetting the Qualtrics data and combining with oTree data
+```{r}
+rm(list=ls())
+
+# Read and subset data (change the file path to the recent Qualtrics data)
+data <- read_csv(here("data", "raw", "qualtrics", "pilots", "qualtrics_2025-02-07.csv"))[, c("Finished", "QID10", "QID31",
+                paste0("SC", 1:19), "SC21", "SC22", "SC23", "SC24")]
+
+# Set column names from first row and remove top 2 rows
+colnames(data) <- as.character(data[1,])
+data <- data[-c(1,2),]
+
+# Rename id/age columns  
+colnames(data)[2:3] <- c("id", "age")
+
+# Set final column order using original column names
+data <- data[, c("Finished", "id", "age", "EDUCATION", "GENDER",
+           "LSAS-P", "LSAS-S", "DASS-A", "DASS-D", "DASS-S",
+           "SSMS-CD", "SSMS-IA", "SRP-SF-IPM", "SRP-SF-CA", 
+           "SRP-SF-ELS", "SRP-SF-CT", "AMI-ES", "AMI-SM", 
+           "AMI-BA", "SSMS", "DASS", "LSAS", "SRP-SF", 
+           "AMI", "AQ-10", "CHECKS")]
+
+# Now rename education/gender to lowercase
+colnames(data)[colnames(data) == "EDUCATION"] <- "education"
+colnames(data)[colnames(data) == "GENDER"] <- "gender"
+
+# Remove rows where Finished is not 1 and where checks is not 3
+data <- data %>% filter(Finished == 1, CHECKS == 3)
+
+# Save the preprocessed data (remove pilots if not a pilot)
+write_csv(data, here("data", "preprocessed", "qualtrics", "pilots", "qualtrics_2025-02-07_preprocessed.csv"))
+```
+
+Add Qualtrics questionnaire data to oTree data based on shared Prolific ID and organise properly
+```{r}
+rm(list=ls())
+
+otree_data <- read.csv(here("data", "preprocessed", "otree", "pilots", "main_task_combined_filtered.csv"))
+qualtrics_data <- read.csv(here("data", "preprocessed", "qualtrics", "pilots", "qualtrics_2025-02-07_preprocessed.csv"))
+
+# First, create a copy of qualtrics_data without the CHECKS column
+qualtrics_clean <- qualtrics_data[, !colnames(qualtrics_data) %in% c("CHECKS", "Finished")]
+
+# Convert column names to lowercase and replace dots with underscores
+colnames(qualtrics_clean) <- tolower(gsub("\\.", "_", colnames(qualtrics_clean)))
+
+# Merge the datasets based on the ID columns
+merged_data <- merge(otree_data, 
+                    qualtrics_clean,
+                    by.x = "participant.label",
+                    by.y = "id",
+                    all.x = TRUE)
+
+# Sort by trial number and participant id number
+merged_data <- merged_data[order(merged_data$subsession.round_number, 
+                                      merged_data$participant.id_in_session), ]
+
+# Save the preprocessed data (remove pilots if not a pilot)
+write_csv(merged_data, here("data", "preprocessed", "merged", "pilots", "otree_prolific_merged_filtered_2025-02-07.csv"))
+```
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,72 @@
+BET MAGNITUDE BY SWITCH AND CONSENSUS - STATISTICAL ANALYSIS RESULTS
+
+Analysis run on: 2025-02-01 10:09:47
+
+MODEL COMPARISON RESULTS:
+========================
+   Model      AIC      BIC Is_Winner
+m1    m1 4069.662 4123.940       Yes
+m2    m2 4071.145 4130.850        No
+m3    m3 4073.145 4138.278        No
+m4    m4 4073.145 4138.278        No
+m5    m5 4075.145 4145.706        No
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 0.799
+  Normality test p-value: <2e-16
+  Number of residuals: 1682
+
+Model Fit:
+  R² marginal: 0.01
+  R² conditional: 0.01
+  AIC: 4069.66
+  BIC: 4123.94
+
+Assumptions:
+  VIF range: 2.62 to 20.51
+  Homoscedasticity (residual-fitted correlation): -0.014 (p = 0.564)
+  Model convergence achieved: FALSE
+
+Outliers:
+  Number of outliers: 0
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: player.bet1
+                                                         Chisq Df Pr(>Chisq)  
+direction                                               0.3691  1    0.54352  
+consensus_numeric                                       3.8812  1    0.04883 *
+choice_switch_across_trials                             0.0058  1    0.93948  
+direction:consensus_numeric                             1.9636  1    0.16113  
+direction:choice_switch_across_trials                   3.3124  1    0.06876 .
+consensus_numeric:choice_switch_across_trials           1.5784  1    0.20899  
+direction:consensus_numeric:choice_switch_across_trials 3.0927  1    0.07865 .
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+POST-HOC TESTS:
+==============
+ contrast                                                                                                                                                   
+ Against group consensus_numeric0.80499405469679 choice_switch_across_trials0 - With group consensus_numeric0.80499405469679 choice_switch_across_trials0   
+ Against group consensus_numeric0.80499405469679 choice_switch_across_trials0 - Against group consensus_numeric0.80499405469679 choice_switch_across_trials1
+ Against group consensus_numeric0.80499405469679 choice_switch_across_trials0 - With group consensus_numeric0.80499405469679 choice_switch_across_trials1   
+ With group consensus_numeric0.80499405469679 choice_switch_across_trials0 - Against group consensus_numeric0.80499405469679 choice_switch_across_trials1   
+ With group consensus_numeric0.80499405469679 choice_switch_across_trials0 - With group consensus_numeric0.80499405469679 choice_switch_across_trials1      
+ Against group consensus_numeric0.80499405469679 choice_switch_across_trials1 - With group consensus_numeric0.80499405469679 choice_switch_across_trials1   
+ estimate     SE   df t.ratio p.value
+ -0.03419 0.0676 1673  -0.505  0.9578
+  0.06977 0.0514 1674   1.356  0.5270
+ -0.02920 0.0797 1673  -0.367  0.9832
+  0.10396 0.0674 1671   1.541  0.4129
+  0.00498 0.0908 1669   0.055  0.9999
+ -0.09898 0.0795 1666  -1.245  0.5981
+
+Degrees-of-freedom method: kenward-roger 
+P value adjustment: tukey method for comparing a family of 4 estimates 
+
+

@@ -1,0 +1,72 @@
+BET DIFFERENCE BY CHOICE SWITCH - STATISTICAL ANALYSIS RESULTS
+
+Analysis run on: 2025-02-01 11:55:18
+
+MODEL COMPARISON RESULTS:
+========================
+   Model      AIC      BIC Is_Winner
+m1    m1 17468.69 17535.29       Yes
+m2    m2 17469.55 17542.80        No
+m3    m3 17471.55 17551.46        No
+m4    m4 17471.55 17551.46        No
+m5    m5 17473.55 17560.12        No
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 1.096
+  Normality test p-value: <2e-16
+  Number of residuals: 5762
+
+Model Fit:
+  R² marginal: 0.008
+  R² conditional: 0.008
+  AIC: 17468.7
+  BIC: 17535.29
+
+Assumptions:
+  VIF range: 2.58 to 16.93
+  Homoscedasticity (residual-fitted correlation): 0.041 (p = 0.00208)
+  Model convergence achieved: FALSE
+
+Outliers:
+  Number of outliers: 0
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: bet_difference
+                                             Chisq Df Pr(>Chisq)    
+direction                                   7.4743  1   0.006259 ** 
+consensus_numeric                           6.9208  1   0.008520 ** 
+switch_vs_stay                              0.1971  1   0.657105    
+direction:consensus_numeric                 0.4493  1   0.502679    
+direction:switch_vs_stay                    0.2507  1   0.616571    
+consensus_numeric:switch_vs_stay            2.1951  1   0.138448    
+direction:consensus_numeric:switch_vs_stay 16.4342  1  5.037e-05 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+POST-HOC TESTS:
+==============
+ contrast                                                                                                                            estimate     SE  df z.ratio
+ Against group consensus_numeric0.787920860812218 switch_vs_stay0 - With group consensus_numeric0.787920860812218 switch_vs_stay0     -0.0574 0.0546 Inf  -1.051
+ Against group consensus_numeric0.787920860812218 switch_vs_stay0 - Against group consensus_numeric0.787920860812218 switch_vs_stay1  -0.0187 0.0376 Inf  -0.497
+ Against group consensus_numeric0.787920860812218 switch_vs_stay0 - With group consensus_numeric0.787920860812218 switch_vs_stay1     -0.2153 0.0604 Inf  -3.564
+ With group consensus_numeric0.787920860812218 switch_vs_stay0 - Against group consensus_numeric0.787920860812218 switch_vs_stay1      0.0387 0.0545 Inf   0.710
+ With group consensus_numeric0.787920860812218 switch_vs_stay0 - With group consensus_numeric0.787920860812218 switch_vs_stay1        -0.1579 0.0721 Inf  -2.190
+ Against group consensus_numeric0.787920860812218 switch_vs_stay1 - With group consensus_numeric0.787920860812218 switch_vs_stay1     -0.1966 0.0603 Inf  -3.259
+ p.value
+  0.7193
+  0.9599
+  0.0021
+  0.8933
+  0.1259
+  0.0062
+
+Degrees-of-freedom method: asymptotic 
+P value adjustment: tukey method for comparing a family of 4 estimates 
+
+

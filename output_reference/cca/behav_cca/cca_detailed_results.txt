@@ -1,0 +1,236 @@
+
+DIAGNOSTIC CHECKS
+================
+
+Variables in Analysis:
+Original questionnaire variables:  lsas_p, lsas_s, dass_a, dass_d, dass_s, ssms_cd, ssms_ia, srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct, ami_es, ami_sm, ami_ba, aq_10 
+Retained questionnaire variables:  lsas_p, lsas_s, dass_a, dass_s, ssms_ia, ami_es, aq_10 
+
+MULTICOLLINEARITY DIAGNOSTICS
+=========================
+Overall Severity: Severe
+Condition Numbers:
+Behavioral Variables: 2.94e+00
+Questionnaire Variables: 7.21e+17
+
+Correlation Analysis:
+
+Behavioral Variables Correlation Matrix:
+                 switch_dissent stay_confirm bet_diff_confirm bet_diff_dissent
+switch_dissent           1.0000       0.0742          -0.2387          -0.1054
+stay_confirm             0.0742       1.0000          -0.0433           0.0653
+bet_diff_confirm        -0.2387      -0.0433           1.0000          -0.2546
+bet_diff_dissent        -0.1054       0.0653          -0.2546           1.0000
+
+Questionnaire Variables Correlation Matrix:
+         lsas_p  lsas_s  dass_a  dass_s ssms_ia  ami_es  aq_10
+lsas_p   1.0000 -0.0763 -0.2352  0.0437 -0.0281  0.0581 -0.486
+lsas_s  -0.0763  1.0000 -0.1056  0.1386 -0.4550 -0.0188  0.427
+dass_a  -0.2352 -0.1056  1.0000 -0.0815 -0.2792  0.2615 -0.421
+dass_s   0.0437  0.1386 -0.0815  1.0000  0.3350  0.1470  0.430
+ssms_ia -0.0281 -0.4550 -0.2792  0.3350  1.0000  0.3550 -0.141
+ami_es   0.0581 -0.0188  0.2615  0.1470  0.3550  1.0000 -0.269
+aq_10   -0.4856  0.4270 -0.4206  0.4302 -0.1407 -0.2687  1.000
+
+Problematic Variable Pairs (r > 0.5 ):
+ Variable_1 Variable_2 Correlation
+     lsas_p srp_sf_ipm      -0.525
+     lsas_p srp_sf_els      -0.586
+     lsas_s     dass_d      -0.631
+     lsas_s     ami_ba      -0.529
+     dass_a     ami_sm       0.501
+     dass_d  srp_sf_ca      -0.504
+     dass_s  srp_sf_ct      -0.547
+     dass_s     ami_sm       0.525
+    ssms_cd    ssms_ia       0.527
+    ssms_cd srp_sf_ipm       0.511
+    ssms_cd  srp_sf_ct       0.524
+  srp_sf_ca srp_sf_els       0.632
+     ami_es     ami_ba       0.657
+     ami_ba      aq_10      -0.513
+
+Variables Removed Due to Multicollinearity:
+-  srp_sf_ipm removed due to r=-0.52 correlation with lsas_p
+-  srp_sf_els removed due to r=-0.59 correlation with lsas_p
+-  dass_d removed due to r=-0.63 correlation with lsas_s
+-  ami_ba removed due to r=-0.53 correlation with lsas_s
+-  ami_sm removed due to r=0.50 correlation with dass_a
+-  srp_sf_ca removed due to r=-0.50 correlation with dass_d
+-  srp_sf_ct removed due to r=-0.55 correlation with dass_s
+-  ami_sm removed due to r=0.52 correlation with dass_s
+-  ssms_cd removed due to r=0.53 correlation with ssms_ia
+-  ssms_cd removed due to r=0.51 correlation with srp_sf_ipm
+-  ssms_cd removed due to r=0.52 correlation with srp_sf_ct
+-  srp_sf_els removed due to r=0.63 correlation with srp_sf_ca
+-  ami_ba removed due to r=0.66 correlation with ami_es
+-  ami_ba removed due to r=-0.51 correlation with aq_10 
+
+VARIANCE INFLATION FACTORS:
+
+Behavioral Variables:
+         Variable  VIF Tolerance
+   switch_dissent 1.10     0.908
+     stay_confirm 1.01     0.989
+ bet_diff_confirm 1.16     0.864
+ bet_diff_dissent 1.11     0.902
+
+Questionnaire Variables:
+ Variable   VIF Tolerance
+   lsas_p 16.07    0.0622
+   lsas_s  2.23    0.4492
+   dass_a 18.51    0.0540
+   dass_s 12.14    0.0824
+  ssms_ia 15.59    0.0642
+   ami_es  2.09    0.4793
+    aq_10 28.02    0.0357
+
+BOX'S M TEST OF HOMOGENEITY:
+M statistic: 0.000
+Chi-square: 0.000
+df: 38
+p-value: 1.0000
+
+NORMALITY TESTS
+==============
+
+Multivariate Normality:
+            Test         Statistic               p value Result
+ Mardia Skewness  1356.77763940976 1.32014023940289e-138     NO
+ Mardia Kurtosis -14.9995710913514                     0     NO
+             MVN              <NA>                  <NA>     NO
+
+Univariate Normality:
+
+Behavioral Variables:
+         Variable         W      p.value
+   switch_dissent 0.8544167 1.732708e-08
+     stay_confirm 0.9306890 5.446707e-05
+ bet_diff_confirm 0.8583913 2.452417e-08
+ bet_diff_dissent 0.8579301 2.354794e-08
+
+Questionnaire Variables:
+ Variable         W      p.value
+   lsas_p 0.8604802 2.950776e-08
+   lsas_s 0.8933758 6.991457e-07
+   dass_a 0.9311944 5.821038e-05
+   dass_s 0.9089187 3.807635e-06
+  ssms_ia 0.9050834 2.471114e-06
+   ami_es 0.7658421 2.508872e-11
+    aq_10 0.8548358 1.796844e-08
+
+CANONICAL CORRELATION ANALYSIS RESULTS
+=====================================
+
+BARTLETT'S TEST OF SIGNIFICANCE:
+ Dimension Statistic P_Value
+         1       NaN     NaN
+         2       Inf  0.0000
+         3   133.118  0.0000
+         4    31.439  0.0017
+
+CANONICAL CORRELATIONS AND SIGNIFICANCE:
+
+Dimension 1:
+Canonical correlation = 1.00 (CI: 1.00, 1.00)
+Wilks' λ = -0.000, F(28,316) = Inf, p = 0.000
+
+Dimension 2:
+Canonical correlation = 1.00 (CI: 1.00, 1.00)
+Wilks' λ = 0.000, F(18,271) = Inf, p = 0.000
+
+Dimension 3:
+Canonical correlation = 0.83 (CI: 0.76, 0.90)
+Wilks' λ = 0.224, F(10,226) = 7.88, p = 0.000
+
+Dimension 4:
+Canonical correlation = 0.55 (CI: 0.40, 0.65)
+Wilks' λ = 0.702, F(4,181) = 4.18, p = 0.003
+
+STRUCTURE-FUNCTION AND COMMONALITY ANALYSIS:
+
+Behavioral Variables:
+
+a) Structure-Function Results:
+ Variable                   Loading Weight Discrepancy Suppression
+ Switch Frequency (Dissent)  0.984   0.097 0.887        TRUE      
+ Stay Frequency (Confirm)    0.168   0.011 0.157       FALSE      
+ Bet Difference (Confirm)   -0.172   0.003 0.174        TRUE      
+ Bet Difference (Dissent)   -0.246  -0.014 0.231       FALSE      
+
+b) Commonality Analysis:
+ Variable                   Unique Common Total
+ Switch Frequency (Dissent) 0.968  0      0.968
+ Stay Frequency (Confirm)   0.028  0      0.028
+ Bet Difference (Confirm)   0.029  0      0.029
+ Bet Difference (Dissent)   0.060  0      0.060
+
+Questionnaire Variables:
+
+a) Structure-Function Results:
+ Variable Loading Weight Discrepancy Suppression
+ lsas_p   -0.410   0.050 0.460       TRUE       
+ lsas_s    0.041  -0.059 0.100       TRUE       
+ dass_a   -0.191   0.047 0.238       TRUE       
+ dass_s    0.006  -0.060 0.066       TRUE       
+ ssms_ia  -0.430  -0.015 0.415       TRUE       
+ ami_es   -0.330   0.011 0.341       TRUE       
+ aq_10     0.756   0.172 0.584       TRUE       
+
+b) Commonality Analysis:
+ Variable Unique Common Total
+ lsas_p   0.168  0      0.168
+ lsas_s   0.002  0      0.002
+ dass_a   0.036  0      0.036
+ dass_s   0.000  0      0.000
+ ssms_ia  0.185  0      0.185
+ ami_es   0.109  0      0.109
+ aq_10    0.572  0      0.572
+
+CROSS-LOADINGS:
+
+Behavioral Variables with Questionnaire Variates:
+                   [,1]      [,2]   [,3]    [,4]
+switch_dissent    0.984  8.13e-15  0.138 -0.0363
+stay_confirm      0.168 -2.15e-01 -0.638 -0.3125
+bet_diff_confirm -0.172 -7.79e-01 -0.157  0.3127
+bet_diff_dissent -0.246 -3.06e-01  0.423 -0.4166
+
+Questionnaire Variables with Behavioral Variates:
+            [,1]     [,2]    [,3]     [,4]
+lsas_p  -0.40985  0.35308  0.0772 -0.42798
+lsas_s   0.04092 -0.66238  0.1785  0.02720
+dass_a  -0.19088  0.08179  0.4639  0.21931
+dass_s   0.00643  0.00563 -0.5440  0.00948
+ssms_ia -0.43033 -0.02460 -0.6629  0.00195
+ami_es  -0.32980 -0.11762 -0.0945 -0.05630
+aq_10    0.75602 -0.34521 -0.3302  0.08210
+
+REDUNDANCY ANALYSIS:
+
+a) Redundancy Indices:
+ Dimension Questionnaire from Behavioral Behavioral from Questionnaire
+         1                        0.1531                        0.2714
+         2                        0.1005                        0.1864
+         3                        0.1581                        0.1574
+         4                        0.0346                        0.0926
+
+b) Variance Extracted:
+           Set Variance_Extracted
+    Behavioral             0.2500
+ Questionnaire             0.1505
+
+VARIANCE AND EFFECT SIZES:
+
+Variance Explained:
+ Dimension R_squared Proportion Cumulative
+ 1         1.000     0.3357     0.336     
+ 2         1.000     0.3357     0.671     
+ 3         0.681     0.2286     0.900     
+ 4         0.298     0.0999     1.000     
+
+Effect Sizes:
+ Dimension Correlation Effect_Size
+ 1         1.000       Large      
+ 2         1.000       Large      
+ 3         0.825       Large      
+ 4         0.546       Large      

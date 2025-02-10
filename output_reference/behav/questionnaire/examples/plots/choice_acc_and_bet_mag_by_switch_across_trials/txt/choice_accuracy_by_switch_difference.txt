@@ -1,0 +1,1381 @@
+CHOICE ACCURACY BY SWITCH DIFFERENCE - STATISTICAL ANALYSIS RESULTS
+
+Analysis run on: 2025-01-21 18:15:01
+Analysis type: switch_difference
+
+POOLED MODEL COMPARISON:
+=======================
+MODEL COMPARISON:
+================
+ Model      AIC      BIC Is_Winner
+    m1 52006.24 52065.88        No
+    m2 51687.04 51799.70        No
+    m3 51650.28 51802.70        No
+    m4 51491.92 51657.59       Yes
+    m5 51493.92 51666.21        No
+
+Model Descriptions:
+=================
+m1: Main effects only
+m2: Two-way interactions
+m3: Three-way interaction
+m4: Three-way with random slope for switch difference
+m5: Full model with gender
+
+Winning model formula:
+outcome_value ~ consensus_level * direction * switch_difference * 
+    scale_name + age + (1 + switch_difference | participant.id_in_session)
+
+WINNING MODEL DIAGNOSTICS (POOLED):
+================================
+R² marginal/conditional: 0.192/0.192
+Residual normality p: 6.73e-10
+VIF range: NA
+Homoscedasticity: p = 0.185
+Outliers: 50
+Switch difference range: 0 to 1
+Switch difference normality p: <2e-16
+
+
+ssms ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        74.4790  2  < 2.2e-16 ***
+direction                                              32.0353  1  1.514e-08 ***
+switch_difference                                       0.0257  1   0.872694    
+scale_name                                              0.0993  1   0.752683    
+age                                                    21.8693  1  2.919e-06 ***
+consensus_level:direction                               3.9128  1   0.047920 *  
+consensus_level:switch_difference                      36.9818  2  9.322e-09 ***
+direction:switch_difference                             0.9588  1   0.327495    
+consensus_level:scale_name                              3.1738  2   0.204559    
+direction:scale_name                                    6.4454  1   0.011124 *  
+switch_difference:scale_name                            9.6206  1   0.001924 ** 
+consensus_level:direction:switch_difference             0.2576  1   0.611778    
+consensus_level:direction:scale_name                    5.8437  1   0.015633 *  
+consensus_level:switch_difference:scale_name           12.1265  2   0.002327 ** 
+direction:switch_difference:scale_name                  1.0938  1   0.295628    
+consensus_level:direction:switch_difference:scale_name 28.3190  1  1.029e-07 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.014      0.004      1.000
+direction                                     0.029      0.014      1.000
+switch_difference                             0.000      0.000      1.000
+scale_name                                    0.011      0.002      1.000
+age                                           0.023      0.010      1.000
+consensus_level:direction                     0.003      0.000      1.000
+consensus_level:switch_difference             0.034      0.016      1.000
+direction:switch_difference                   0.001      0.000      1.000
+consensus_level:scale_name                    0.019      0.006      1.000
+direction:scale_name                          0.000      0.000      1.000
+switch_difference:scale_name                  0.013      0.004      1.000
+consensus_level:direction:switch_difference      0.000      0.000      1.000
+consensus_level:direction:scale_name          0.032      0.016      1.000
+consensus_level:switch_difference:scale_name      0.018      0.006      1.000
+direction:switch_difference:scale_name        0.004      0.000      1.000
+consensus_level:direction:switch_difference:scale_name      0.030      0.015      1.000
+
+
+INTERACTION RESULTS:
+===================
+Switch difference x Consensus x Direction interaction:
+Raw p = 1.03e-07
+FDR-adjusted p = 6.86e-07
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.278
+  Normality test p-value: 6.73e-10
+  N: 930
+
+Model Fit:
+  R² marginal: 0.192
+  R² conditional: 0.192
+  AIC: 8544.84
+  BIC: 8665.72
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.044 (p = 0.185)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 50
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+SUBSCALE RESULTS:
+================
+
+Subscale: ssms_cd
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        76.8548  2  < 2.2e-16 ***
+direction                                              26.7834  1  2.276e-07 ***
+switch_difference                                       0.2034  1  0.6519938    
+scale_name                                              1.0666  1  0.3017156    
+age                                                    12.8820  1  0.0003318 ***
+consensus_level:direction                               1.3137  1  0.2517209    
+consensus_level:switch_difference                      44.9509  2  1.734e-10 ***
+direction:switch_difference                             0.4445  1  0.5049676    
+consensus_level:scale_name                             22.6439  2  1.210e-05 ***
+direction:scale_name                                    0.0006  1  0.9801258    
+switch_difference:scale_name                            8.4750  1  0.0036006 ** 
+consensus_level:direction:switch_difference             0.9184  1  0.3379039    
+consensus_level:direction:scale_name                    8.0470  1  0.0045579 ** 
+consensus_level:switch_difference:scale_name           95.9415  2  < 2.2e-16 ***
+direction:switch_difference:scale_name                  0.6130  1  0.4336669    
+consensus_level:direction:switch_difference:scale_name  0.2661  1  0.6059454    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 0.606
+FDR-adjusted p = 0.673
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 23.462
+  Normality test p-value: 9.35e-08
+  N: 930
+
+Model Fit:
+  R² marginal: 0.244
+  R² conditional: 0.244
+  AIC: 8482.96
+  BIC: 8603.84
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.073 (p = 0.026)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 30
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+Subscale: ssms_ia
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        71.7828  2  2.586e-16 ***
+direction                                              26.9043  1  2.138e-07 ***
+switch_difference                                       0.0930  1  0.7603911    
+scale_name                                              2.3977  1  0.1215168    
+age                                                    21.9123  1  2.854e-06 ***
+consensus_level:direction                               2.1096  1  0.1463762    
+consensus_level:switch_difference                      37.9041  2  5.878e-09 ***
+direction:switch_difference                             0.4378  1  0.5081819    
+consensus_level:scale_name                              1.3822  2  0.5010355    
+direction:scale_name                                    1.2269  1  0.2680011    
+switch_difference:scale_name                            0.0299  1  0.8627554    
+consensus_level:direction:switch_difference             0.7014  1  0.4023117    
+consensus_level:direction:scale_name                    2.5751  1  0.1085579    
+consensus_level:switch_difference:scale_name           30.1261  2  2.872e-07 ***
+direction:switch_difference:scale_name                 11.8688  1  0.0005708 ***
+consensus_level:direction:switch_difference:scale_name  1.9546  1  0.1620903    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 0.162
+FDR-adjusted p = 0.249
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.458
+  Normality test p-value: 3.17e-05
+  N: 930
+
+Model Fit:
+  R² marginal: 0.18
+  R² conditional: 0.18
+  AIC: 8558.53
+  BIC: 8679.41
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.125 (p = 0.000132)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 10
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+dass ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        69.4613  2  8.254e-16 ***
+direction                                              32.3112  1  1.314e-08 ***
+switch_difference                                       0.1649  1  0.6846558    
+scale_name                                              1.4124  1  0.2346634    
+age                                                    13.6276  1  0.0002229 ***
+consensus_level:direction                               3.3248  1  0.0682406 .  
+consensus_level:switch_difference                      40.0652  2  1.995e-09 ***
+direction:switch_difference                             0.1012  1  0.7504079    
+consensus_level:scale_name                             55.0428  2  1.116e-12 ***
+direction:scale_name                                    1.9134  1  0.1665885    
+switch_difference:scale_name                            0.0858  1  0.7696036    
+consensus_level:direction:switch_difference             1.4792  1  0.2239041    
+consensus_level:direction:scale_name                    1.4970  1  0.2211364    
+consensus_level:switch_difference:scale_name            0.4059  2  0.8163125    
+direction:switch_difference:scale_name                  3.2306  1  0.0722748 .  
+consensus_level:direction:switch_difference:scale_name  2.1397  1  0.1435336    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.007      0.000      1.000
+direction                                     0.019      0.007      1.000
+switch_difference                             0.001      0.000      1.000
+scale_name                                    0.002      0.000      1.000
+age                                           0.015      0.005      1.000
+consensus_level:direction                     0.000      0.000      1.000
+consensus_level:switch_difference             0.044      0.024      1.000
+direction:switch_difference                   0.000      0.000      1.000
+consensus_level:scale_name                    0.034      0.016      1.000
+direction:scale_name                          0.000      0.000      1.000
+switch_difference:scale_name                  0.000      0.000      1.000
+consensus_level:direction:switch_difference      0.002      0.000      1.000
+consensus_level:direction:scale_name          0.000      0.000      1.000
+consensus_level:switch_difference:scale_name      0.000      0.000      1.000
+direction:switch_difference:scale_name        0.003      0.000      1.000
+consensus_level:direction:switch_difference:scale_name      0.002      0.000      1.000
+
+
+INTERACTION RESULTS:
+===================
+Switch difference x Consensus x Direction interaction:
+Raw p = 0.144
+FDR-adjusted p = 0.239
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.276
+  Normality test p-value: 1.86e-08
+  N: 930
+
+Model Fit:
+  R² marginal: 0.192
+  R² conditional: 0.192
+  AIC: 8544.88
+  BIC: 8665.76
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.19 (p = 5.4e-09)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 20
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+SUBSCALE RESULTS:
+================
+
+Subscale: dass_a
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        72.3196  2  < 2.2e-16 ***
+direction                                              22.2807  1  2.356e-06 ***
+switch_difference                                       0.3131  1  0.5757861    
+scale_name                                              1.4303  1  0.2317218    
+age                                                    18.9532  1  1.340e-05 ***
+consensus_level:direction                               0.5941  1  0.4408277    
+consensus_level:switch_difference                      45.2075  2  1.525e-10 ***
+direction:switch_difference                             0.0132  1  0.9085474    
+consensus_level:scale_name                             18.0097  2  0.0001228 ***
+direction:scale_name                                    4.8801  1  0.0271677 *  
+switch_difference:scale_name                           11.8304  1  0.0005827 ***
+consensus_level:direction:switch_difference             2.6868  1  0.1011841    
+consensus_level:direction:scale_name                    1.8804  1  0.1702916    
+consensus_level:switch_difference:scale_name           18.8255  2  8.168e-05 ***
+direction:switch_difference:scale_name                  2.7634  1  0.0964422 .  
+consensus_level:direction:switch_difference:scale_name  5.1595  1  0.0231199 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 0.0231
+FDR-adjusted p = 0.0514
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.273
+  Normality test p-value: 0.000193
+  N: 930
+
+Model Fit:
+  R² marginal: 0.192
+  R² conditional: 0.192
+  AIC: 8544.68
+  BIC: 8665.56
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.132 (p = 5.54e-05)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 10
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+Subscale: dass_d
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        81.5102  2  < 2.2e-16 ***
+direction                                              24.4385  1  7.672e-07 ***
+switch_difference                                       0.3815  1  0.5368082    
+scale_name                                              6.6689  1  0.0098112 ** 
+age                                                    12.7511  1  0.0003558 ***
+consensus_level:direction                               0.5378  1  0.4633474    
+consensus_level:switch_difference                      48.2712  2  3.296e-11 ***
+direction:switch_difference                             1.5075  1  0.2195142    
+consensus_level:scale_name                             57.9601  2  2.595e-13 ***
+direction:scale_name                                    9.2374  1  0.0023712 ** 
+switch_difference:scale_name                            1.7952  1  0.1802991    
+consensus_level:direction:switch_difference             0.0981  1  0.7541399    
+consensus_level:direction:scale_name                    1.0300  1  0.3101572    
+consensus_level:switch_difference:scale_name           60.8574  2  6.095e-14 ***
+direction:switch_difference:scale_name                  3.2120  1  0.0730982 .  
+consensus_level:direction:switch_difference:scale_name 39.1940  1  3.837e-10 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 3.84e-10
+FDR-adjusted p = 3.84e-09
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 22.967
+  Normality test p-value: 5.49e-08
+  N: 930
+
+Model Fit:
+  R² marginal: 0.275
+  R² conditional: 0.275
+  AIC: 8444.28
+  BIC: 8565.16
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.035 (p = 0.288)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 20
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+Subscale: dass_s
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        78.7370  2  < 2.2e-16 ***
+direction                                              29.1115  1  6.833e-08 ***
+switch_difference                                       0.0610  1  0.8048817    
+scale_name                                              1.8195  1  0.1773731    
+age                                                    21.0981  1  4.364e-06 ***
+consensus_level:direction                               2.6136  1  0.1059530    
+consensus_level:switch_difference                      41.0221  2  1.236e-09 ***
+direction:switch_difference                             0.5751  1  0.4482244    
+consensus_level:scale_name                             32.9773  2  6.903e-08 ***
+direction:scale_name                                    6.4400  1  0.0111581 *  
+switch_difference:scale_name                           12.7559  1  0.0003549 ***
+consensus_level:direction:switch_difference             0.8579  1  0.3543236    
+consensus_level:direction:scale_name                   28.8432  1  7.848e-08 ***
+consensus_level:switch_difference:scale_name           10.4392  2  0.0054095 ** 
+direction:switch_difference:scale_name                 13.8387  1  0.0001992 ***
+consensus_level:direction:switch_difference:scale_name  3.8714  1  0.0491163 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 0.0491
+FDR-adjusted p = 0.0982
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 23.732
+  Normality test p-value: 1.29e-06
+  N: 930
+
+Model Fit:
+  R² marginal: 0.227
+  R² conditional: 0.227
+  AIC: 8503.69
+  BIC: 8624.57
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.112 (p = 0.000627)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 10
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+lsas ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        70.0644  2  6.105e-16 ***
+direction                                              29.6610  1  5.146e-08 ***
+switch_difference                                       0.0204  1  0.8864720    
+scale_name                                              1.5443  1  0.2139735    
+age                                                     7.5816  1  0.0058966 ** 
+consensus_level:direction                               2.3069  1  0.1287995    
+consensus_level:switch_difference                      30.7813  2  2.070e-07 ***
+direction:switch_difference                             1.4009  1  0.2365737    
+consensus_level:scale_name                             10.6482  2  0.0048728 ** 
+direction:scale_name                                    0.0099  1  0.9207976    
+switch_difference:scale_name                            0.7119  1  0.3988180    
+consensus_level:direction:switch_difference             0.2025  1  0.6526864    
+consensus_level:direction:scale_name                   14.4026  1  0.0001476 ***
+consensus_level:switch_difference:scale_name            8.0189  2  0.0181438 *  
+direction:switch_difference:scale_name                  4.0264  1  0.0447926 *  
+consensus_level:direction:switch_difference:scale_name  1.0745  1  0.2999285    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.010      0.002      1.000
+direction                                     0.023      0.010      1.000
+switch_difference                             0.000      0.000      1.000
+scale_name                                    0.005      0.000      1.000
+age                                           0.008      0.001      1.000
+consensus_level:direction                     0.001      0.000      1.000
+consensus_level:switch_difference             0.033      0.016      1.000
+direction:switch_difference                   0.001      0.000      1.000
+consensus_level:scale_name                    0.008      0.001      1.000
+direction:scale_name                          0.001      0.000      1.000
+switch_difference:scale_name                  0.002      0.000      1.000
+consensus_level:direction:switch_difference      0.000      0.000      1.000
+consensus_level:direction:scale_name          0.012      0.003      1.000
+consensus_level:switch_difference:scale_name      0.008      0.000      1.000
+direction:switch_difference:scale_name        0.004      0.000      1.000
+consensus_level:direction:switch_difference:scale_name      0.001      0.000      1.000
+
+
+INTERACTION RESULTS:
+===================
+Switch difference x Consensus x Direction interaction:
+Raw p = 0.3
+FDR-adjusted p = 0.4
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.611
+  Normality test p-value: 1.9e-07
+  N: 930
+
+Model Fit:
+  R² marginal: 0.17
+  R² conditional: 0.17
+  AIC: 8569.27
+  BIC: 8690.15
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.07 (p = 0.0334)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 20
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+SUBSCALE RESULTS:
+================
+
+Subscale: lsas_p
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        72.5550  2  < 2.2e-16 ***
+direction                                              38.1125  1  6.678e-10 ***
+switch_difference                                       0.0335  1  0.8547667    
+scale_name                                             17.1963  1  3.371e-05 ***
+age                                                     2.8060  1  0.0939139 .  
+consensus_level:direction                               4.2608  1  0.0390024 *  
+consensus_level:switch_difference                      32.3571  2  9.413e-08 ***
+direction:switch_difference                             0.1751  1  0.6756076    
+consensus_level:scale_name                             64.8111  2  8.442e-15 ***
+direction:scale_name                                   12.6723  1  0.0003711 ***
+switch_difference:scale_name                            0.0584  1  0.8090491    
+consensus_level:direction:switch_difference             1.7391  1  0.1872532    
+consensus_level:direction:scale_name                    0.4303  1  0.5118338    
+consensus_level:switch_difference:scale_name            3.6290  2  0.1629169    
+direction:switch_difference:scale_name                  0.5265  1  0.4680769    
+consensus_level:direction:switch_difference:scale_name  5.9105  1  0.0150513 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 0.0151
+FDR-adjusted p = 0.0376
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 23.853
+  Normality test p-value: 4.81e-09
+  N: 930
+
+Model Fit:
+  R² marginal: 0.219
+  R² conditional: 0.219
+  AIC: 8511.91
+  BIC: 8632.79
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.025 (p = 0.448)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 30
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+Subscale: lsas_s
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        71.6676  2  2.739e-16 ***
+direction                                              26.2326  1  3.027e-07 ***
+switch_difference                                       0.1949  1   0.658881    
+scale_name                                              4.3906  1   0.036137 *  
+age                                                    19.7363  1  8.890e-06 ***
+consensus_level:direction                               1.8043  1   0.179197    
+consensus_level:switch_difference                      40.5972  2  1.529e-09 ***
+direction:switch_difference                             0.4965  1   0.481063    
+consensus_level:scale_name                             14.1477  2   0.000847 ***
+direction:scale_name                                   26.6482  1  2.441e-07 ***
+switch_difference:scale_name                            0.0043  1   0.947921    
+consensus_level:direction:switch_difference             0.6870  1   0.407200    
+consensus_level:direction:scale_name                    0.1018  1   0.749729    
+consensus_level:switch_difference:scale_name            6.8576  2   0.032426 *  
+direction:switch_difference:scale_name                  0.2604  1   0.609862    
+consensus_level:direction:switch_difference:scale_name  0.0358  1   0.849900    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 0.85
+FDR-adjusted p = 0.85
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.469
+  Normality test p-value: 2.83e-07
+  N: 930
+
+Model Fit:
+  R² marginal: 0.179
+  R² conditional: 0.179
+  AIC: 8559.52
+  BIC: 8680.4
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.062 (p = 0.0573)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 10
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+srp_sf ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        71.4396  2  3.070e-16 ***
+direction                                              28.0350  1  1.191e-07 ***
+switch_difference                                       0.1631  1    0.68630    
+scale_name                                              1.0302  1    0.31011    
+age                                                    18.1358  1  2.057e-05 ***
+consensus_level:direction                               2.2754  1    0.13144    
+consensus_level:switch_difference                      40.4115  2  1.678e-09 ***
+direction:switch_difference                             0.3344  1    0.56307    
+consensus_level:scale_name                             27.4390  2  1.101e-06 ***
+direction:scale_name                                    1.1258  1    0.28867    
+switch_difference:scale_name                            0.0190  1    0.89043    
+consensus_level:direction:switch_difference             0.9728  1    0.32399    
+consensus_level:direction:scale_name                    3.5925  1    0.05804 .  
+consensus_level:switch_difference:scale_name            4.1673  2    0.12447    
+direction:switch_difference:scale_name                 15.7817  1  7.109e-05 ***
+consensus_level:direction:switch_difference:scale_name  3.0216  1    0.08216 .  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.007      0.000      1.000
+direction                                     0.018      0.006      1.000
+switch_difference                             0.001      0.000      1.000
+scale_name                                    0.002      0.000      1.000
+age                                           0.020      0.007      1.000
+consensus_level:direction                     0.000      0.000      1.000
+consensus_level:switch_difference             0.043      0.023      1.000
+direction:switch_difference                   0.000      0.000      1.000
+consensus_level:scale_name                    0.013      0.003      1.000
+direction:scale_name                          0.005      0.000      1.000
+switch_difference:scale_name                  0.000      0.000      1.000
+consensus_level:direction:switch_difference      0.001      0.000      1.000
+consensus_level:direction:scale_name          0.000      0.000      1.000
+consensus_level:switch_difference:scale_name      0.003      0.000      1.000
+direction:switch_difference:scale_name        0.014      0.004      1.000
+consensus_level:direction:switch_difference:scale_name      0.003      0.000      1.000
+
+
+INTERACTION RESULTS:
+===================
+Switch difference x Consensus x Direction interaction:
+Raw p = 0.0822
+FDR-adjusted p = 0.149
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.441
+  Normality test p-value: 3.15e-08
+  N: 930
+
+Model Fit:
+  R² marginal: 0.181
+  R² conditional: 0.181
+  AIC: 8557.29
+  BIC: 8678.17
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.184 (p = 1.66e-08)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 20
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+SUBSCALE RESULTS:
+================
+
+Subscale: srp_sf_ipm
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        72.2451  2  < 2.2e-16 ***
+direction                                              28.8797  1  7.702e-08 ***
+switch_difference                                       0.1137  1  0.7359750    
+scale_name                                              3.3825  1  0.0658939 .  
+age                                                    22.3814  1  2.235e-06 ***
+consensus_level:direction                               1.8269  1  0.1764955    
+consensus_level:switch_difference                      39.5008  2  2.645e-09 ***
+direction:switch_difference                             0.5763  1  0.4477594    
+consensus_level:scale_name                              9.0397  2  0.0108908 *  
+direction:scale_name                                    7.2893  1  0.0069366 ** 
+switch_difference:scale_name                            0.0000  1  0.9988680    
+consensus_level:direction:switch_difference             0.4667  1  0.4945162    
+consensus_level:direction:scale_name                    5.6520  1  0.0174350 *  
+consensus_level:switch_difference:scale_name           18.0768  2  0.0001188 ***
+direction:switch_difference:scale_name                 26.6210  1  2.475e-07 ***
+consensus_level:direction:switch_difference:scale_name 21.4908  1  3.555e-06 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 3.56e-06
+FDR-adjusted p = 1.19e-05
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.132
+  Normality test p-value: 1.62e-08
+  N: 930
+
+Model Fit:
+  R² marginal: 0.201
+  R² conditional: 0.201
+  AIC: 8534.13
+  BIC: 8655.01
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.086 (p = 0.00894)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 0
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+Subscale: srp_sf_ca
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        73.8676  2  < 2.2e-16 ***
+direction                                              30.8679  1  2.762e-08 ***
+switch_difference                                       0.0695  1    0.79204    
+scale_name                                             20.9121  1  4.809e-06 ***
+age                                                    24.2626  1  8.405e-07 ***
+consensus_level:direction                               3.0651  1    0.07999 .  
+consensus_level:switch_difference                      37.3889  2  7.605e-09 ***
+direction:switch_difference                             0.7937  1    0.37299    
+consensus_level:scale_name                              1.5023  2    0.47181    
+direction:scale_name                                    1.5359  1    0.21522    
+switch_difference:scale_name                            1.8534  1    0.17339    
+consensus_level:direction:switch_difference             0.2782  1    0.59787    
+consensus_level:direction:scale_name                    0.5888  1    0.44287    
+consensus_level:switch_difference:scale_name            6.8116  2    0.03318 *  
+direction:switch_difference:scale_name                  2.1818  1    0.13965    
+consensus_level:direction:switch_difference:scale_name 26.1572  1  3.147e-07 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 3.15e-07
+FDR-adjusted p = 1.57e-06
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.34
+  Normality test p-value: 9.59e-08
+  N: 930
+
+Model Fit:
+  R² marginal: 0.188
+  R² conditional: 0.188
+  AIC: 8549.29
+  BIC: 8670.17
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.088 (p = 0.00699)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 40
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+Subscale: srp_sf_els
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        72.6975  2  < 2.2e-16 ***
+direction                                              28.7389  1  8.282e-08 ***
+switch_difference                                       0.1029  1   0.748432    
+scale_name                                              3.9889  1   0.045800 *  
+age                                                    20.6284  1  5.576e-06 ***
+consensus_level:direction                               2.0192  1   0.155322    
+consensus_level:switch_difference                      40.3947  2  1.692e-09 ***
+direction:switch_difference                             1.1039  1   0.293422    
+consensus_level:scale_name                              1.6335  2   0.441859    
+direction:scale_name                                    0.1544  1   0.694357    
+switch_difference:scale_name                            5.3733  1   0.020447 *  
+consensus_level:direction:switch_difference             0.2418  1   0.622935    
+consensus_level:direction:scale_name                    9.8472  1   0.001701 ** 
+consensus_level:switch_difference:scale_name           41.3200  2  1.065e-09 ***
+direction:switch_difference:scale_name                  5.8593  1   0.015495 *  
+consensus_level:direction:switch_difference:scale_name  1.1454  1   0.284504    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 0.285
+FDR-adjusted p = 0.4
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.241
+  Normality test p-value: 4.33e-05
+  N: 930
+
+Model Fit:
+  R² marginal: 0.194
+  R² conditional: 0.194
+  AIC: 8542.38
+  BIC: 8663.26
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.06 (p = 0.0677)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 10
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+Subscale: srp_sf_ct
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        79.0139  2  < 2.2e-16 ***
+direction                                              27.5320  1  1.545e-07 ***
+switch_difference                                       0.3288  1   0.566389    
+scale_name                                              3.3662  1   0.066548 .  
+age                                                     9.3822  1   0.002191 ** 
+consensus_level:direction                               1.3467  1   0.245852    
+consensus_level:switch_difference                      50.4794  2  1.093e-11 ***
+direction:switch_difference                             0.2588  1   0.610968    
+consensus_level:scale_name                             30.5450  2  2.329e-07 ***
+direction:scale_name                                    0.4788  1   0.488980    
+switch_difference:scale_name                           22.6496  1  1.944e-06 ***
+consensus_level:direction:switch_difference             1.6312  1   0.201534    
+consensus_level:direction:scale_name                   19.0654  1  1.263e-05 ***
+consensus_level:switch_difference:scale_name           74.2680  2  < 2.2e-16 ***
+direction:switch_difference:scale_name                  5.3844  1   0.020317 *  
+consensus_level:direction:switch_difference:scale_name  0.6965  1   0.403953    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 0.404
+FDR-adjusted p = 0.505
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 23.312
+  Normality test p-value: 2.1e-08
+  N: 930
+
+Model Fit:
+  R² marginal: 0.254
+  R² conditional: 0.254
+  AIC: 8471.41
+  BIC: 8592.29
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.075 (p = 0.0225)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 20
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+ami ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        79.9933  2  < 2.2e-16 ***
+direction                                              35.2080  1  2.963e-09 ***
+switch_difference                                       0.0002  1    0.98927    
+scale_name                                             17.0835  1  3.577e-05 ***
+age                                                    30.0023  1  4.315e-08 ***
+consensus_level:direction                               3.4455  1    0.06342 .  
+consensus_level:switch_difference                      38.7037  2  3.941e-09 ***
+direction:switch_difference                             0.3202  1    0.57151    
+consensus_level:scale_name                             35.3786  2  2.078e-08 ***
+direction:scale_name                                   20.0102  1  7.703e-06 ***
+switch_difference:scale_name                           21.5625  1  3.425e-06 ***
+consensus_level:direction:switch_difference             1.2201  1    0.26934    
+consensus_level:direction:scale_name                   49.2981  1  2.199e-12 ***
+consensus_level:switch_difference:scale_name            3.0451  2    0.21815    
+direction:switch_difference:scale_name                  1.4021  1    0.23637    
+consensus_level:direction:switch_difference:scale_name 23.7530  1  1.095e-06 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.007      0.000      1.000
+direction                                     0.020      0.007      1.000
+switch_difference                             0.001      0.000      1.000
+scale_name                                    0.000      0.000      1.000
+age                                           0.032      0.016      1.000
+consensus_level:direction                     0.000      0.000      1.000
+consensus_level:switch_difference             0.046      0.025      1.000
+direction:switch_difference                   0.000      0.000      1.000
+consensus_level:scale_name                    0.034      0.016      1.000
+direction:scale_name                          0.027      0.012      1.000
+switch_difference:scale_name                  0.024      0.010      1.000
+consensus_level:direction:switch_difference      0.002      0.000      1.000
+consensus_level:direction:scale_name          0.072      0.047      1.000
+consensus_level:switch_difference:scale_name      0.006      0.000      1.000
+direction:switch_difference:scale_name        0.003      0.000      1.000
+consensus_level:direction:switch_difference:scale_name      0.025      0.011      1.000
+
+
+INTERACTION RESULTS:
+===================
+Switch difference x Consensus x Direction interaction:
+Raw p = 1.1e-06
+FDR-adjusted p = 4.38e-06
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 23.237
+  Normality test p-value: 3.01e-05
+  N: 930
+
+Model Fit:
+  R² marginal: 0.258
+  R² conditional: 0.258
+  AIC: 8465.42
+  BIC: 8586.3
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.094 (p = 0.00402)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 20
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+SUBSCALE RESULTS:
+================
+
+Subscale: ami_es
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        74.7480  2  < 2.2e-16 ***
+direction                                              33.5881  1  6.811e-09 ***
+switch_difference                                       0.0002  1  0.9891059    
+scale_name                                              0.2556  1  0.6131705    
+age                                                    26.3542  1  2.842e-07 ***
+consensus_level:direction                               2.6001  1  0.1068568    
+consensus_level:switch_difference                      36.5621  2  1.150e-08 ***
+direction:switch_difference                             0.4111  1  0.5214291    
+consensus_level:scale_name                             96.3113  2  < 2.2e-16 ***
+direction:scale_name                                   15.3961  1  8.717e-05 ***
+switch_difference:scale_name                            2.6579  1  0.1030379    
+consensus_level:direction:switch_difference             1.1163  1  0.2907170    
+consensus_level:direction:scale_name                   27.1686  1  1.865e-07 ***
+consensus_level:switch_difference:scale_name           16.7483  2  0.0002308 ***
+direction:switch_difference:scale_name                 33.0427  1  9.016e-09 ***
+consensus_level:direction:switch_difference:scale_name  0.0727  1  0.7874883    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 0.787
+FDR-adjusted p = 0.829
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 23.125
+  Normality test p-value: 7.43e-08
+  N: 930
+
+Model Fit:
+  R² marginal: 0.265
+  R² conditional: 0.265
+  AIC: 8456.72
+  BIC: 8577.6
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.028 (p = 0.4)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 30
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+Subscale: ami_sm
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                          Chisq Df Pr(>Chisq)    
+consensus_level                                         85.1993  2  < 2.2e-16 ***
+direction                                               36.2644  1  1.723e-09 ***
+switch_difference                                        0.0183  1  0.8925165    
+scale_name                                               0.1849  1  0.6671787    
+age                                                     18.5565  1  1.649e-05 ***
+consensus_level:direction                                3.8970  1  0.0483727 *  
+consensus_level:switch_difference                       42.8879  2  4.864e-10 ***
+direction:switch_difference                              0.4648  1  0.4954116    
+consensus_level:scale_name                             151.4605  2  < 2.2e-16 ***
+direction:scale_name                                     8.3678  1  0.0038194 ** 
+switch_difference:scale_name                            15.7811  1  7.111e-05 ***
+consensus_level:direction:switch_difference              1.0859  1  0.2973767    
+consensus_level:direction:scale_name                     1.0191  1  0.3127316    
+consensus_level:switch_difference:scale_name            13.4618  2  0.0011935 ** 
+direction:switch_difference:scale_name                  11.5083  1  0.0006929 ***
+consensus_level:direction:switch_difference:scale_name  61.9723  1  3.483e-15 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 3.48e-15
+FDR-adjusted p = 6.97e-14
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 22.249
+  Normality test p-value: 5.91e-11
+  N: 930
+
+Model Fit:
+  R² marginal: 0.319
+  R² conditional: 0.319
+  AIC: 8386.34
+  BIC: 8507.22
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.088 (p = 0.00723)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 20
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+Subscale: ami_ba
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        67.7243  2  1.967e-15 ***
+direction                                              24.1403  1  8.957e-07 ***
+switch_difference                                       0.0191  1  0.8901989    
+scale_name                                              6.6843  1  0.0097263 ** 
+age                                                    11.3036  1  0.0007736 ***
+consensus_level:direction                               0.5809  1  0.4459786    
+consensus_level:switch_difference                      36.5941  2  1.132e-08 ***
+direction:switch_difference                             0.3951  1  0.5296535    
+consensus_level:scale_name                              0.2766  2  0.8708278    
+direction:scale_name                                    2.4004  1  0.1213023    
+switch_difference:scale_name                            0.0619  1  0.8035692    
+consensus_level:direction:switch_difference             1.3229  1  0.2500686    
+consensus_level:direction:scale_name                    0.0723  1  0.7879657    
+consensus_level:switch_difference:scale_name           13.0330  2  0.0014789 ** 
+direction:switch_difference:scale_name                  6.5800  1  0.0103129 *  
+consensus_level:direction:switch_difference:scale_name 11.3254  1  0.0007645 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Switch Difference Interaction:
+Raw p = 0.000765
+FDR-adjusted p = 0.00218
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 24.62
+  Normality test p-value: 4.51e-06
+  N: 930
+
+Model Fit:
+  R² marginal: 0.169
+  R² conditional: 0.169
+  AIC: 8570.24
+  BIC: 8691.12
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.096 (p = 0.00338)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 0
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+aq_10 ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                                         Chisq Df Pr(>Chisq)    
+consensus_level                                        73.8444  2  < 2.2e-16 ***
+direction                                              38.0417  1  6.925e-10 ***
+switch_difference                                       0.0717  1    0.78883    
+scale_name                                             18.7876  1  1.461e-05 ***
+age                                                     4.4284  1    0.03535 *  
+consensus_level:direction                               3.3172  1    0.06856 .  
+consensus_level:switch_difference                      31.1868  2  1.690e-07 ***
+direction:switch_difference                             0.3513  1    0.55339    
+consensus_level:scale_name                             69.9880  2  6.343e-16 ***
+direction:scale_name                                   33.7800  1  6.171e-09 ***
+switch_difference:scale_name                            1.2354  1    0.26636    
+consensus_level:direction:switch_difference             0.6769  1    0.41064    
+consensus_level:direction:scale_name                    2.8745  1    0.08999 .  
+consensus_level:switch_difference:scale_name            4.5650  2    0.10203    
+direction:switch_difference:scale_name                  1.3295  1    0.24889    
+consensus_level:direction:switch_difference:scale_name  0.2659  1    0.60609    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.007      0.000      1.000
+direction                                     0.017      0.006      1.000
+switch_difference                             0.000      0.000      1.000
+scale_name                                    0.009      0.002      1.000
+age                                           0.005      0.000      1.000
+consensus_level:direction                     0.000      0.000      1.000
+consensus_level:switch_difference             0.035      0.017      1.000
+direction:switch_difference                   0.000      0.000      1.000
+consensus_level:scale_name                    0.023      0.009      1.000
+direction:scale_name                          0.006      0.000      1.000
+switch_difference:scale_name                  0.003      0.000      1.000
+consensus_level:direction:switch_difference      0.001      0.000      1.000
+consensus_level:direction:scale_name          0.000      0.000      1.000
+consensus_level:switch_difference:scale_name      0.005      0.000      1.000
+direction:switch_difference:scale_name        0.001      0.000      1.000
+consensus_level:direction:switch_difference:scale_name      0.000      0.000      1.000
+
+
+INTERACTION RESULTS:
+===================
+Switch difference x Consensus x Direction interaction:
+Raw p = 0.606
+FDR-adjusted p = 0.673
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 23.402
+  Normality test p-value: 2.43e-10
+  N: 930
+
+Model Fit:
+  R² marginal: 0.248
+  R² conditional: 0.248
+  AIC: 8477.13
+  BIC: 8598
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.151 (p = 3.78e-06)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 40
+
+Switch Difference:
+  Range: 0 to 1
+  Normality p: <2e-16
+
+
+SUBSCALE RESULTS:
+================
+

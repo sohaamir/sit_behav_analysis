@@ -1,0 +1,4 @@
+"participant.id_in_session","participant.label","total_manual_trials","Reason","count_ones_image_one"
+21,"5c4338d8a04c050001a0a876",43,"Too few trials where all responses were manually made",NA
+32,"5aa696af6219a30001c75d2a",38,"Too few trials where all responses were manually made",NA
+21,"5c4338d8a04c050001a0a876",NA,"Too many choices of the same image",54

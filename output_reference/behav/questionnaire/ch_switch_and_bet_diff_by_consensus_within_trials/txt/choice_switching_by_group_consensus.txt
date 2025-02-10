@@ -1,0 +1,1085 @@
+CHOICE SWITCH BY GROUP CONSENSUS - STATISTICAL ANALYSIS RESULTS
+
+Analysis run on: 2025-02-01 09:55:14
+Analysis type: choice_consensus
+
+POOLED MODEL COMPARISON:
+=======================
+MODEL COMPARISON:
+================
+ Model      AIC      BIC Is_Winner
+    m1 26270.72 26318.56        No
+    m2 26178.30 26250.06        No
+    m3 26171.12 26248.86        No
+    m4 25581.35 25688.99       Yes
+    m5 25582.06 25695.68        No
+
+Model Descriptions:
+=================
+m1: Main effects only
+m2: Two-way interactions
+m3: Three-way interaction
+m4: Three-way with random slope
+m5: Full model with gender
+
+Winning model formula:
+outcome_value ~ consensus_level * direction * scale_name + age + 
+    (1 + consensus_level | participant.id_in_session)
+
+WINNING MODEL DIAGNOSTICS (POOLED):
+================================
+R² marginal/conditional: 0.12/0.135
+Residual normality p: 3.36e-06
+VIF range: NA
+Homoscedasticity: p = 0.105
+Outliers: 31
+
+
+ssms ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.1781  2  0.5548429    
+direction                            39.0898  1  4.048e-10 ***
+scale_name                            0.0386  1  0.8442119    
+age                                   2.1569  1  0.1419281    
+consensus_level:direction            12.8352  1  0.0003402 ***
+consensus_level:scale_name            2.3090  2  0.3152088    
+direction:scale_name                  7.2581  1  0.0070581 ** 
+consensus_level:direction:scale_name  0.4163  1  0.5187646    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.005      0.000      1.000
+direction                                     0.100      0.057      1.000
+scale_name                                    0.000      0.000      1.000
+age                                           0.006      0.000      1.000
+consensus_level:direction                     0.034      0.010      1.000
+consensus_level:scale_name                    0.008      0.000      1.000
+direction:scale_name                          0.019      0.003      1.000
+consensus_level:direction:scale_name          0.001      0.000      1.000
+
+
+THREE-WAY INTERACTION:
+=====================
+Raw p = 0.519
+FDR-adjusted p = 0.519
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 21.162
+  Normality test p-value: 3.36e-06
+  N: 487
+
+Model Fit:
+  R² marginal: 0.12
+  R² conditional: 0.135
+  AIC: 4369.06
+  BIC: 4444.45
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.074 (p = 0.105)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 31
+
+
+SUBSCALE RESULTS:
+================
+
+Subscale: ssms_cd
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.0967  2  0.5779104    
+direction                            43.9382  1  3.389e-11 ***
+scale_name                            0.4243  1  0.5147971    
+age                                   3.1382  1  0.0764791 .  
+consensus_level:direction            12.5333  1  0.0003998 ***
+consensus_level:scale_name            7.2108  2  0.0271760 *  
+direction:scale_name                 31.0193  1  2.555e-08 ***
+consensus_level:direction:scale_name 28.4667  1  9.532e-08 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 9.53e-08
+FDR-adjusted p = 3.81e-07
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 20.259
+  Normality test p-value: 9.46e-07
+  N: 487
+
+Model Fit:
+  R² marginal: 0.21
+  R² conditional: 0.213
+  AIC: 4316.76
+  BIC: 4392.15
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.147 (p = 0.00111)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 24
+
+
+Subscale: ssms_ia
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.0968  2  0.5778860    
+direction                            38.3322  1  5.967e-10 ***
+scale_name                            0.3096  1  0.5779282    
+age                                   1.2343  1  0.2665756    
+consensus_level:direction            12.0518  1  0.0005174 ***
+consensus_level:scale_name            9.3382  2  0.0093807 ** 
+direction:scale_name                  0.0348  1  0.8519905    
+consensus_level:direction:scale_name  2.6035  1  0.1066295    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 0.107
+FDR-adjusted p = 0.118
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 21.444
+  Normality test p-value: 5.25e-07
+  N: 487
+
+Model Fit:
+  R² marginal: 0.124
+  R² conditional: 0.124
+  AIC: 4366.74
+  BIC: 4442.13
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.017 (p = 0.716)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 20
+
+
+dass ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.0210  2  0.6001949    
+direction                            41.5446  1  1.152e-10 ***
+scale_name                            0.0525  1  0.8187986    
+age                                   3.7291  1  0.0534735 .  
+consensus_level:direction            11.6888  1  0.0006288 ***
+consensus_level:scale_name            4.7536  2  0.0928466 .  
+direction:scale_name                 14.0206  1  0.0001808 ***
+consensus_level:direction:scale_name 25.2476  1  5.042e-07 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.002      0.000      1.000
+direction                                     0.073      0.040      1.000
+scale_name                                    0.000      0.000      1.000
+age                                           0.008      0.000      1.000
+consensus_level:direction                     0.022      0.005      1.000
+consensus_level:scale_name                    0.010      0.000      1.000
+direction:scale_name                          0.038      0.015      1.000
+consensus_level:direction:scale_name          0.050      0.023      1.000
+
+
+THREE-WAY INTERACTION:
+=====================
+Raw p = 5.04e-07
+FDR-adjusted p = 1.01e-06
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 20.789
+  Normality test p-value: 6.43e-06
+  N: 487
+
+Model Fit:
+  R² marginal: 0.175
+  R² conditional: 0.175
+  AIC: 4337.29
+  BIC: 4412.68
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.154 (p = 0.000669)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 20
+
+
+SUBSCALE RESULTS:
+================
+
+Subscale: dass_a
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.1119  2  0.5735164    
+direction                            39.3700  1  3.506e-10 ***
+scale_name                            4.5167  1  0.0335648 *  
+age                                   2.1607  1  0.1415796    
+consensus_level:direction            11.8378  1  0.0005804 ***
+consensus_level:scale_name            0.3981  2  0.8195173    
+direction:scale_name                  5.1082  1  0.0238125 *  
+consensus_level:direction:scale_name  4.7525  1  0.0292564 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 0.0293
+FDR-adjusted p = 0.0344
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 21.242
+  Normality test p-value: 1.25e-06
+  N: 487
+
+Model Fit:
+  R² marginal: 0.128
+  R² conditional: 0.134
+  AIC: 4364.87
+  BIC: 4440.26
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.019 (p = 0.681)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 19
+
+
+Subscale: dass_d
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.1528  2  0.5619231    
+direction                            40.1312  1  2.375e-10 ***
+scale_name                            3.5075  1  0.0610925 .  
+age                                   1.2518  1  0.2632002    
+consensus_level:direction            12.6175  1  0.0003822 ***
+consensus_level:scale_name           11.1708  2  0.0037522 ** 
+direction:scale_name                  1.8643  1  0.1721251    
+consensus_level:direction:scale_name  6.5471  1  0.0105053 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 0.0105
+FDR-adjusted p = 0.0131
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 20.938
+  Normality test p-value: 1.03e-06
+  N: 487
+
+Model Fit:
+  R² marginal: 0.154
+  R² conditional: 0.159
+  AIC: 4350.18
+  BIC: 4425.57
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.006 (p = 0.901)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 23
+
+
+Subscale: dass_s
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.2736  2  0.5289895    
+direction                            44.8364  1  2.142e-11 ***
+scale_name                            3.8724  1  0.0490868 *  
+age                                   0.3967  1  0.5287861    
+consensus_level:direction            13.7200  1  0.0002122 ***
+consensus_level:scale_name            2.3584  2  0.3075234    
+direction:scale_name                 42.7492  1  6.223e-11 ***
+consensus_level:direction:scale_name 25.8381  1  3.713e-07 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 3.71e-07
+FDR-adjusted p = 8.25e-07
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 19.728
+  Normality test p-value: 0.00823
+  N: 487
+
+Model Fit:
+  R² marginal: 0.221
+  R² conditional: 0.24
+  AIC: 4309.82
+  BIC: 4385.2
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.08 (p = 0.0778)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 9
+
+
+lsas ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.0256  2  0.5988200    
+direction                            40.2145  1  2.276e-10 ***
+scale_name                            0.1858  1  0.6664283    
+age                                   2.4637  1  0.1165026    
+consensus_level:direction            11.5433  1  0.0006799 ***
+consensus_level:scale_name            0.2606  2  0.8778241    
+direction:scale_name                 19.7813  1  8.683e-06 ***
+consensus_level:direction:scale_name  2.1497  1  0.1426012    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.004      0.000      1.000
+direction                                     0.102      0.058      1.000
+scale_name                                    0.000      0.000      1.000
+age                                           0.006      0.000      1.000
+consensus_level:direction                     0.031      0.008      1.000
+consensus_level:scale_name                    0.001      0.000      1.000
+direction:scale_name                          0.049      0.020      1.000
+consensus_level:direction:scale_name          0.006      0.000      1.000
+
+
+THREE-WAY INTERACTION:
+=====================
+Raw p = 0.143
+FDR-adjusted p = 0.15
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 20.784
+  Normality test p-value: 1.99e-07
+  N: 487
+
+Model Fit:
+  R² marginal: 0.151
+  R² conditional: 0.165
+  AIC: 4351.39
+  BIC: 4426.78
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.021 (p = 0.649)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 35
+
+
+SUBSCALE RESULTS:
+================
+
+Subscale: lsas_p
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.2110  2  0.5458089    
+direction                            41.6277  1  1.104e-10 ***
+scale_name                            0.9896  1  0.3198316    
+age                                   3.6887  1  0.0547827 .  
+consensus_level:direction            13.3217  1  0.0002624 ***
+consensus_level:scale_name            5.9199  2  0.0518214 .  
+direction:scale_name                  0.2482  1  0.6183228    
+consensus_level:direction:scale_name 27.0524  1  1.980e-07 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 1.98e-07
+FDR-adjusted p = 6.6e-07
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 20.347
+  Normality test p-value: 1.34e-06
+  N: 487
+
+Model Fit:
+  R² marginal: 0.161
+  R² conditional: 0.19
+  AIC: 4346.78
+  BIC: 4422.17
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.027 (p = 0.545)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 25
+
+
+Subscale: lsas_s
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.1427  2  0.5647538    
+direction                            39.7273  1  2.920e-10 ***
+scale_name                            2.9666  1  0.0850028 .  
+age                                   2.6640  1  0.1026399    
+consensus_level:direction            12.2769  1  0.0004586 ***
+consensus_level:scale_name            8.1500  2  0.0169919 *  
+direction:scale_name                  0.3410  1  0.5592467    
+consensus_level:direction:scale_name 25.9543  1  3.496e-07 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 3.5e-07
+FDR-adjusted p = 8.25e-07
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 20.895
+  Normality test p-value: 8.02e-07
+  N: 487
+
+Model Fit:
+  R² marginal: 0.166
+  R² conditional: 0.166
+  AIC: 4343.27
+  BIC: 4418.66
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.003 (p = 0.954)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 16
+
+
+srp_sf ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.1053  2  0.5754220    
+direction                            41.1337  1  1.422e-10 ***
+scale_name                            7.2864  1  0.0069477 ** 
+age                                   3.6832  1  0.0549647 .  
+consensus_level:direction            11.8658  1  0.0005717 ***
+consensus_level:scale_name            1.9872  2  0.3702420    
+direction:scale_name                 17.3905  1  3.043e-05 ***
+consensus_level:direction:scale_name  8.4140  1  0.0037234 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.003      0.000      1.000
+direction                                     0.096      0.054      1.000
+scale_name                                    0.021      0.005      1.000
+age                                           0.009      0.000      1.000
+consensus_level:direction                     0.030      0.008      1.000
+consensus_level:scale_name                    0.007      0.000      1.000
+direction:scale_name                          0.047      0.018      1.000
+consensus_level:direction:scale_name          0.021      0.004      1.000
+
+
+THREE-WAY INTERACTION:
+=====================
+Raw p = 0.00372
+FDR-adjusted p = 0.00532
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 20.921
+  Normality test p-value: 0.000542
+  N: 487
+
+Model Fit:
+  R² marginal: 0.159
+  R² conditional: 0.162
+  AIC: 4347
+  BIC: 4422.39
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.013 (p = 0.772)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 23
+
+
+SUBSCALE RESULTS:
+================
+
+Subscale: srp_sf_ipm
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.1555  2  0.5611519    
+direction                            44.9230  1  2.049e-11 ***
+scale_name                            0.5662  1  0.4517865    
+age                                   3.4895  1  0.0617610 .  
+consensus_level:direction            12.5968  1  0.0003864 ***
+consensus_level:scale_name            9.3428  2  0.0093593 ** 
+direction:scale_name                 24.2074  1  8.650e-07 ***
+consensus_level:direction:scale_name 48.3635  1  3.541e-12 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 3.54e-12
+FDR-adjusted p = 2.36e-11
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 19.824
+  Normality test p-value: 1.52e-05
+  N: 487
+
+Model Fit:
+  R² marginal: 0.222
+  R² conditional: 0.236
+  AIC: 4309.02
+  BIC: 4384.41
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.059 (p = 0.193)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 19
+
+
+Subscale: srp_sf_ca
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.2662  2    0.53095    
+direction                            46.2573  1  1.037e-11 ***
+scale_name                            2.7511  1    0.09719 .  
+age                                   3.0880  1    0.07887 .  
+consensus_level:direction            15.9553  1  6.485e-05 ***
+consensus_level:scale_name           23.4131  2  8.240e-06 ***
+direction:scale_name                  0.3110  1    0.57709    
+consensus_level:direction:scale_name 22.1966  1  2.461e-06 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 2.46e-06
+FDR-adjusted p = 4.47e-06
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 19.883
+  Normality test p-value: 2.55e-05
+  N: 487
+
+Model Fit:
+  R² marginal: 0.191
+  R² conditional: 0.225
+  AIC: 4331.72
+  BIC: 4407.11
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.01 (p = 0.821)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 15
+
+
+Subscale: srp_sf_els
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.1160  2  0.5723511    
+direction                            42.0823  1  8.751e-11 ***
+scale_name                            0.3119  1  0.5764886    
+age                                   2.1638  1  0.1412940    
+consensus_level:direction            13.5209  1  0.0002359 ***
+consensus_level:scale_name           16.4472  2  0.0002683 ***
+direction:scale_name                  0.4819  1  0.4875532    
+consensus_level:direction:scale_name 12.3672  1  0.0004369 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 0.000437
+FDR-adjusted p = 0.000672
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 20.759
+  Normality test p-value: 6.74e-07
+  N: 487
+
+Model Fit:
+  R² marginal: 0.163
+  R² conditional: 0.172
+  AIC: 4345.15
+  BIC: 4420.53
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.011 (p = 0.813)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 23
+
+
+Subscale: srp_sf_ct
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.1277  2  0.5690183    
+direction                            39.3737  1    3.5e-10 ***
+scale_name                            2.2308  1  0.1352863    
+age                                   3.4582  1  0.0629371 .  
+consensus_level:direction            12.3009  1  0.0004527 ***
+consensus_level:scale_name            0.2650  2  0.8758811    
+direction:scale_name                  3.5524  1  0.0594608 .  
+consensus_level:direction:scale_name 13.8422  1  0.0001988 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 0.000199
+FDR-adjusted p = 0.000331
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 21.119
+  Normality test p-value: 7.92e-06
+  N: 487
+
+Model Fit:
+  R² marginal: 0.137
+  R² conditional: 0.144
+  AIC: 4359.6
+  BIC: 4434.99
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.044 (p = 0.332)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 23
+
+
+ami ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.4459  2   0.485307    
+direction                            48.0893  1  4.072e-12 ***
+scale_name                            0.9808  1   0.322007    
+age                                   1.6805  1   0.194860    
+consensus_level:direction            15.5811  1  7.904e-05 ***
+consensus_level:scale_name           11.5517  2   0.003102 ** 
+direction:scale_name                 44.3522  1  2.743e-11 ***
+consensus_level:direction:scale_name 39.0866  1  4.054e-10 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.008      0.000      1.000
+direction                                     0.121      0.074      1.000
+scale_name                                    0.012      0.000      1.000
+age                                           0.006      0.000      1.000
+consensus_level:direction                     0.041      0.014      1.000
+consensus_level:scale_name                    0.054      0.011      1.000
+direction:scale_name                          0.112      0.066      1.000
+consensus_level:direction:scale_name          0.100      0.056      1.000
+
+
+THREE-WAY INTERACTION:
+=====================
+Raw p = 4.05e-10
+FDR-adjusted p = 2.03e-09
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 18.828
+  Normality test p-value: 0.000418
+  N: 487
+
+Model Fit:
+  R² marginal: 0.237
+  R² conditional: 0.29
+  AIC: 4298.9
+  BIC: 4374.29
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.044 (p = 0.329)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 11
+
+
+SUBSCALE RESULTS:
+================
+
+Subscale: ami_es
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.2202  2  0.5432846    
+direction                            42.7050  1  6.365e-11 ***
+scale_name                            0.8654  1  0.3522182    
+age                                   2.5744  1  0.1086069    
+consensus_level:direction            13.4415  1  0.0002461 ***
+consensus_level:scale_name            7.8403  2  0.0198376 *  
+direction:scale_name                  3.9903  1  0.0457619 *  
+consensus_level:direction:scale_name 25.8529  1  3.685e-07 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 3.68e-07
+FDR-adjusted p = 8.25e-07
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 20.191
+  Normality test p-value: 1.72e-06
+  N: 487
+
+Model Fit:
+  R² marginal: 0.179
+  R² conditional: 0.204
+  AIC: 4335.96
+  BIC: 4411.35
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.008 (p = 0.86)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 19
+
+
+Subscale: ami_sm
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.5135  2   0.469194    
+direction                            49.6069  1  1.879e-12 ***
+scale_name                            5.1364  1   0.023429 *  
+age                                   7.8072  1   0.005204 ** 
+consensus_level:direction            16.0818  1  6.067e-05 ***
+consensus_level:scale_name           10.1532  2   0.006241 ** 
+direction:scale_name                 32.4439  1  1.227e-08 ***
+consensus_level:direction:scale_name 70.9890  1  < 2.2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = <2e-16
+FDR-adjusted p = 7.18e-16
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 18.501
+  Normality test p-value: 7.8e-06
+  N: 487
+
+Model Fit:
+  R² marginal: 0.262
+  R² conditional: 0.314
+  AIC: 4283.44
+  BIC: 4358.83
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.024 (p = 0.604)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 13
+
+
+Subscale: ami_ba
+----------------------
+ANOVA Results:
+-------------
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.3509  2  0.5089278    
+direction                            45.4172  1  1.592e-11 ***
+scale_name                            0.3549  1  0.5513639    
+age                                   2.2446  1  0.1340835    
+consensus_level:direction            14.5743  1  0.0001347 ***
+consensus_level:scale_name            9.6994  2  0.0078308 ** 
+direction:scale_name                  0.8453  1  0.3578944    
+consensus_level:direction:scale_name 54.5516  1  1.514e-13 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Three-way Interaction:
+Raw p = 1.51e-13
+FDR-adjusted p = 1.51e-12
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 19.455
+  Normality test p-value: 5.17e-06
+  N: 487
+
+Model Fit:
+  R² marginal: 0.212
+  R² conditional: 0.25
+  AIC: 4315.38
+  BIC: 4390.77
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: -0.033 (p = 0.47)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 20
+
+
+aq_10 ANALYSIS
+=================
+
+ANOVA RESULTS:
+==============
+Analysis of Deviance Table (Type II Wald chisquare tests)
+
+Response: outcome_value
+                                       Chisq Df Pr(>Chisq)    
+consensus_level                       1.0239  2  0.5993210    
+direction                            44.1797  1  2.996e-11 ***
+scale_name                            3.2333  1  0.0721560 .  
+age                                   0.1729  1  0.6775279    
+consensus_level:direction            12.3314  1  0.0004454 ***
+consensus_level:scale_name            2.1971  2  0.3333487    
+direction:scale_name                 26.1246  1  3.201e-07 ***
+consensus_level:direction:scale_name  8.0816  1  0.0044716 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+EFFECT SIZES:
+============
+Term                                           Eta2     CI_low    CI_high
+consensus_level                               0.003      0.000      1.000
+direction                                     0.090      0.053      1.000
+scale_name                                    0.011      0.001      1.000
+age                                           0.000      0.000      1.000
+consensus_level:direction                     0.027      0.008      1.000
+consensus_level:scale_name                    0.007      0.000      1.000
+direction:scale_name                          0.045      0.019      1.000
+consensus_level:direction:scale_name          0.017      0.003      1.000
+
+
+THREE-WAY INTERACTION:
+=====================
+Raw p = 0.00447
+FDR-adjusted p = 0.00596
+
+MODEL DIAGNOSTICS:
+=================
+Residuals:
+  Mean: 0
+  SD: 20.599
+  Normality test p-value: 1.08e-07
+  N: 487
+
+Model Fit:
+  R² marginal: 0.19
+  R² conditional: 0.19
+  AIC: 4328.35
+  BIC: 4403.74
+
+Assumptions:
+  VIF range: NA
+  Homoscedasticity correlation: 0.087 (p = 0.056)
+  Model converged: FALSE
+  Random effects: 
+
+Outliers:
+  Count: 29
+
+
+SUBSCALE RESULTS:
+================
+

@@ -1,0 +1,440 @@
+OVERALL CHOICE AND BET EFFECTS - STATISTICAL ANALYSIS RESULTS
+
+Analysis run on: 2025-01-31 12:02:48
+
+PRIMARY ANALYSIS RESULTS:
+================================
+
+Questionnaire: ssms
+
+Choice Analysis:
+p-value: 0.00326
+FDR-adjusted p-value: 0.00653
+Correlation (r): -0.085 [-0.277, 0.113]
+Standardized beta: -0.306
+R²: 0.201
+F-statistic: F(1,98) = 12.23
+Residual normality: 0.364
+
+Bet Analysis:
+p-value: 0.713
+FDR-adjusted p-value: 0.713
+Correlation (r): 0.016 [-0.181, 0.211]
+Standardized beta: -0.042
+R²: 0.013
+F-statistic: F(1,98) = 0.65
+Residual normality: 0.00731
+
+
+Questionnaire: dass
+
+Choice Analysis:
+p-value: 0.00294
+FDR-adjusted p-value: 0.00653
+Correlation (r): 0.340 [0.154, 0.503]
+Standardized beta: 0.282
+R²: 0.203
+F-statistic: F(1,98) = 12.35
+Residual normality: 0.0967
+
+Bet Analysis:
+p-value: 0.00037
+FDR-adjusted p-value: 0.000555
+Correlation (r): -0.321 [-0.487, -0.133]
+Standardized beta: -0.355
+R²: 0.134
+F-statistic: F(1,98) = 7.48
+Residual normality: 0.027
+
+
+Questionnaire: lsas
+
+Choice Analysis:
+p-value: 0.399
+FDR-adjusted p-value: 0.399
+Correlation (r): -0.283 [-0.454, -0.092]
+Standardized beta: -0.102
+R²: 0.133
+F-statistic: F(1,98) = 7.44
+Residual normality: 0.316
+
+Bet Analysis:
+p-value: 6.77e-08
+FDR-adjusted p-value: 1.35e-07
+Correlation (r): 0.331 [0.144, 0.495]
+Standardized beta: 0.646
+R²: 0.269
+F-statistic: F(1,98) = 17.88
+Residual normality: 0.0124
+
+
+Questionnaire: srp_sf
+
+Choice Analysis:
+p-value: 0.182
+FDR-adjusted p-value: 0.219
+Correlation (r): -0.087 [-0.279, 0.111]
+Standardized beta: -0.127
+R²: 0.142
+F-statistic: F(1,98) = 8.06
+Residual normality: 0.159
+
+Bet Analysis:
+p-value: 9.68e-09
+FDR-adjusted p-value: 2.9e-08
+Correlation (r): 0.543 [0.388, 0.668]
+Standardized beta: 0.537
+R²: 0.297
+F-statistic: F(1,98) = 20.53
+Residual normality: 0.0591
+
+
+Questionnaire: ami
+
+Choice Analysis:
+p-value: 7.33e-05
+FDR-adjusted p-value: 0.00044
+Correlation (r): 0.465 [0.295, 0.606]
+Standardized beta: 0.387
+R²: 0.258
+F-statistic: F(1,98) = 16.85
+Residual normality: 0.197
+
+Bet Analysis:
+p-value: 8.96e-12
+FDR-adjusted p-value: 5.38e-11
+Correlation (r): -0.537 [-0.663, -0.380]
+Standardized beta: -0.657
+R²: 0.390
+F-statistic: F(1,98) = 31.00
+Residual normality: 0.0213
+
+
+Questionnaire: aq_10
+
+Choice Analysis:
+p-value: 0.0786
+FDR-adjusted p-value: 0.118
+Correlation (r): 0.011 [-0.186, 0.207]
+Standardized beta: -0.186
+R²: 0.154
+F-statistic: F(1,98) = 8.83
+Residual normality: 0.509
+
+Bet Analysis:
+p-value: 0.0905
+FDR-adjusted p-value: 0.109
+Correlation (r): -0.103 [-0.294, 0.095]
+Standardized beta: -0.190
+R²: 0.041
+F-statistic: F(1,98) = 2.06
+Residual normality: 0.0109
+
+
+SUBSCALE ANALYSIS RESULTS:
+================================
+
+Parent Scale: ssms
+
+Subscale: ssms_cd
+
+Choice Analysis:
+p-value: 0.025
+FDR-adjusted p-value: 0.0501
+Correlation (r): -0.087 [-0.278, 0.112]
+Standardized beta: -0.222
+R²: 0.171
+F-statistic: F(1,98) = 9.99
+Residual normality: 0.0627
+
+Bet Analysis:
+p-value: 8.64e-15
+FDR-adjusted p-value: 1.73e-14
+Correlation (r): 0.677 [0.554, 0.771]
+Standardized beta: 0.714
+R²: 0.470
+F-statistic: F(1,98) = 43.07
+Residual normality: 0.0418
+
+
+Subscale: ssms_ia
+
+Choice Analysis:
+p-value: 0.518
+FDR-adjusted p-value: 0.518
+Correlation (r): 0.217 [0.021, 0.396]
+Standardized beta: 0.069
+R²: 0.130
+F-statistic: F(1,98) = 7.26
+Residual normality: 0.31
+
+Bet Analysis:
+p-value: 0.347
+FDR-adjusted p-value: 0.347
+Correlation (r): -0.035 [-0.230, 0.163]
+Standardized beta: -0.107
+R²: 0.021
+F-statistic: F(1,98) = 1.04
+Residual normality: 0.000959
+
+
+Parent Scale: dass
+
+Subscale: dass_a
+
+Choice Analysis:
+p-value: 0.00216
+FDR-adjusted p-value: 0.00325
+Correlation (r): 0.275 [0.083, 0.448]
+Standardized beta: 0.285
+R²: 0.208
+F-statistic: F(1,98) = 12.71
+Residual normality: 0.124
+
+Bet Analysis:
+p-value: 0.00212
+FDR-adjusted p-value: 0.00212
+Correlation (r): 0.301 [0.111, 0.469]
+Standardized beta: 0.304
+R²: 0.104
+F-statistic: F(1,98) = 5.63
+Residual normality: 0.0213
+
+
+Subscale: dass_d
+
+Choice Analysis:
+p-value: 0.124
+FDR-adjusted p-value: 0.124
+Correlation (r): -0.218 [-0.397, -0.022]
+Standardized beta: -0.149
+R²: 0.148
+F-statistic: F(1,98) = 8.40
+Residual normality: 0.00395
+
+Bet Analysis:
+p-value: 0.000144
+FDR-adjusted p-value: 0.000432
+Correlation (r): -0.385 [-0.541, -0.204]
+Standardized beta: -0.379
+R²: 0.149
+F-statistic: F(1,98) = 8.51
+Residual normality: 0.00251
+
+
+Subscale: dass_s
+
+Choice Analysis:
+p-value: 4.05e-06
+FDR-adjusted p-value: 1.21e-05
+Correlation (r): 0.535 [0.378, 0.662]
+Standardized beta: 0.473
+R²: 0.299
+F-statistic: F(1,98) = 20.69
+Residual normality: 0.0319
+
+Bet Analysis:
+p-value: 0.0017
+FDR-adjusted p-value: 0.00212
+Correlation (r): -0.220 [-0.399, -0.024]
+Standardized beta: -0.352
+R²: 0.108
+F-statistic: F(1,98) = 5.86
+Residual normality: 0.0118
+
+
+Parent Scale: lsas
+
+Subscale: lsas_p
+
+Choice Analysis:
+p-value: 0.0245
+FDR-adjusted p-value: 0.049
+Correlation (r): -0.010 [-0.206, 0.187]
+Standardized beta: 0.249
+R²: 0.171
+F-statistic: F(1,98) = 10.01
+Residual normality: 0.0546
+
+Bet Analysis:
+p-value: 0.0187
+FDR-adjusted p-value: 0.0187
+Correlation (r): -0.257 [-0.431, -0.063]
+Standardized beta: -0.277
+R²: 0.067
+F-statistic: F(1,98) = 3.48
+Residual normality: 0.0126
+
+
+Subscale: lsas_s
+
+Choice Analysis:
+p-value: 0.149
+FDR-adjusted p-value: 0.149
+Correlation (r): -0.137 [-0.325, 0.061]
+Standardized beta: -0.137
+R²: 0.145
+F-statistic: F(1,98) = 8.24
+Residual normality: 0.437
+
+Bet Analysis:
+p-value: 7.37e-07
+FDR-adjusted p-value: 1.47e-06
+Correlation (r): 0.471 [0.302, 0.611]
+Standardized beta: 0.471
+R²: 0.234
+F-statistic: F(1,98) = 14.78
+Residual normality: 0.00195
+
+
+Parent Scale: srp_sf
+
+Subscale: srp_sf_ipm
+
+Choice Analysis:
+p-value: 0.0241
+FDR-adjusted p-value: 0.0482
+Correlation (r): 0.302 [0.112, 0.471]
+Standardized beta: 0.220
+R²: 0.171
+F-statistic: F(1,98) = 10.03
+Residual normality: 0.283
+
+Bet Analysis:
+p-value: 0.00182
+FDR-adjusted p-value: 0.00364
+Correlation (r): 0.326 [0.138, 0.491]
+Standardized beta: 0.320
+R²: 0.107
+F-statistic: F(1,98) = 5.79
+Residual normality: 0.0494
+
+
+Subscale: srp_sf_ca
+
+Choice Analysis:
+p-value: 0.533
+FDR-adjusted p-value: 0.533
+Correlation (r): -0.111 [-0.301, 0.088]
+Standardized beta: -0.060
+R²: 0.130
+F-statistic: F(1,98) = 7.25
+Residual normality: 0.212
+
+Bet Analysis:
+p-value: 0.698
+FDR-adjusted p-value: 0.698
+Correlation (r): 0.023 [-0.174, 0.218]
+Standardized beta: 0.040
+R²: 0.013
+F-statistic: F(1,98) = 0.66
+Residual normality: 0.00587
+
+
+Subscale: srp_sf_els
+
+Choice Analysis:
+p-value: 0.054
+FDR-adjusted p-value: 0.072
+Correlation (r): 0.169 [-0.029, 0.353]
+Standardized beta: 0.182
+R²: 0.159
+F-statistic: F(1,98) = 9.20
+Residual normality: 0.0855
+
+Bet Analysis:
+p-value: 0.0506
+FDR-adjusted p-value: 0.0675
+Correlation (r): -0.200 [-0.381, -0.003]
+Standardized beta: -0.196
+R²: 0.050
+F-statistic: F(1,98) = 2.57
+Residual normality: 0.00252
+
+
+Subscale: srp_sf_ct
+
+Choice Analysis:
+p-value: 0.000989
+FDR-adjusted p-value: 0.00396
+Correlation (r): -0.230 [-0.408, -0.036]
+Standardized beta: -0.311
+R²: 0.219
+F-statistic: F(1,98) = 13.63
+Residual normality: 0.0653
+
+Bet Analysis:
+p-value: 1e-04
+FDR-adjusted p-value: 4e-04
+Correlation (r): 0.393 [0.213, 0.547]
+Standardized beta: 0.386
+R²: 0.155
+F-statistic: F(1,98) = 8.92
+Residual normality: 0.0139
+
+
+Parent Scale: ami
+
+Subscale: ami_es
+
+Choice Analysis:
+p-value: 0.308
+FDR-adjusted p-value: 0.41
+Correlation (r): -0.124 [-0.313, 0.074]
+Standardized beta: -0.097
+R²: 0.136
+F-statistic: F(1,98) = 7.62
+Residual normality: 0.187
+
+Bet Analysis:
+p-value: 0.000429
+FDR-adjusted p-value: 0.00129
+Correlation (r): 0.335 [0.149, 0.499]
+Standardized beta: 0.346
+R²: 0.131
+F-statistic: F(1,98) = 7.32
+Residual normality: 0.00332
+
+
+Subscale: ami_sm
+
+Choice Analysis:
+p-value: 0.41
+FDR-adjusted p-value: 0.41
+Correlation (r): 0.252 [0.058, 0.427]
+Standardized beta: 0.092
+R²: 0.133
+F-statistic: F(1,98) = 7.42
+Residual normality: 0.1
+
+Bet Analysis:
+p-value: 0.12
+FDR-adjusted p-value: 0.179
+Correlation (r): -0.077 [-0.269, 0.122]
+Standardized beta: -0.183
+R²: 0.036
+F-statistic: F(1,98) = 1.83
+Residual normality: 0.0109
+
+
+Subscale: ami_ba
+
+Choice Analysis:
+p-value: 8.06e-05
+FDR-adjusted p-value: 0.000242
+Correlation (r): 0.221 [0.026, 0.400]
+Standardized beta: 0.382
+R²: 0.256
+F-statistic: F(1,98) = 16.73
+Residual normality: 0.35
+
+Bet Analysis:
+p-value: 0.197
+FDR-adjusted p-value: 0.197
+Correlation (r): -0.159 [-0.345, 0.039]
+Standardized beta: -0.138
+R²: 0.029
+F-statistic: F(1,98) = 1.44
+Residual normality: 0.00242
+
+

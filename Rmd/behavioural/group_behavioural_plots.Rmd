@@ -36,87 +36,69 @@ library(conflicted)
 
 conflict_prefer("select", "dplyr")
 conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
 conflicts_prefer(lmerTest::lmer)
 ```
-
-
-REMOVE COMPUTER RESPONSE TRIALS BEFOREHAND!
-```
-# Something like this:
-
-# Read in the data
-df <- read_csv("merged_test_data.csv")
-
-# Print initial number of trials
-print(paste("Initial number of trials:", nrow(df)))
-
-# Remove trials with computer choices
-df_cleaned <- df %>%
-  filter(is.na(player.chosen_image_computer) & is.na(player.chosen_image_computer_two))
-
-# Print final number of trials
-print(paste("Number of trials after removal:", nrow(df_cleaned)))
-
-# Save cleaned dataset
-write_csv(df_cleaned, "merged_test_data_cleaned.csv")
-```
-
-Create choice switch across trials column (only needs to be ran once)
-```
-# Read and process data
-df <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), show_col_types = FALSE)
-
-# Create the switch across trials column and position it after player.switch_vs_stay
-df <- df %>%
-  group_by(participant.id_in_session) %>%
-  arrange(subsession.round_number) %>%
-  mutate(
-    choice_switch_across_trials = ifelse(
-      subsession.round_number == 1,
-      NA,
-      ifelse(player.chosen_image_one_binary != lag(player.chosen_image_two_binary), 1, 0)
-    )
-  ) %>%
-  ungroup() %>%
-  relocate(choice_switch_across_trials, .after = player.switch_vs_stay)
-
-# Save the updated data
-write.csv(df, here("data", "preprocessed", "merged_test_data.csv"), row.names = FALSE)
-```
-
 
 ## Choice accuracy and bet magnitude
 
 Plot average choice accuracy and bet magnitude (Figs 1F and 1G)
 
 ```{r}
-# Read data
-data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"))
+rm(list=ls())
 
-# Create output directory
-dir.create(here("output", "behav", "group"), recursive = TRUE, showWarnings = FALSE)
+# Read data (use the oTree data not the combined data because some subjects are excluded from the combined data)
+data <- read_csv(here("data", "preprocessed", "otree", "pilots", "main_task_combined_filtered.csv"))
 
-# Perform tests and prepare data
-choice_ttest <- t.test(data$player.choice2_accuracy * 100, 
-                      data$player.choice1_accuracy * 100, 
-                      paired = TRUE)
-bet_ttest <- t.test(data$player.bet2, 
-                    data$player.bet1, 
-                    paired = TRUE)
+# Create filtered datasets for each analysis
+choice1_data <- data %>%
+  filter(player.computer_choice_one == 0)
 
-choice_data <- data %>%
-  reframe(
-    value = c(mean(player.choice1_accuracy) * 100, mean(player.choice2_accuracy) * 100),
-    se = c(sd(player.choice1_accuracy) * 100, sd(player.choice2_accuracy) * 100) / sqrt(n()),
-    group = factor(c("Choice 1", "Choice 2"))
-  )
+choice2_data <- data %>%
+  filter(player.computer_choice_two == 0)
 
-bet_data <- data %>%
-  reframe(
-    value = c(mean(player.bet1), mean(player.bet2)),
-    se = c(sd(player.bet1), sd(player.bet2)) / sqrt(n()),
-    group = factor(c("Bet 1", "Bet 2"))
-  )
+bet1_data <- data %>%
+  filter(player.computer_choice_one == 0, 
+         player.computer_bet_one == 0)
+
+bet2_data <- data %>%
+  filter(player.computer_choice_two == 0, 
+         player.computer_bet_two == 0)
+
+# Perform t-tests with filtered datasets
+choice_ttest <- t.test(choice2_data$player.choice2_accuracy * 100, 
+                      choice1_data$player.choice1_accuracy * 100, 
+                      paired = FALSE)
+
+bet_ttest <- t.test(bet2_data$player.bet2, 
+                    bet1_data$player.bet1, 
+                    paired = FALSE)
+
+# Create summary data for choices
+choice_data <- tibble(
+  value = c(
+    mean(choice1_data$player.choice1_accuracy) * 100,
+    mean(choice2_data$player.choice2_accuracy) * 100
+  ),
+  se = c(
+    sd(choice1_data$player.choice1_accuracy) * 100,
+    sd(choice2_data$player.choice2_accuracy) * 100
+  ) / sqrt(c(nrow(choice1_data), nrow(choice2_data))),
+  group = factor(c("Choice 1", "Choice 2"))
+)
+
+# Create summary data for bets
+bet_data <- tibble(
+  value = c(
+    mean(bet1_data$player.bet1),
+    mean(bet2_data$player.bet2)
+  ),
+  se = c(
+    sd(bet1_data$player.bet1),
+    sd(bet2_data$player.bet2)
+  ) / sqrt(c(nrow(bet1_data), nrow(bet2_data))),
+  group = factor(c("Bet 1", "Bet 2"))
+)
 
 # Function to format test results
 format_test_results <- function(test_results, data, type) {
@@ -127,7 +109,7 @@ format_test_results <- function(test_results, data, type) {
     "T-TEST RESULTS\n",
     "=============\n",
     sprintf("t = %.3f\n", test_results$statistic),
-    sprintf("df = %d\n", test_results$parameter),
+    sprintf("df = %.2f\n", test_results$parameter),
     sprintf("p = %.3e\n", test_results$p.value),
     sprintf("95%% CI [%.3f, %.3f]\n\n", test_results$conf.int[1], test_results$conf.int[2]),
     "DESCRIPTIVE STATISTICS\n",
@@ -138,24 +120,27 @@ format_test_results <- function(test_results, data, type) {
 }
 
 # Write results
-writeLines(
-  format_test_results(choice_ttest, choice_data, "Choice"),
-  here("output", "behav", "group", "choice_accuracy_difference.txt")
-)
+#writeLines(
+#  format_test_results(choice_ttest, choice_data, "Choice"),
+#  here("output", "behav", "group", "choice_accuracy_difference.txt")
+#)
 
-writeLines(
-  format_test_results(bet_ttest, bet_data, "Bet"),
-  here("output", "behav", "group", "bet_magnitude_difference.txt")
-)
+#writeLines(
+#  format_test_results(bet_ttest, bet_data, "Bet"),
+#  here("output", "behav", "group", "bet_magnitude_difference.txt")
+#)
 
 # Create plots
 plots <- list(
   choice = ggplot(choice_data, aes(x = group, y = value)) +
     geom_bar(stat = "identity", width = 0.2, fill = c("#69b3e7", "#1f77b4")) +
     geom_errorbar(aes(ymin = value - se, ymax = value + se), width = 0.07) +
-    scale_y_continuous(expand = c(0, 0)) +
+    scale_y_continuous(limits = c(48, 75),
+                      breaks = c(48, seq(50, 75, by = 5)),
+                      expand = c(0, 0),
+                      oob = scales::squish) +
     annotate("text", x = 1.5, y = max(choice_data$value + choice_data$se) - 2,
-             label = sprintf("P = %.2e", choice_ttest$p.value)) +
+             label = sprintf("P = %.3f", choice_ttest$p.value)) +  # Changed from %.2e to %.3f
     ylab("Choice accuracy (%)") +
     theme_classic() +
     theme(axis.title.x = element_blank()),
@@ -163,9 +148,12 @@ plots <- list(
   bet = ggplot(bet_data, aes(x = group, y = value)) +
     geom_bar(stat = "identity", width = 0.2, fill = c("#98cb85", "#2ca02c")) +
     geom_errorbar(aes(ymin = value - se, ymax = value + se), width = 0.07) +
-    scale_y_continuous(expand = c(0, 0)) +
+    scale_y_continuous(limits = c(1.85, 2.5),
+                      breaks = seq(1.9, 2.5, by = 0.1),
+                      expand = c(0, 0),
+                      oob = scales::squish) +
     annotate("text", x = 1.5, y = max(bet_data$value + bet_data$se) - 0.2,
-             label = sprintf("P = %.4f", bet_ttest$p.value)) +
+             label = sprintf("P = %.3f", bet_ttest$p.value)) +  # Changed from %.4f to %.3f
     ylab("Bet magnitude") +
     theme_classic() +
     theme(axis.title.x = element_blank())
@@ -176,17 +164,89 @@ print(plots$choice)
 print(plots$bet)
 ```
 
+Let's see if there is a difference in choice accuracy before the final block
+```{r}
+# Create filtered datasets for the new analysis
+choice1_early_data <- choice1_data %>%
+  filter(group.trial_number < 48)
+choice2_early_data <- choice2_data %>%
+  filter(group.trial_number < 48)
+
+# Perform t-test with filtered datasets
+choice_early_ttest <- t.test(choice2_early_data$player.choice2_accuracy * 100, 
+                           choice1_early_data$player.choice1_accuracy * 100, 
+                           paired = FALSE)
+
+# Create summary data for early choices
+choice_early_data <- tibble(
+  value = c(
+    mean(choice1_early_data$player.choice1_accuracy) * 100,
+    mean(choice2_early_data$player.choice2_accuracy) * 100
+  ),
+  se = c(
+    sd(choice1_early_data$player.choice1_accuracy) * 100,
+    sd(choice2_early_data$player.choice2_accuracy) * 100
+  ) / sqrt(c(nrow(choice1_early_data), nrow(choice2_early_data))),
+  group = factor(c("Choice 1", "Choice 2"))
+)
+
+# Create the early trials plot
+early_choice_plot <- ggplot(choice_early_data, aes(x = group, y = value)) +
+  geom_bar(stat = "identity", width = 0.2, fill = c("#69b3e7", "#1f77b4")) +
+  geom_errorbar(aes(ymin = value - se, ymax = value + se), width = 0.07) +
+  scale_y_continuous(limits = c(48, 75),
+                    breaks = c(48, seq(50, 75, by = 5)),
+                    expand = c(0, 0),
+                    oob = scales::squish) +
+  annotate("text", x = 1.5, y = max(choice_early_data$value + choice_early_data$se) - 2,
+           label = sprintf("P = %.3f", choice_early_ttest$p.value)) +
+  ylab("Choice accuracy (%)") +
+  theme_classic() +
+  theme(axis.title.x = element_blank())
+
+# Add to plots list
+plots$choice_early <- early_choice_plot
+
+# Print the new plot
+print(plots$choice_early)
+```
 
 ## Choice switch probability and bet difference by group consensus
 
 Run linear-mixed effect models for choice switch probability and bet difference by group consensus, and then plot the winning model (Figs 1D-1E)
 ```{r consensus_analysis}
-source(here("R", "mixed_models_group.R"))
+rm(list=ls())
+
+source(here("R", "group_behavioural_plots.R"))
 
 ################## SPECIFIC PREPROCESSING ###################
 process_consensus_data <- function(data, outcome_type) {
-  processed <- if(outcome_type == "switch") {
+  # Initial filtering based on outcome type
+  filtered_data <- if(outcome_type == "switch") {
     data %>%
+      filter(
+        player.computer_choice_one == 0,
+        player.computer_choice_two == 0,
+        player.player1_choice1_computer == 0,
+        player.player2_choice1_computer == 0,
+        player.player3_choice1_computer == 0,
+        player.player4_choice1_computer == 0
+      )
+  } else {
+    data %>%
+      filter(
+        player.player1_choice1_computer == 0,
+        player.player2_choice1_computer == 0,
+        player.player3_choice1_computer == 0,
+        player.player4_choice1_computer == 0,
+        player.computer_bet_one == 0,
+        player.computer_bet_two == 0
+      )
+  }
+  
+  # Continue with existing processing
+  processed <- if(outcome_type == "switch") {
+    filtered_data %>%
       group_by(participant.id_in_session, 
                consensus = player.choice1_with, 
                gender) %>%
@@ -195,7 +255,7 @@ process_consensus_data <- function(data, outcome_type) {
         .groups = 'drop'
       )
   } else {
-    data %>%
+    filtered_data %>%
       mutate(bet_difference = player.bet2 - player.bet1) %>%
       group_by(participant.id_in_session,
                consensus = player.choice1_with,
@@ -208,7 +268,7 @@ process_consensus_data <- function(data, outcome_type) {
   
   processed %>%
     left_join(
-      data %>%
+      filtered_data %>%
         group_by(participant.id_in_session) %>%
         slice(1) %>%
         select(participant.id_in_session, age),
@@ -252,6 +312,7 @@ consensus_model_formulas <- list(
 create_consensus_plot <- function(data, model_results, anova_results, params) {
   interaction_p <- anova_results["direction:consensus_numeric", "Pr(>Chisq)"]
   
+  # Create the main plot data as before
   plot_data <- data %>%
     mutate(
       consensus_level = case_when(
@@ -267,6 +328,14 @@ create_consensus_plot <- function(data, model_results, anova_results, params) {
       se = sd(outcome_value) / sqrt(n()),
       .groups = 'drop'
     )
+
+  # Get the 2:2 values from "With group"
+  with_2_2 <- plot_data %>%
+    filter(direction == "With group", consensus_level == "2:2") %>%
+    mutate(direction = "Against group")  # Create a copy with "Against group" direction
+    
+  # Add this to plot_data
+  plot_data <- bind_rows(plot_data, with_2_2)
 
   ggplot(plot_data, 
          aes(x = consensus_level, 
@@ -301,7 +370,7 @@ create_consensus_plot <- function(data, model_results, anova_results, params) {
 
 ################## RUN ANALYSES ###################
 # Read data
-data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+data <- read_csv(here("data", "preprocessed", "merged", "pilots", "otree_prolific_merged_filtered_2025-02-07.csv"), 
                  show_col_types = FALSE)
 
 # Run switch analysis
@@ -342,33 +411,84 @@ bet_results <- run_mixed_model_pipeline(
 Plot Choice 1 accuracy and Bet 1 magnitude as a function of switch difference across trials (Choice 2 - Choice 1) and group consensus (Figs 1H-1I)
 
 ```{r}
-source(here("R", "mixed_models_group.R"))
+rm(list=ls())
+
+source(here("R", "group_behavioural_plots.R"))
 
 ################## SPECIFIC PREPROCESSING ###################
 process_switch_accuracy_data <- function(data, outcome_type) {
-  # Create separate dataframes for With and Against groups
-  df_with <- data %>%
+  # Process based on outcome type
+  processed_data <- data %>%
+    group_by(participant.id_in_session) %>%
+    arrange(group.trial_number) %>%
+    mutate(
+      # Check if the current trial follows immediately after the previous one
+      is_consecutive = group.trial_number == lag(group.trial_number) + 1,
+      
+      # Calculate switches only for consecutive trials
+      choice_switch_across_trials = case_when(
+        is.na(lag(group.trial_number)) ~ NA_real_,  # First trial
+        !is_consecutive ~ NA_real_,  # Non-consecutive trials
+        TRUE ~ as.numeric(player.chosen_image_one_binary != lag(player.chosen_image_two_binary))
+      )
+    ) %>%
+    ungroup()
+
+  # Apply specific filtering based on outcome type
+  filtered_data <- if(outcome_type == "accuracy") {
+    processed_data %>%
+      filter(
+        player.computer_choice_one == 0,  # Current trial
+        lag(player.computer_choice_two) == 0,  # Previous trial
+        lag(player.player1_choice2_computer) == 0,
+        lag(player.player2_choice2_computer) == 0,
+        lag(player.player3_choice2_computer) == 0,
+        lag(player.player4_choice2_computer) == 0
+      )
+  } else {
+    processed_data %>%
+      filter(
+        player.computer_choice_one == 0,  # Current trial
+        player.computer_bet_one == 0,
+        lag(player.computer_choice_two) == 0,  # Previous trial
+        lag(player.computer_bet_two) == 0,
+        lag(player.player1_choice2_computer) == 0,
+        lag(player.player2_choice2_computer) == 0,
+        lag(player.player3_choice2_computer) == 0,
+        lag(player.player4_choice2_computer) == 0
+      )
+  }
+
+  # Save the intermediate data
+  write_csv(filtered_data, 
+           here("data", "preprocessed", "merged", "pilots",
+                paste0("switch_accuracy_", outcome_type, "_pre_grouping.csv")))
+
+  # Create separate dataframes for With and Against groups using choice 2 consensus
+  df_with <- filtered_data %>%
     mutate(direction = "With group") %>%
-    filter(player.choice1_with > 0.5)
+    filter(player.choice2_with > 0.5)
   
-  df_against <- data %>%
+  df_against <- filtered_data %>%
     mutate(direction = "Against group") %>%
-    filter(player.choice1_with <= 0.5)
+    filter(player.choice2_with <= 0.5)
   
-  # Combine and prepare data
-  bind_rows(df_with, df_against) %>%
+  # Combine and prepare final dataset
+  combined_data <- bind_rows(df_with, df_against) %>%
     filter(!is.na(choice_switch_across_trials)) %>%
     mutate(
       consensus_numeric = case_when(
-        player.choice1_with %in% c(0, 1) ~ 2,
-        player.choice1_with %in% c(0.25, 0.75) ~ 1,
-        player.choice1_with == 0.5 ~ 0
+        player.choice2_with %in% c(0, 1) ~ 2,
+        player.choice2_with %in% c(0.25, 0.75) ~ 1,
+        player.choice2_with == 0.5 ~ 0
       ),
       direction = factor(direction),
       gender = factor(gender),
       choice_switch_across_trials = factor(choice_switch_across_trials),
       participant.id_in_session = factor(participant.id_in_session)
     )
+  
+  return(combined_data)
 }
 
 ################## SPECIFIC MODEL FORMULAS ###################
@@ -380,20 +500,12 @@ get_switch_accuracy_formulas <- function(outcome_var) {
   
   list(
     m1 = update(formula_base, . ~ . + (1|participant.id_in_session)),
-    
-    m2 = update(formula_base, 
-                . ~ . + (1|participant.id_in_session) + (1|gender)),
-    
-    m3 = update(formula_base,
-                . ~ . + (1|participant.id_in_session) + (1|gender) + 
+    m2 = update(formula_base, . ~ . + (1|participant.id_in_session) + (1|gender)),
+    m3 = update(formula_base, . ~ . + (1|participant.id_in_session) + (1|gender) + 
                 (1|direction:participant.id_in_session)),
-    
-    m4 = update(formula_base,
-                . ~ . + (1|participant.id_in_session) + (1|gender) + 
+    m4 = update(formula_base, . ~ . + (1|participant.id_in_session) + (1|gender) + 
                 (1|consensus_numeric:participant.id_in_session)),
-    
-    m5 = update(formula_base,
-                . ~ . + (1|participant.id_in_session) + (1|gender) + 
+    m5 = update(formula_base, . ~ . + (1|participant.id_in_session) + (1|gender) + 
                 (1|direction:participant.id_in_session) + 
                 (1|consensus_numeric:participant.id_in_session))
   )
@@ -430,6 +542,14 @@ create_switch_accuracy_plot <- function(data, model_results, anova_results, para
       )
   }
   
+  # Get the 2:2 values from "Against group" for both switch and stay trials
+  against_2_2 <- plot_data %>%
+    filter(direction == "Against group", consensus_category == "2:2") %>%
+    mutate(direction = "With group")
+  
+  # Add this to plot_data
+  plot_data <- bind_rows(plot_data, against_2_2)
+  
   ggplot(plot_data, 
          aes(x = consensus_category, 
              y = value, 
@@ -461,12 +581,12 @@ create_switch_accuracy_plot <- function(data, model_results, anova_results, para
     ) +
     theme_custom +
     {if(params$is_accuracy) 
-      scale_y_continuous(limits = c(10, 70), breaks = seq(10, 70, by = 10))}
+      scale_y_continuous(limits = c(10, 90), breaks = seq(10, 90, by = 10))}
 }
 
 ################## RUN ANALYSES ###################
 # Read data
-data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+data <- read_csv(here("data", "preprocessed", "merged", "pilots", "otree_prolific_merged_filtered_2025-02-07.csv"), 
                  show_col_types = FALSE)
 
 # Run accuracy analysis
@@ -508,18 +628,37 @@ bet_results <- run_mixed_model_pipeline(
 
 Bet difference as a function of choice switching on the current trial and group consensus (Fig Supp 2A)
 ```{r bet_difference_analysis}
-source(here("R", "mixed_models_group.R"))
+rm(list=ls())
+
+source(here("R", "group_behavioural_plots.R"))
 
 ################## SPECIFIC PREPROCESSING ###################
 process_bet_difference_data <- function(data) {
-  # Calculate bet difference and create groups
-  data %>%
+  # First filter out computer trials
+  filtered_data <- data %>%
+    filter(
+      player.computer_bet_one == 0,
+      player.computer_bet_two == 0,
+      player.computer_choice_one == 0,
+      player.computer_choice_two == 0,
+      player.player1_choice1_computer == 0,
+      player.player2_choice1_computer == 0,
+      player.player3_choice1_computer == 0,
+      player.player4_choice1_computer == 0
+    )
+
+  # Continue with preprocessing
+  processed_data <- filtered_data %>%
+    {
+      nTrials <<- nrow(.)
+      .
+    } %>%
     mutate(
       bet_difference = player.bet2 - player.bet1,
       direction = if_else(player.choice1_with > 0.5, 
                          "With group", "Against group")
     ) %>%
-    filter(!is.na(direction)) %>%  # Remove any NA cases
+    filter(!is.na(direction)) %>%
     mutate(
       consensus_numeric = case_when(
         player.choice1_with %in% c(0, 1) ~ 2,
@@ -531,6 +670,11 @@ process_bet_difference_data <- function(data) {
       switch_vs_stay = factor(player.switch_vs_stay),
       participant.id_in_session = factor(participant.id_in_session)
     )
+    
+  # Save the grouped data
+  # write.csv(processed_data, "grouped_consensus_data.csv", row.names = FALSE)
+  
+  return(processed_data)
 }
 
 ################## SPECIFIC MODEL FORMULAS ###################
@@ -600,22 +744,23 @@ create_bet_difference_plot <- function(data, model_results, anova_results, param
                                  "With group" = "blue")) +
     scale_fill_manual(values = c("Against group" = "red", 
                                 "With group" = "blue")) +
-    scale_y_continuous(limits = c(-0.5, 0.7), 
-                      breaks = seq(-0.5, 0.7, by = 0.1)) +
+    scale_y_continuous(limits = c(-0.6, 0.8), 
+                      breaks = seq(-0.6, 0.8, by = 0.1),
+                      labels = function(x) sprintf("%.1f", x)) +
     labs(
       x = "Group consensus",
       y = "Bet difference (Bet 2 - Bet 1)",
       color = "Direction",
       fill = "Direction",
       title = "Direction by Choice:",
-      subtitle = sprintf("P < %.1e", interaction_p)
+      subtitle = sprintf("P = %.3f", interaction_p)
     ) +
     theme_custom
 }
 
 ################## RUN ANALYSIS ###################
 # Read data
-data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+data <- read_csv(here("data", "preprocessed", "merged", "pilots", "otree_prolific_merged_filtered_2025-02-07.csv"), 
                  show_col_types = FALSE)
 
 # Run analysis
@@ -637,7 +782,9 @@ bet_difference_results <- run_mixed_model_pipeline(
 
 Choice accuracy and bet magnitude relative to reversal (plus and minus 3 trials)
 ```{r reversal_analysis}
-source(here("R", "mixed_models_group.R"))
+rm(list=ls())
+
+source(here("R", "group_behavioural_plots.R"))
 
 ################## SPECIFIC PREPROCESSING ###################
 process_reversal_data <- function(data, outcome_type) {
@@ -656,8 +803,8 @@ process_reversal_data <- function(data, outcome_type) {
       player.bet2 = "Bet 2")
   }
   
-  # Process data
-  data %>%
+  # Process data with additional filtering
+  processed_data <- data %>%
     group_by(participant.id_in_session) %>%
     mutate(
       trial_to_reversal = map_dbl(group.trial_number, function(x) {
@@ -671,6 +818,14 @@ process_reversal_data <- function(data, outcome_type) {
       })
     ) %>%
     filter(!is.na(trial_to_reversal)) %>%
+    # Modified filtering based on outcome type
+    filter(
+      if(outcome_type == "accuracy") {
+        player.computer_choice_one == 0 & player.computer_choice_two == 0
+      } else {
+        player.computer_bet_one == 0 & player.computer_bet_two == 0
+      }
+    ) %>%
     pivot_longer(
       cols = names(cols),
       names_to = if(outcome_type == "accuracy") "choice_type" else "bet_type",
@@ -685,6 +840,12 @@ process_reversal_data <- function(data, outcome_type) {
       participant.id_in_session = factor(participant.id_in_session),
       gender = factor(gender)
     )
+  
+  # Save processed data to CSV
+  write_csv(processed_data, 
+           here("reversal_analysis_trials.csv"))
+  
+  return(processed_data)
 }
 
 ################## SPECIFIC MODEL FORMULAS ###################
@@ -732,7 +893,7 @@ create_reversal_plot <- function(data, model_results, anova_results, params) {
     scale_color_manual(values = params$colors) +
     scale_x_discrete(labels = c("-3", "-2", "-1", "0", "1", "2", "3")) +
     {if(params$is_accuracy) 
-      scale_y_continuous(limits = c(30, 70), breaks = seq(30, 70, by = 10))} +
+      scale_y_continuous(limits = c(0, 100), breaks = seq(0, 100, by = 10))} +
     labs(
       x = "Trial (relative to reversal)",
       y = params$y_label,
@@ -745,7 +906,7 @@ create_reversal_plot <- function(data, model_results, anova_results, params) {
 
 ################## RUN ANALYSES ###################
 # Read data
-data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+data <- read_csv(here("data", "preprocessed", "merged", "pilots", "otree_prolific_merged_filtered_2025-02-07.csv"), 
                  show_col_types = FALSE)
 
 # Run accuracy analysis

@@ -1,0 +1,1245 @@
+CHOICE ACCURACY ANALYSIS FOR SSMS
+
+Analysis run on: 2025-02-01 14:03:18
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 42.9% (SD = 49.6)
+  Low group: 55.1% (SD = 49.9)
+  Mean difference: -12.2% [-21.2, -3.2]
+  Effect size (phi) = 0.115
+  t(490) = -2.662, adj-p = 0.0188
+
+Trial -2:
+  High group: 63.1% (SD = 48.3)
+  Low group: 35% (SD = 47.8)
+  Mean difference: 28.1% [19.4, 36.7]
+  Effect size (phi) = 0.271
+  t(493) = 6.376, adj-p = 3.29e-09
+
+Trial -1:
+  High group: 40.1% (SD = 49.1)
+  Low group: 64.8% (SD = 47.9)
+  Mean difference: -24.7% [-33.4, -16]
+  Effect size (phi) = 0.238
+  t(496) = -5.58, adj-p = 1.49e-07
+
+
+Choice 2 significant differences found at trials:
+Trial -3:
+  High group: 29.7% (SD = 45.8)
+  Low group: 50.5% (SD = 50.1)
+  Mean difference: -20.8% [-29.4, -12.2]
+  Effect size (phi) = 0.205
+  t(490) = -4.658, adj-p = 1.53e-05
+
+Trial 0:
+  High group: 63.4% (SD = 48.2)
+  Low group: 40% (SD = 49.1)
+  Mean difference: 23.4% [14.7, 32.2]
+  Effect size (phi) = 0.226
+  t(496) = 5.254, adj-p = 1.65e-06
+
+Trial 2:
+  High group: 56.7% (SD = 49.6)
+  Low group: 45.2% (SD = 49.9)
+  Mean difference: 11.5% [2.5, 20.4]
+  Effect size (phi) = 0.109
+  t(495) = 2.52, adj-p = 0.0212
+
+Trial 3:
+  High group: 43.1% (SD = 49.6)
+  Low group: 55.1% (SD = 49.9)
+  Mean difference: -12% [-21, -3]
+  Effect size (phi) = 0.114
+  t(491) = -2.625, adj-p = 0.021
+
+
+
+CHOICE ACCURACY ANALYSIS FOR SSMS_CD
+
+Analysis run on: 2025-02-01 14:03:22
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 53% (SD = 50)
+  Low group: 39.8% (SD = 49.1)
+  Mean difference: 13.2% [4.3, 22.2]
+  Effect size (phi) = 0.126
+  t(490) = 2.909, adj-p = 0.00941
+
+Trial -2:
+  High group: 46.5% (SD = 50)
+  Low group: 59.6% (SD = 49.2)
+  Mean difference: -13.1% [-22.1, -4.2]
+  Effect size (phi) = 0.125
+  t(493) = -2.891, adj-p = 0.00941
+
+Trial -1:
+  High group: 43.3% (SD = 49.6)
+  Low group: 60.1% (SD = 49.1)
+  Mean difference: -16.8% [-25.7, -7.9]
+  Effect size (phi) = 0.16
+  t(496) = -3.714, adj-p = 0.00162
+
+Trial 0:
+  High group: 50% (SD = 50.1)
+  Low group: 60.1% (SD = 49.1)
+  Mean difference: -10.1% [-19, -1.2]
+  Effect size (phi) = 0.095
+  t(496) = -2.229, adj-p = 0.0461
+
+
+Choice 2 significant differences found at trials:
+Trial -3:
+  High group: 30.4% (SD = 46.1)
+  Low group: 49.5% (SD = 50.1)
+  Mean difference: -19.1% [-27.7, -10.4]
+  Effect size (phi) = 0.188
+  t(490) = -4.268, adj-p = 0.000173
+
+Trial -2:
+  High group: 52.9% (SD = 50)
+  Low group: 64.6% (SD = 47.9)
+  Mean difference: -11.8% [-20.7, -2.9]
+  Effect size (phi) = 0.113
+  t(493) = -2.634, adj-p = 0.0306
+
+
+
+CHOICE ACCURACY ANALYSIS FOR SSMS_IA
+
+Analysis run on: 2025-02-01 14:03:25
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 54.2% (SD = 49.9)
+  Low group: 32.7% (SD = 47.1)
+  Mean difference: 21.5% [12.1, 31]
+  Effect size (phi) = 0.193
+  t(490) = 4.566, adj-p = 5.15e-05
+
+Trial -2:
+  High group: 45.5% (SD = 49.9)
+  Low group: 66.2% (SD = 47.5)
+  Mean difference: -20.7% [-30.2, -11.2]
+  Effect size (phi) = 0.185
+  t(493) = -4.371, adj-p = 6.02e-05
+
+Trial -1:
+  High group: 45.6% (SD = 49.9)
+  Low group: 60.4% (SD = 49.1)
+  Mean difference: -14.8% [-24.4, -5.3]
+  Effect size (phi) = 0.132
+  t(496) = -3.076, adj-p = 0.00537
+
+
+Choice 2 significant differences found at trials:
+Trial -3:
+  High group: 34.5% (SD = 47.6)
+  Low group: 46.3% (SD = 50)
+  Mean difference: -11.8% [-21.1, -2.4]
+  Effect size (phi) = 0.106
+  t(490) = -2.422, adj-p = 0.0282
+
+Trial -2:
+  High group: 53.9% (SD = 49.9)
+  Low group: 66.2% (SD = 47.5)
+  Mean difference: -12.3% [-21.8, -2.8]
+  Effect size (phi) = 0.11
+  t(493) = -2.604, adj-p = 0.0226
+
+Trial 1:
+  High group: 40.5% (SD = 49.2)
+  Low group: 53.7% (SD = 50)
+  Mean difference: -13.3% [-22.8, -3.7]
+  Effect size (phi) = 0.118
+  t(491) = -2.71, adj-p = 0.0226
+
+Trial 3:
+  High group: 54.2% (SD = 49.9)
+  Low group: 33.1% (SD = 47.2)
+  Mean difference: 21.1% [11.6, 30.6]
+  Effect size (phi) = 0.189
+  t(491) = 4.469, adj-p = 7.87e-05
+
+
+
+CHOICE ACCURACY ANALYSIS FOR DASS
+
+Analysis run on: 2025-02-01 14:03:28
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 53.2% (SD = 50)
+  Low group: 39.6% (SD = 49)
+  Mean difference: 13.6% [4.7, 22.6]
+  Effect size (phi) = 0.13
+  t(490) = 2.997, adj-p = 0.00673
+
+Trial -2:
+  High group: 43.1% (SD = 49.6)
+  Low group: 64.6% (SD = 47.9)
+  Mean difference: -21.5% [-30.4, -12.7]
+  Effect size (phi) = 0.207
+  t(493) = -4.832, adj-p = 1.32e-05
+
+Trial 1:
+  High group: 40.1% (SD = 49.1)
+  Low group: 59.8% (SD = 49.2)
+  Mean difference: -19.7% [-28.5, -10.8]
+  Effect size (phi) = 0.189
+  t(491) = -4.36, adj-p = 5.73e-05
+
+
+Choice 2 significant differences found at trials:
+Trial -2:
+  High group: 52.9% (SD = 50)
+  Low group: 64.6% (SD = 47.9)
+  Mean difference: -11.8% [-20.7, -2.9]
+  Effect size (phi) = 0.113
+  t(493) = -2.634, adj-p = 0.0122
+
+Trial -1:
+  High group: 50.2% (SD = 50.1)
+  Low group: 80.4% (SD = 39.8)
+  Mean difference: -30.2% [-38.5, -21.9]
+  Effect size (phi) = 0.301
+  t(496) = -7.478, adj-p = 1.26e-12
+
+Trial 0:
+  High group: 50% (SD = 50.1)
+  Low group: 60.1% (SD = 49.1)
+  Mean difference: -10.1% [-19, -1.2]
+  Effect size (phi) = 0.095
+  t(496) = -2.229, adj-p = 0.0307
+
+Trial 1:
+  High group: 30.6% (SD = 46.2)
+  Low group: 64.8% (SD = 47.9)
+  Mean difference: -34.2% [-42.7, -25.8]
+  Effect size (phi) = 0.334
+  t(491) = -7.898, adj-p = 1.8e-13
+
+Trial 2:
+  High group: 46.8% (SD = 50)
+  Low group: 60% (SD = 49.1)
+  Mean difference: -13.2% [-22.1, -4.3]
+  Effect size (phi) = 0.125
+  t(495) = -2.917, adj-p = 0.0065
+
+Trial 3:
+  High group: 56.1% (SD = 49.7)
+  Low group: 35.5% (SD = 48)
+  Mean difference: 20.5% [11.7, 29.4]
+  Effect size (phi) = 0.197
+  t(491) = 4.591, adj-p = 1.36e-05
+
+
+
+CHOICE ACCURACY ANALYSIS FOR DASS_A
+
+Analysis run on: 2025-02-01 14:03:30
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial 1:
+  High group: 40% (SD = 49.1)
+  Low group: 60.1% (SD = 49.1)
+  Mean difference: -20.1% [-29, -11.2]
+  Effect size (phi) = 0.193
+  t(491) = -4.457, adj-p = 7.45e-05
+
+
+Choice 2 significant differences found at trials:
+Trial -3:
+  High group: 30.4% (SD = 46.1)
+  Low group: 49.5% (SD = 50.1)
+  Mean difference: -19.1% [-27.7, -10.4]
+  Effect size (phi) = 0.188
+  t(490) = -4.268, adj-p = 0.000173
+
+Trial -1:
+  High group: 56.7% (SD = 49.6)
+  Low group: 70.7% (SD = 45.6)
+  Mean difference: -14% [-22.7, -5.4]
+  Effect size (phi) = 0.138
+  t(496) = -3.245, adj-p = 0.00295
+
+Trial 1:
+  High group: 37.3% (SD = 48.4)
+  Low group: 55.1% (SD = 49.9)
+  Mean difference: -17.8% [-26.6, -8.9]
+  Effect size (phi) = 0.171
+  t(491) = -3.922, adj-p = 0.00036
+
+
+
+CHOICE ACCURACY ANALYSIS FOR DASS_D
+
+Analysis run on: 2025-02-01 14:03:33
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -1:
+  High group: 56.2% (SD = 49.7)
+  Low group: 43.8% (SD = 49.7)
+  Mean difference: 12.4% [3.7, 21.2]
+  Effect size (phi) = 0.12
+  t(496) = 2.794, adj-p = 0.0189
+
+Trial 3:
+  High group: 43.7% (SD = 49.7)
+  Low group: 56.9% (SD = 49.6)
+  Mean difference: -13.2% [-22, -4.4]
+  Effect size (phi) = 0.128
+  t(491) = -2.948, adj-p = 0.0189
+
+
+Choice 2 significant differences found at trials:
+Trial -2:
+  High group: 51.6% (SD = 50.1)
+  Low group: 63.6% (SD = 48.2)
+  Mean difference: -11.9% [-20.6, -3.3]
+  Effect size (phi) = 0.117
+  t(493) = -2.704, adj-p = 0.00826
+
+Trial -1:
+  High group: 72.3% (SD = 44.8)
+  Low group: 52.2% (SD = 50.1)
+  Mean difference: 20.1% [11.7, 28.4]
+  Effect size (phi) = 0.203
+  t(496) = 4.715, adj-p = 7.37e-06
+
+Trial 0:
+  High group: 64.1% (SD = 48.1)
+  Low group: 44% (SD = 49.7)
+  Mean difference: 20.1% [11.5, 28.7]
+  Effect size (phi) = 0.198
+  t(496) = 4.589, adj-p = 9.9e-06
+
+Trial 1:
+  High group: 56.3% (SD = 49.7)
+  Low group: 32.5% (SD = 46.9)
+  Mean difference: 23.8% [15.2, 32.3]
+  Effect size (phi) = 0.235
+  t(491) = 5.456, adj-p = 2.72e-07
+
+Trial 2:
+  High group: 64.3% (SD = 48)
+  Low group: 39.9% (SD = 49.1)
+  Mean difference: 24.3% [15.8, 32.9]
+  Effect size (phi) = 0.24
+  t(495) = 5.588, adj-p = 2.66e-07
+
+Trial 3:
+  High group: 40.1% (SD = 49.1)
+  Low group: 55.7% (SD = 49.8)
+  Mean difference: -15.6% [-24.4, -6.9]
+  Effect size (phi) = 0.152
+  t(491) = -3.505, adj-p = 0.000698
+
+
+
+CHOICE ACCURACY ANALYSIS FOR DASS_S
+
+Analysis run on: 2025-02-01 14:03:36
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -2:
+  High group: 56.9% (SD = 49.6)
+  Low group: 39.6% (SD = 49.1)
+  Mean difference: 17.3% [7.8, 26.9]
+  Effect size (phi) = 0.155
+  t(493) = 3.595, adj-p = 0.00134
+
+Trial 1:
+  High group: 40.2% (SD = 49.1)
+  Low group: 66.7% (SD = 47.3)
+  Mean difference: -26.5% [-35.9, -17.1]
+  Effect size (phi) = 0.238
+  t(491) = -5.625, adj-p = 3.11e-07
+
+Trial 3:
+  High group: 54.7% (SD = 49.9)
+  Low group: 40.3% (SD = 49.2)
+  Mean difference: 14.4% [4.8, 24]
+  Effect size (phi) = 0.128
+  t(491) = 2.968, adj-p = 0.00758
+
+
+Choice 2 significant differences found at trials:
+Trial -3:
+  High group: 34.5% (SD = 47.6)
+  Low group: 46.3% (SD = 50)
+  Mean difference: -11.8% [-21.1, -2.4]
+  Effect size (phi) = 0.106
+  t(490) = -2.422, adj-p = 0.0225
+
+Trial -2:
+  High group: 62.4% (SD = 48.5)
+  Low group: 46.3% (SD = 50)
+  Mean difference: 16.1% [6.7, 25.5]
+  Effect size (phi) = 0.145
+  t(493) = 3.318, adj-p = 0.0018
+
+Trial -1:
+  High group: 57.3% (SD = 49.5)
+  Low group: 73.8% (SD = 44.1)
+  Mean difference: -16.5% [-25.7, -7.3]
+  Effect size (phi) = 0.152
+  t(496) = -3.686, adj-p = 0.000627
+
+Trial 0:
+  High group: 39.9% (SD = 49)
+  Low group: 86.7% (SD = 34.1)
+  Mean difference: -46.7% [-55.4, -38.1]
+  Effect size (phi) = 0.426
+  t(496) = -12.2, adj-p = <2e-16
+
+Trial 1:
+  High group: 37.6% (SD = 48.5)
+  Low group: 60.5% (SD = 49)
+  Mean difference: -23% [-32.4, -13.6]
+  Effect size (phi) = 0.207
+  t(491) = -4.773, adj-p = 1.04e-05
+
+
+
+CHOICE ACCURACY ANALYSIS FOR LSAS
+
+Analysis run on: 2025-02-01 14:03:39
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial 1:
+  High group: 59.9% (SD = 49.1)
+  Low group: 30.1% (SD = 46)
+  Mean difference: 29.8% [21.2, 38.5]
+  Effect size (phi) = 0.288
+  t(491) = 6.861, adj-p = 1.65e-10
+
+Trial 3:
+  High group: 43.4% (SD = 49.7)
+  Low group: 60.7% (SD = 49)
+  Mean difference: -17.3% [-26.2, -8.4]
+  Effect size (phi) = 0.165
+  t(491) = -3.814, adj-p = 0.000551
+
+
+Choice 2 significant differences found at trials:
+Trial -2:
+  High group: 62.8% (SD = 48.4)
+  Low group: 49.7% (SD = 50.1)
+  Mean difference: 13.1% [4.2, 21.9]
+  Effect size (phi) = 0.126
+  t(493) = 2.888, adj-p = 0.00714
+
+Trial -1:
+  High group: 73.6% (SD = 44.2)
+  Low group: 45.2% (SD = 49.9)
+  Mean difference: 28.4% [20, 36.7]
+  Effect size (phi) = 0.282
+  t(496) = 6.499, adj-p = 5.81e-10
+
+Trial 0:
+  High group: 66.8% (SD = 47.2)
+  Low group: 35% (SD = 47.8)
+  Mean difference: 31.8% [23.3, 40.3]
+  Effect size (phi) = 0.308
+  t(496) = 7.309, adj-p = 4.73e-12
+
+Trial 1:
+  High group: 56.9% (SD = 49.6)
+  Low group: 25.5% (SD = 43.7)
+  Mean difference: 31.4% [22.8, 40]
+  Effect size (phi) = 0.305
+  t(491) = 7.393, adj-p = 4.73e-12
+
+Trial 3:
+  High group: 43.8% (SD = 49.7)
+  Low group: 54.1% (SD = 50)
+  Mean difference: -10.3% [-19.3, -1.3]
+  Effect size (phi) = 0.097
+  t(491) = -2.247, adj-p = 0.0352
+
+
+
+CHOICE ACCURACY ANALYSIS FOR LSAS_P
+
+Analysis run on: 2025-02-01 14:03:42
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial 1:
+  High group: 59.9% (SD = 49.1)
+  Low group: 30.1% (SD = 46)
+  Mean difference: 29.8% [21.2, 38.5]
+  Effect size (phi) = 0.288
+  t(491) = 6.861, adj-p = 1.65e-10
+
+Trial 3:
+  High group: 43.4% (SD = 49.7)
+  Low group: 60.7% (SD = 49)
+  Mean difference: -17.3% [-26.2, -8.4]
+  Effect size (phi) = 0.165
+  t(491) = -3.814, adj-p = 0.000551
+
+
+Choice 2 significant differences found at trials:
+Trial -2:
+  High group: 62.8% (SD = 48.4)
+  Low group: 49.7% (SD = 50.1)
+  Mean difference: 13.1% [4.2, 21.9]
+  Effect size (phi) = 0.126
+  t(493) = 2.888, adj-p = 0.00714
+
+Trial -1:
+  High group: 73.6% (SD = 44.2)
+  Low group: 45.2% (SD = 49.9)
+  Mean difference: 28.4% [20, 36.7]
+  Effect size (phi) = 0.282
+  t(496) = 6.499, adj-p = 5.81e-10
+
+Trial 0:
+  High group: 66.8% (SD = 47.2)
+  Low group: 35% (SD = 47.8)
+  Mean difference: 31.8% [23.3, 40.3]
+  Effect size (phi) = 0.308
+  t(496) = 7.309, adj-p = 4.73e-12
+
+Trial 1:
+  High group: 56.9% (SD = 49.6)
+  Low group: 25.5% (SD = 43.7)
+  Mean difference: 31.4% [22.8, 40]
+  Effect size (phi) = 0.305
+  t(491) = 7.393, adj-p = 4.73e-12
+
+Trial 3:
+  High group: 43.8% (SD = 49.7)
+  Low group: 54.1% (SD = 50)
+  Mean difference: -10.3% [-19.3, -1.3]
+  Effect size (phi) = 0.097
+  t(491) = -2.247, adj-p = 0.0352
+
+
+
+CHOICE ACCURACY ANALYSIS FOR LSAS_S
+
+Analysis run on: 2025-02-01 14:03:45
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -2:
+  High group: 63.1% (SD = 48.3)
+  Low group: 35% (SD = 47.8)
+  Mean difference: 28.1% [19.4, 36.7]
+  Effect size (phi) = 0.271
+  t(493) = 6.376, adj-p = 3.29e-09
+
+
+Choice 2 significant differences found at trials:
+Trial -2:
+  High group: 66.1% (SD = 47.4)
+  Low group: 45% (SD = 49.9)
+  Mean difference: 21.1% [12.4, 29.8]
+  Effect size (phi) = 0.205
+  t(493) = 4.712, adj-p = 2.36e-05
+
+Trial 3:
+  High group: 43.1% (SD = 49.6)
+  Low group: 55.1% (SD = 49.9)
+  Mean difference: -12% [-21, -3]
+  Effect size (phi) = 0.114
+  t(491) = -2.625, adj-p = 0.0314
+
+
+
+CHOICE ACCURACY ANALYSIS FOR SRP_SF
+
+Analysis run on: 2025-02-01 14:03:48
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 43.2% (SD = 49.6)
+  Low group: 54.6% (SD = 49.9)
+  Mean difference: -11.3% [-20.3, -2.3]
+  Effect size (phi) = 0.107
+  t(490) = -2.475, adj-p = 0.026
+
+Trial -1:
+  High group: 60% (SD = 49.1)
+  Low group: 34.8% (SD = 47.8)
+  Mean difference: 25.2% [16.4, 33.9]
+  Effect size (phi) = 0.242
+  t(496) = 5.688, adj-p = 1.66e-07
+
+Trial 1:
+  High group: 40% (SD = 49.1)
+  Low group: 60.1% (SD = 49.1)
+  Mean difference: -20.1% [-29, -11.2]
+  Effect size (phi) = 0.193
+  t(491) = -4.457, adj-p = 3.72e-05
+
+Trial 2:
+  High group: 56.4% (SD = 49.7)
+  Low group: 45.2% (SD = 49.9)
+  Mean difference: 11.1% [2.2, 20.1]
+  Effect size (phi) = 0.105
+  t(495) = 2.445, adj-p = 0.026
+
+
+Choice 2 significant differences found at trials:
+Trial 0:
+  High group: 46.6% (SD = 50)
+  Low group: 65% (SD = 47.8)
+  Mean difference: -18.4% [-27.2, -9.5]
+  Effect size (phi) = 0.176
+  t(496) = -4.124, adj-p = 0.000312
+
+Trial 3:
+  High group: 42.9% (SD = 49.6)
+  Low group: 55.3% (SD = 49.8)
+  Mean difference: -12.4% [-21.4, -3.5]
+  Effect size (phi) = 0.118
+  t(491) = -2.72, adj-p = 0.0238
+
+
+
+CHOICE ACCURACY ANALYSIS FOR SRP_SF_IPM
+
+Analysis run on: 2025-02-01 14:03:51
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 42.1% (SD = 49.4)
+  Low group: 70.4% (SD = 45.9)
+  Mean difference: -28.3% [-39.1, -17.5]
+  Effect size (phi) = 0.221
+  t(490) = -5.374, adj-p = 1.9e-06
+
+Trial -1:
+  High group: 52.6% (SD = 50)
+  Low group: 39.4% (SD = 49.1)
+  Mean difference: 13.2% [2.2, 24.2]
+  Effect size (phi) = 0.101
+  t(496) = 2.392, adj-p = 0.0419
+
+Trial 2:
+  High group: 54.8% (SD = 49.8)
+  Low group: 40.4% (SD = 49.3)
+  Mean difference: 14.4% [3.4, 25.3]
+  Effect size (phi) = 0.11
+  t(495) = 2.589, adj-p = 0.037
+
+
+Choice 2 significant differences found at trials:
+Trial -2:
+  High group: 54.7% (SD = 49.8)
+  Low group: 69.4% (SD = 46.3)
+  Mean difference: -14.7% [-25.6, -3.8]
+  Effect size (phi) = 0.114
+  t(493) = -2.776, adj-p = 0.0144
+
+Trial -1:
+  High group: 65.2% (SD = 47.7)
+  Low group: 50.5% (SD = 50.3)
+  Mean difference: 14.7% [4, 25.3]
+  Effect size (phi) = 0.115
+  t(496) = 2.624, adj-p = 0.0169
+
+Trial 1:
+  High group: 50.5% (SD = 50.1)
+  Low group: 20.2% (SD = 40.4)
+  Mean difference: 30.3% [19.6, 41]
+  Effect size (phi) = 0.239
+  t(491) = 6.345, adj-p = 1.2e-08
+
+Trial 3:
+  High group: 42.2% (SD = 49.5)
+  Low group: 70% (SD = 46.1)
+  Mean difference: -27.8% [-38.5, -17]
+  Effect size (phi) = 0.218
+  t(491) = -5.3, adj-p = 1.31e-06
+
+
+
+CHOICE ACCURACY ANALYSIS FOR SRP_SF_CA
+
+Analysis run on: 2025-02-01 14:03:53
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 56.6% (SD = 49.6)
+  Low group: 34.5% (SD = 47.7)
+  Mean difference: 22.1% [13.3, 30.9]
+  Effect size (phi) = 0.213
+  t(490) = 4.954, adj-p = 7.32e-06
+
+Trial -2:
+  High group: 59.7% (SD = 49.1)
+  Low group: 40% (SD = 49.1)
+  Mean difference: 19.7% [10.8, 28.5]
+  Effect size (phi) = 0.189
+  t(493) = 4.37, adj-p = 5.48e-05
+
+
+Choice 2 significant differences found at trials:
+Trial -2:
+  High group: 66.1% (SD = 47.4)
+  Low group: 45% (SD = 49.9)
+  Mean difference: 21.1% [12.4, 29.8]
+  Effect size (phi) = 0.205
+  t(493) = 4.712, adj-p = 2.36e-05
+
+Trial 0:
+  High group: 60.1% (SD = 49.1)
+  Low group: 45% (SD = 49.9)
+  Mean difference: 15.1% [6.2, 23.9]
+  Effect size (phi) = 0.144
+  t(496) = 3.327, adj-p = 0.00223
+
+Trial 1:
+  High group: 40.1% (SD = 49.1)
+  Low group: 51% (SD = 50.1)
+  Mean difference: -11% [-19.9, -2]
+  Effect size (phi) = 0.104
+  t(491) = -2.394, adj-p = 0.0299
+
+Trial 2:
+  High group: 59.9% (SD = 49.1)
+  Low group: 40.4% (SD = 49.2)
+  Mean difference: 19.5% [10.6, 28.3]
+  Effect size (phi) = 0.187
+  t(495) = 4.321, adj-p = 6.78e-05
+
+
+
+CHOICE ACCURACY ANALYSIS FOR SRP_SF_ELS
+
+Analysis run on: 2025-02-01 14:03:56
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -2:
+  High group: 56.2% (SD = 49.7)
+  Low group: 44.9% (SD = 49.9)
+  Mean difference: 11.3% [2.3, 20.3]
+  Effect size (phi) = 0.106
+  t(493) = 2.469, adj-p = 0.026
+
+Trial 0:
+  High group: 60.1% (SD = 49.1)
+  Low group: 45% (SD = 49.9)
+  Mean difference: 15.1% [6.2, 23.9]
+  Effect size (phi) = 0.144
+  t(496) = 3.327, adj-p = 0.00335
+
+Trial 1:
+  High group: 36.6% (SD = 48.3)
+  Low group: 65.2% (SD = 47.8)
+  Mean difference: -28.5% [-37.2, -19.9]
+  Effect size (phi) = 0.276
+  t(491) = -6.477, adj-p = 1.81e-09
+
+Trial 2:
+  High group: 56.4% (SD = 49.7)
+  Low group: 45.2% (SD = 49.9)
+  Mean difference: 11.1% [2.2, 20.1]
+  Effect size (phi) = 0.105
+  t(495) = 2.445, adj-p = 0.026
+
+
+Choice 2 significant differences found at trials:
+Trial -1:
+  High group: 57% (SD = 49.6)
+  Low group: 70% (SD = 45.9)
+  Mean difference: -13% [-21.6, -4.3]
+  Effect size (phi) = 0.127
+  t(496) = -2.987, adj-p = 0.00693
+
+Trial 0:
+  High group: 50% (SD = 50.1)
+  Low group: 60% (SD = 49.1)
+  Mean difference: -10% [-18.9, -1.1]
+  Effect size (phi) = 0.094
+  t(496) = -2.21, adj-p = 0.0484
+
+Trial 1:
+  High group: 36.9% (SD = 48.3)
+  Low group: 55.6% (SD = 49.8)
+  Mean difference: -18.6% [-27.4, -9.8]
+  Effect size (phi) = 0.179
+  t(491) = -4.114, adj-p = 0.000164
+
+Trial 2:
+  High group: 60.4% (SD = 49)
+  Low group: 39.7% (SD = 49.1)
+  Mean difference: 20.7% [11.9, 29.5]
+  Effect size (phi) = 0.199
+  t(495) = 4.613, adj-p = 3.68e-05
+
+
+
+CHOICE ACCURACY ANALYSIS FOR SRP_SF_CT
+
+Analysis run on: 2025-02-01 14:03:59
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 36% (SD = 48.1)
+  Low group: 59.6% (SD = 49.2)
+  Mean difference: -23.6% [-32.2, -14.9]
+  Effect size (phi) = 0.232
+  t(490) = -5.371, adj-p = 8.47e-07
+
+
+Choice 2 significant differences found at trials:
+Trial -2:
+  High group: 51.8% (SD = 50.1)
+  Low group: 63.4% (SD = 48.3)
+  Mean difference: -11.6% [-20.3, -2.9]
+  Effect size (phi) = 0.113
+  t(493) = -2.626, adj-p = 0.0312
+
+Trial 2:
+  High group: 40.2% (SD = 49.1)
+  Low group: 64.1% (SD = 48.1)
+  Mean difference: -24% [-32.5, -15.4]
+  Effect size (phi) = 0.236
+  t(495) = -5.494, adj-p = 4.4e-07
+
+
+
+CHOICE ACCURACY ANALYSIS FOR AMI
+
+Analysis run on: 2025-02-01 14:04:02
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 39.8% (SD = 49.1)
+  Low group: 55.7% (SD = 49.8)
+  Mean difference: -15.9% [-24.6, -7.1]
+  Effect size (phi) = 0.155
+  t(490) = -3.558, adj-p = 0.00144
+
+Trial -1:
+  High group: 44% (SD = 49.7)
+  Low group: 56% (SD = 49.7)
+  Mean difference: -12% [-20.8, -3.3]
+  Effect size (phi) = 0.116
+  t(496) = -2.703, adj-p = 0.0124
+
+Trial 0:
+  High group: 48% (SD = 50.1)
+  Low group: 60.1% (SD = 49.1)
+  Mean difference: -12.1% [-20.8, -3.4]
+  Effect size (phi) = 0.117
+  t(496) = -2.719, adj-p = 0.0124
+
+Trial 3:
+  High group: 64.6% (SD = 47.9)
+  Low group: 36% (SD = 48.1)
+  Mean difference: 28.6% [20.1, 37.1]
+  Effect size (phi) = 0.282
+  t(491) = 6.614, adj-p = 6.85e-10
+
+
+Choice 2 significant differences found at trials:
+Trial 0:
+  High group: 32% (SD = 46.7)
+  Low group: 76.2% (SD = 42.7)
+  Mean difference: -44.2% [-52.1, -36.3]
+  Effect size (phi) = 0.439
+  t(496) = -11.025, adj-p = <2e-16
+
+Trial 1:
+  High group: 56.5% (SD = 49.7)
+  Low group: 32.2% (SD = 46.8)
+  Mean difference: 24.2% [15.7, 32.8]
+  Effect size (phi) = 0.24
+  t(491) = 5.567, adj-p = 9.97e-08
+
+Trial 2:
+  High group: 36% (SD = 48.1)
+  Low group: 68% (SD = 46.7)
+  Mean difference: -32% [-40.3, -23.6]
+  Effect size (phi) = 0.316
+  t(495) = -7.512, adj-p = 9.6e-13
+
+
+
+CHOICE ACCURACY ANALYSIS FOR AMI_ES
+
+Analysis run on: 2025-02-01 14:04:04
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 56.7% (SD = 49.6)
+  Low group: 27% (SD = 44.6)
+  Mean difference: 29.7% [20.4, 39]
+  Effect size (phi) = 0.268
+  t(490) = 6.539, adj-p = 1.8e-09
+
+Trial -2:
+  High group: 45.4% (SD = 49.9)
+  Low group: 66.4% (SD = 47.4)
+  Mean difference: -21.1% [-30.5, -11.6]
+  Effect size (phi) = 0.189
+  t(493) = -4.466, adj-p = 2.65e-05
+
+Trial -1:
+  High group: 42.8% (SD = 49.6)
+  Low group: 66.7% (SD = 47.3)
+  Mean difference: -23.9% [-33.2, -14.5]
+  Effect size (phi) = 0.214
+  t(496) = -5.088, adj-p = 2.25e-06
+
+
+Choice 2 significant differences found at trials:
+Trial -3:
+  High group: 34% (SD = 47.4)
+  Low group: 47.3% (SD = 50.1)
+  Mean difference: -13.3% [-22.6, -4]
+  Effect size (phi) = 0.121
+  t(490) = -2.741, adj-p = 0.00764
+
+Trial -2:
+  High group: 50.9% (SD = 50.1)
+  Low group: 73.2% (SD = 44.5)
+  Mean difference: -22.3% [-31.6, -13]
+  Effect size (phi) = 0.202
+  t(493) = -4.921, adj-p = 4.88e-06
+
+Trial 0:
+  High group: 62.9% (SD = 48.4)
+  Low group: 33.1% (SD = 47.2)
+  Mean difference: 29.7% [20.5, 39]
+  Effect size (phi) = 0.268
+  t(496) = 6.378, adj-p = 5.1e-09
+
+Trial 1:
+  High group: 40.3% (SD = 49.1)
+  Low group: 54.1% (SD = 50)
+  Mean difference: -13.8% [-23.3, -4.2]
+  Effect size (phi) = 0.123
+  t(491) = -2.816, adj-p = 0.0073
+
+Trial 2:
+  High group: 57.2% (SD = 49.6)
+  Low group: 40.3% (SD = 49.2)
+  Mean difference: 16.9% [7.4, 26.4]
+  Effect size (phi) = 0.151
+  t(495) = 3.504, adj-p = 0.000933
+
+Trial 3:
+  High group: 54% (SD = 49.9)
+  Low group: 33.3% (SD = 47.3)
+  Mean difference: 20.7% [11.2, 30.2]
+  Effect size (phi) = 0.185
+  t(491) = 4.374, adj-p = 3.97e-05
+
+
+
+CHOICE ACCURACY ANALYSIS FOR AMI_SM
+
+Analysis run on: 2025-02-01 14:04:07
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 51.3% (SD = 50.1)
+  Low group: 39.5% (SD = 49)
+  Mean difference: 11.8% [2.2, 21.5]
+  Effect size (phi) = 0.104
+  t(490) = 2.438, adj-p = 0.0327
+
+Trial -2:
+  High group: 48.3% (SD = 50)
+  Low group: 59.7% (SD = 49.2)
+  Mean difference: -11.5% [-21.1, -1.9]
+  Effect size (phi) = 0.101
+  t(493) = -2.366, adj-p = 0.0327
+
+Trial -1:
+  High group: 54.2% (SD = 49.9)
+  Low group: 40.3% (SD = 49.2)
+  Mean difference: 13.9% [4.3, 23.4]
+  Effect size (phi) = 0.123
+  t(496) = 2.871, adj-p = 0.0154
+
+Trial 0:
+  High group: 57.2% (SD = 49.6)
+  Low group: 46.7% (SD = 50.1)
+  Mean difference: 10.5% [1, 20.1]
+  Effect size (phi) = 0.092
+  t(496) = 2.158, adj-p = 0.0445
+
+Trial 1:
+  High group: 40.1% (SD = 49.1)
+  Low group: 66.4% (SD = 47.4)
+  Mean difference: -26.3% [-35.7, -17]
+  Effect size (phi) = 0.238
+  t(491) = -5.604, adj-p = 3.4e-07
+
+
+Choice 2 significant differences found at trials:
+Trial -3:
+  High group: 34.5% (SD = 47.6)
+  Low group: 46.3% (SD = 50)
+  Mean difference: -11.8% [-21.1, -2.4]
+  Effect size (phi) = 0.106
+  t(490) = -2.422, adj-p = 0.0376
+
+Trial -1:
+  High group: 54.4% (SD = 49.9)
+  Low group: 80.5% (SD = 39.7)
+  Mean difference: -26.1% [-35.1, -17]
+  Effect size (phi) = 0.242
+  t(496) = -6.199, adj-p = 5.62e-09
+
+Trial 1:
+  High group: 32% (SD = 46.7)
+  Low group: 73.2% (SD = 44.5)
+  Mean difference: -41.2% [-50, -32.3]
+  Effect size (phi) = 0.376
+  t(491) = -9.298, adj-p = <2e-16
+
+
+
+CHOICE ACCURACY ANALYSIS FOR AMI_BA
+
+Analysis run on: 2025-02-01 14:04:10
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -3:
+  High group: 59.5% (SD = 49.2)
+  Low group: 30.3% (SD = 46.1)
+  Mean difference: 29.2% [20.6, 37.9]
+  Effect size (phi) = 0.283
+  t(490) = 6.714, adj-p = 4.1e-10
+
+Trial -2:
+  High group: 46.3% (SD = 49.9)
+  Low group: 59.8% (SD = 49.2)
+  Mean difference: -13.5% [-22.5, -4.6]
+  Effect size (phi) = 0.128
+  t(493) = -2.98, adj-p = 0.00711
+
+Trial -1:
+  High group: 56.7% (SD = 49.6)
+  Low group: 40% (SD = 49.1)
+  Mean difference: 16.7% [7.8, 25.6]
+  Effect size (phi) = 0.16
+  t(496) = 3.707, adj-p = 0.000831
+
+Trial 3:
+  High group: 46.3% (SD = 49.9)
+  Low group: 56.4% (SD = 49.7)
+  Mean difference: -10.1% [-19.1, -1.1]
+  Effect size (phi) = 0.095
+  t(491) = -2.202, adj-p = 0.0494
+
+
+Choice 2 significant differences found at trials:
+Trial 0:
+  High group: 60.1% (SD = 49.1)
+  Low group: 45% (SD = 49.9)
+  Mean difference: 15.1% [6.2, 23.9]
+  Effect size (phi) = 0.144
+  t(496) = 3.327, adj-p = 0.00335
+
+Trial 2:
+  High group: 60.1% (SD = 49.1)
+  Low group: 40.2% (SD = 49.2)
+  Mean difference: 19.9% [11, 28.7]
+  Effect size (phi) = 0.191
+  t(495) = 4.418, adj-p = 8.86e-05
+
+
+
+CHOICE ACCURACY ANALYSIS FOR AQ_10
+
+Analysis run on: 2025-02-01 14:04:14
+
+GROUP SIZES:
+Low group n = 1
+High group n = 1
+
+SUMMARY OF SIGNIFICANT DIFFERENCES:
+================================
+
+Choice 1 significant differences found at trials:
+Trial -2:
+  High group: 57.5% (SD = 49.5)
+  Low group: 0% (SD = 0)
+  Mean difference: 57.5% [43.8, 71.3]
+  Effect size (phi) = 0.34
+  t(493) = 24.523, adj-p = <2e-16
+
+Trial -1:
+  High group: 46.7% (SD = 49.9)
+  Low group: 80% (SD = 40.4)
+  Mean difference: -33.3% [-47.7, -19]
+  Effect size (phi) = 0.194
+  t(496) = -5.394, adj-p = 2.26e-06
+
+Trial 3:
+  High group: 53.7% (SD = 49.9)
+  Low group: 20% (SD = 40.4)
+  Mean difference: 33.7% [19.3, 48.1]
+  Effect size (phi) = 0.197
+  t(491) = 5.451, adj-p = 2.26e-06
+
+
+Choice 2 significant differences found at trials:
+Trial -3:
+  High group: 35.4% (SD = 47.9)
+  Low group: 61.2% (SD = 49.2)
+  Mean difference: -25.8% [-40, -11.6]
+  Effect size (phi) = 0.152
+  t(490) = -3.488, adj-p = 0.00325
+
+Trial -2:
+  High group: 59.6% (SD = 49.1)
+  Low group: 40% (SD = 49.5)
+  Mean difference: 19.6% [5.1, 34]
+  Effect size (phi) = 0.112
+  t(493) = 2.651, adj-p = 0.0239
+
+Trial 0:
+  High group: 48.9% (SD = 50)
+  Low group: 100% (SD = 0)
+  Mean difference: -51.1% [-65, -37.2]
+  Effect size (phi) = 0.302
+  t(496) = -21.62, adj-p = <2e-16
+
+
+
+
