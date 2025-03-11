@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 
 # Install packages only if they are not already installed
-required_packages <- c("ggplot2", "tidyverse", "readr", "here", "ggstatsplot")
+required_packages <- c("ggplot2", "tidyverse", "readr", "here", "ggstatsplot", "ggpubr", "rstatix", "ggh4x")
 install_if_missing <- required_packages[!required_packages %in% installed.packages()]
 if (length(install_if_missing) > 0) {
   install.packages(install_if_missing, quietly = TRUE)
@@ -20,27 +20,143 @@ library(ggplot2)
 library(readr)
 library(here)
 library(ggstatsplot)
+library(ggpubr)
+library(rstatix)
+library(ggh4x)
+library(patchwork)
 ```
+
+# Re-organise participant ids across sessions
+```{r}
+rm(list=ls())
+
+# Read in datasets from current session with many session data
+submission_data <- read_csv(here("data", "raw", "otree", "session_16_1500_6_3_25", "orig_data", "submission_2025-03-06.csv"), show_col_types = FALSE)
+main_data <- read_csv(here("data", "raw", "otree", "session_16_1500_6_3_25", "orig_data", "main_task_2025-03-06.csv"), show_col_types = FALSE)
+
+# Determine session order automatically
+all_sessions <- c(submission_data$session.code, main_data$session.code)
+session_order <- unique(all_sessions)
+
+# Create a lookup table for mapping session code and original ID to new ID
+create_id_lookup <- function(submission_df, main_df, session_order) {
+  # Extract unique combinations from both datasets
+  submission_ids <- submission_df %>% 
+    select(session.code, participant.id_in_session) %>% 
+    distinct()
+  
+  main_ids <- main_df %>% 
+    select(session.code, participant.id_in_session) %>% 
+    distinct()
+  
+  # Combine and remove duplicates
+  all_ids <- bind_rows(submission_ids, main_ids) %>% 
+    distinct()
+  
+  # Create new IDs by session
+  result <- data.frame(session.code = character(), 
+                      original_id = numeric(), 
+                      new_id = numeric())
+  
+  current_id <- 1
+  for(session in session_order) {
+    # Get participants for this session
+    session_participants <- all_ids %>% 
+      filter(session.code == session) %>% 
+      arrange(participant.id_in_session)
+    
+    # Assign new IDs
+    session_participants$new_id <- current_id:(current_id + nrow(session_participants) - 1)
+    
+    # Add to result
+    result <- bind_rows(result, data.frame(
+      session.code = session_participants$session.code, 
+      original_id = session_participants$participant.id_in_session, 
+      new_id = session_participants$new_id
+    ))
+    
+    # Update current_id for next session
+    current_id <- current_id + nrow(session_participants)
+  }
+  
+  return(result)
+}
+
+# Create the lookup table
+id_lookup <- create_id_lookup(submission_data, main_data, session_order)
+
+# Update the participant IDs in both datasets
+submission_data <- submission_data %>% 
+  left_join(id_lookup, by = c("session.code" = "session.code", "participant.id_in_session" = "original_id")) %>% 
+  mutate(participant.id_in_session = new_id) %>% 
+  select(-new_id)
+
+main_data <- main_data %>% 
+  left_join(id_lookup, by = c("session.code" = "session.code", "participant.id_in_session" = "original_id")) %>% 
+  mutate(participant.id_in_session = new_id) %>% 
+  select(-new_id)
+
+# Save the updated datasets
+write_csv(submission_data, here("data", "raw", "otree", "session_16_1500_6_3_25", "submission_2025-03-06.csv"))
+write_csv(main_data, here("data", "raw", "otree", "session_16_1500_6_3_25", "main_task_2025-03-06.csv"))
+```
+
 
 # Submission data checks (for feedback values)
 
 First let's combine submission data for checks
 ```{r}
-# Read the CSV files
-data_05 <- read_csv(here("data", "raw", "otree", "otree_second_pilot_1200_5_2_25", "submission_2025-02-05.csv"), 
+# Read the CSV files reflecting different sessions
+data_s1 <- read_csv(here("data", "raw", "otree", "session_1_1200_20_2_25", "submission_2025-02-20.csv"), 
                     show_col_types = FALSE)
-data_07 <- read_csv(here("data", "raw", "otree", "otree_third_pilot_1200_7_2_25", "submission_2025-02-07.csv"), 
+data_s2 <- read_csv(here("data", "raw", "otree", "session_2_1200_21_2_25", "submission_2025-02-21.csv"), 
+                    show_col_types = FALSE)
+data_s3 <- read_csv(here("data", "raw", "otree", "session_4_1200_27_2_25", "submission_2025-02-27.csv"), 
+                    show_col_types = FALSE)
+data_s4 <- read_csv(here("data", "raw", "otree", "session_11_1500_4_3_25", "submission_2025-03-04.csv"), 
+                    show_col_types = FALSE)
+data_s5 <- read_csv(here("data", "raw", "otree", "session_15_1200_6_3_25", "submission_2025-03-06.csv"), 
+                    show_col_types = FALSE)
+data_s6 <- read_csv(here("data", "raw", "otree", "session_16_1500_6_3_25", "submission_2025-03-06.csv"), 
                     show_col_types = FALSE)
 
-# Get the maximum participant ID from data_07
-max_id <- max(data_07$participant.id_in_session)
+# Get the maximum participant ID from data_s6 (now the base file)
+max_id_s6 <- max(data_s6$participant.id_in_session)
 
-# Adjust the participant IDs in data_05
-data_05_adjusted <- data_05 %>%
-  mutate(participant.id_in_session = participant.id_in_session + max_id)
+# Adjust the participant IDs in data_s5
+data_s5_adjusted <- data_s5 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id_s6)
+
+# Get the maximum participant ID from adjusted data_s5
+max_id_s5_adjusted <- max(data_s5_adjusted$participant.id_in_session)
+
+# Adjust the participant IDs in data_s4
+data_s4_adjusted <- data_s4 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id_s5_adjusted)
+
+# Get the maximum participant ID from adjusted data_s4
+max_id_s4_adjusted <- max(data_s4_adjusted$participant.id_in_session)
+
+# Adjust the participant IDs in data_s3
+data_s3_adjusted <- data_s3 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id_s4_adjusted)
+
+# Get the maximum participant ID from adjusted data_s3
+max_id_s3_adjusted <- max(data_s3_adjusted$participant.id_in_session)
+
+# Adjust the participant IDs in data_s2
+data_s2_adjusted <- data_s2 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id_s3_adjusted)
+
+# Get the maximum participant ID from adjusted data_s2
+max_id_s2_adjusted <- max(data_s2_adjusted$participant.id_in_session)
+
+# Adjust the participant IDs in data_s1
+data_s1_adjusted <- data_s1 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id_s2_adjusted)
 
 # Bind the datasets and select specific columns
-combined_data <- bind_rows(data_07, data_05_adjusted) %>%
+combined_data <- bind_rows(data_s6, data_s5_adjusted, data_s4_adjusted, data_s3_adjusted, data_s2_adjusted, data_s1_adjusted) %>%
   # Filter for non-NA main_task_bonus
   filter(!is.na(player.main_task_bonus)) %>%
   # Select specific columns
@@ -54,15 +170,30 @@ combined_data <- bind_rows(data_07, data_05_adjusted) %>%
          player.engagement,
          player.influence,
          player.real_players,
-         player.attention_focus)
+         player.attention_focus,
+         player.main_task_group_id,
+         player.choice1_sum_earnings,
+         player.choice2_sum_earnings,
+         player.choice1_accuracy_sum,
+         player.choice2_accuracy_sum,
+         player.choice1_reward_binary_sum,
+         player.choice2_reward_binary_sum,
+         session.code)
 
 # Save the combined dataset
 write_csv(combined_data, 
-          here("data", "raw", "otree", "combined_submissions.csv"))
+          here("data", "preprocessed", "otree", "sessions", "combined_submissions.csv"))
 ```
 
 And let's plot the feedback values from the submission data
 ```{r}
+rm(list=ls())
+
+combined_data <- read_csv(here("data", "preprocessed", "otree", "sessions", "combined_submissions.csv"), show_col_types = FALSE)
+
+# Number of participants who completed the task (no filtering)
+unique_participants_count <- n_distinct(combined_data$participant.label)
+
 # Reshape the combined_data to long format
 long_data <- combined_data %>%
   select(player.task_understanding, 
@@ -84,7 +215,6 @@ means <- long_data %>%
 # Create the plot
 ggplot(long_data, aes(x = measure, y = score)) +
   geom_violin(fill = "gray90", alpha = 0.5) +
-  geom_jitter(width = 0.1, alpha = 0.6, size = 1.5) +
   geom_point(data = means, aes(y = mean_score), 
              color = "red", size = 3) +
   geom_text(data = means, 
@@ -105,30 +235,103 @@ ggplot(long_data, aes(x = measure, y = score)) +
 
 # Main task data preprocessing
 
+# Remove the first trial from data with 65 trials
+```{r}
+rm(list=ls())
+
+# Define a function to process each file to avoid code duplication
+process_main_task_data <- function(session_path, file_date) {
+  # Read the CSV
+  data <- read_csv(here("data", "raw", "otree", session_path, paste0("main_task_", file_date, ".csv")), 
+                   show_col_types = FALSE)
+  
+  # Filter and modify
+  data <- data %>%
+    filter(group.trial_number != 1) %>%
+    mutate(
+      group.trial_number = group.trial_number - 1,
+      subsession.round_number = subsession.round_number - 1
+    )
+  
+  # Verify it's still a data frame
+  if (!is.data.frame(data)) {
+    stop("Data is not a data frame")
+  }
+  
+  # Save the preprocessed data
+  write_csv(data, here("data", "raw", "otree", session_path, 
+                       paste0("main_task_", file_date, "_64trials.csv")))
+  
+  # Return success message
+  return(paste("Processed", session_path, "successfully"))
+}
+
+# Process each file
+process_main_task_data("session_11_1500_4_3_25", "2025-03-04")
+process_main_task_data("session_15_1200_6_3_25", "2025-03-06")
+process_main_task_data("session_16_1500_6_3_25", "2025-03-06")
+```
+
 Now let's combine the main task data
 ```{r}
 rm(list=ls())
 
 # Read the CSV files
-data_05 <- read_csv(here("data", "raw", "otree", "otree_second_pilot_1200_5_2_25", "main_task_2025-02-05.csv"), 
+data_s1 <- read_csv(here("data", "raw", "otree", "session_1_1200_20_2_25", "main_task_2025-02-20.csv"), 
                    show_col_types = FALSE)
-data_07 <- read_csv(here("data", "raw", "otree", "otree_third_pilot_1200_7_2_25", "main_task_2025-02-07.csv"), 
-                   show_col_types = FALSE)
+data_s2 <- read_csv(here("data", "raw", "otree", "session_2_1200_21_2_25", "main_task_2025-02-21.csv"), 
+                show_col_types = FALSE)
+data_s3 <- read_csv(here("data", "raw", "otree", "session_4_1200_27_2_25", "main_task_2025-02-27_64trials.csv"), 
+                show_col_types = FALSE)
+data_s4 <- read_csv(here("data", "raw", "otree", "session_11_1500_4_3_25", "main_task_2025-03-04_64trials.csv"), 
+                show_col_types = FALSE)
+data_s5 <- read_csv(here("data", "raw", "otree", "session_15_1200_6_3_25", "main_task_2025-03-06_64trials.csv"), 
+                show_col_types = FALSE)
+data_s6 <- read_csv(here("data", "raw", "otree", "session_16_1500_6_3_25", "main_task_2025-03-06_64trials.csv"), 
+                show_col_types = FALSE)
 
-# Get the maximum participant ID from data_07
-max_id <- max(data_07$participant.id_in_session)
+# Get the maximum participant ID from data_s6 (base file)
+max_id_s6 <- max(data_s6$participant.id_in_session)
 
-# Adjust the participant IDs in data_05
-data_05_adjusted <- data_05 %>%
- mutate(participant.id_in_session = participant.id_in_session + max_id)
+# Adjust the participant IDs in data_s5
+data_s5_adjusted <- data_s5 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id_s6)
+
+# Get the maximum participant ID from adjusted data_s5
+max_id_s5_adjusted <- max(data_s5_adjusted$participant.id_in_session)
+
+# Adjust the participant IDs in data_s4
+data_s4_adjusted <- data_s4 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id_s5_adjusted)
+
+# Get the maximum participant ID from adjusted data_s4
+max_id_s4_adjusted <- max(data_s4_adjusted$participant.id_in_session)
+
+# Adjust the participant IDs in data_s3
+data_s3_adjusted <- data_s3 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id_s4_adjusted)
+
+# Get the maximum participant ID from adjusted data_s3
+max_id_s3_adjusted <- max(data_s3_adjusted$participant.id_in_session)
+
+# Adjust the participant IDs in data_s2
+data_s2_adjusted <- data_s2 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id_s3_adjusted)
+
+# Get the maximum participant ID from adjusted data_s2
+max_id_s2_adjusted <- max(data_s2_adjusted$participant.id_in_session)
+
+# Adjust the participant IDs in data_s1
+data_s1_adjusted <- data_s1 %>%
+  mutate(participant.id_in_session = participant.id_in_session + max_id_s2_adjusted)
 
 # Bind the datasets
 # This will automatically fill missing columns with NA
-combined_data <- bind_rows(data_07, data_05_adjusted)
+combined_data <- bind_rows(data_s6, data_s5_adjusted, data_s4_adjusted, data_s3_adjusted, data_s2_adjusted, data_s1_adjusted)
 
 # Save the combined dataset
 write_csv(combined_data, 
-         here("data", "raw", "otree", "combined_main_task.csv"))
+         here("data", "preprocessed", "otree", "sessions", "combined_main_task.csv"))
 ```
 
 Subset the main task data by removing unneeded columns and converting rewards to -1 and 1
@@ -136,7 +339,7 @@ Subset the main task data by removing unneeded columns and converting rewards to
 rm(list=ls())
 
 # Read the CSV file
-data <- read_csv(here("data", "raw", "otree", "combined_main_task.csv"), show_col_types = FALSE)
+data <- read_csv(here("data", "preprocessed", "otree", "sessions", "combined_main_task.csv"), show_col_types = FALSE)
 
 # Remove unneeded columns
 data <- data[, !(names(data) %in% c(
@@ -155,7 +358,7 @@ data <- data[, !(names(data) %in% c(
   "group.round_reward_set", "group.intertrial_interval", "group.all_players_loaded",
   "group.players_loaded_count", "group.disconnected_players",
   "group.bot_players", "group.active_bots",
-  "group.disconnection_streaks", "session.code",
+  "group.disconnection_streaks",
   "session.label", "session.mturk_HITId",
   "session.mturk_HITGroupId", "session.comment",
   "session.is_demo"
@@ -184,6 +387,15 @@ data$player.choice1_with <- divide_by_4(data$player.choice1_with)
 data$player.choice1_against <- divide_by_4(data$player.choice1_against)
 data$player.choice2_with <- divide_by_4(data$player.choice2_with)
 data$player.choice2_against <- divide_by_4(data$player.choice2_against)
+
+# Change the values of the group.reward_probabilty_A and group.reward_probabilty_B columns from 0.7 to 0.75 and from 0.3 to 0.25
+data$group.reward_probability_A[data$group.reward_probability_A == 0.7] <- 0.75
+data$group.reward_probability_B[data$group.reward_probability_B == 0.3] <- 0.25
+
+# Rename group.thirty_percent_image to group.low_percent_image and group.seventy_percent_image to group.high_percent_image
+data <- data %>%
+  rename(group.low_percent_image = group.thirty_percent_image,
+         group.high_percent_image = group.seventy_percent_image)
 ```
 
 Remove trials where the player left and list the number of trials per participant
@@ -198,13 +410,25 @@ data %>%
   arrange(participant.id_in_session)
 ```
 
+Remove participants with too few trials
+```{r}
+# Remove participants with too few trials
+data <- data %>%
+  group_by(participant.id_in_session) %>%
+  filter(n() >= 59) %>%
+  ungroup()
+
+# List the number of trials per participant after filtering
+data %>%
+  count(participant.id_in_session) %>%
+  arrange(participant.id_in_session)
+```
+
+
 Save the preprocessed data
 ```{r}
-# First create the directory structure (remove pilots if not a pilot)
-dir.create(here("data", "preprocessed", "otree", "pilots"), recursive = TRUE)
-
 # Save the preprocessed data (remove pilots if not a pilot)
-write_csv(data, here("data", "preprocessed", "otree", "pilots", "main_task_combined.csv"))
+write_csv(data, here("data", "preprocessed", "otree", "sessions", "combined_main_task.csv"))
 ```
 
 # Main task data checks and exclusions 
@@ -213,7 +437,7 @@ Load in the data
 ```{r}
 rm(list=ls())
 
-data <- read_csv(here("data", "preprocessed", "otree", "pilots", "main_task_combined.csv"), show_col_types = FALSE)
+data <- read_csv(here("data", "preprocessed", "otree", "sessions", "combined_main_task.csv"), show_col_types = FALSE)
 ```
 
 
@@ -233,10 +457,11 @@ summary_df <- data %>%
     sum_bet_one = sum(player.computer_bet_one, na.rm = TRUE),
     sum_bet_two = sum(player.computer_bet_two, na.rm = TRUE),
     
-    total_manual_trials = sum(player.computer_choice_one == 0 & 
-                            player.computer_choice_two == 0 & 
-                            player.computer_bet_one == 0 & 
-                            player.computer_bet_two == 0, na.rm = TRUE),
+    # Separate counts for manual trials of each type
+    manual_choice_one_trials = sum(player.computer_choice_one == 0, na.rm = TRUE),
+    manual_choice_two_trials = sum(player.computer_choice_two == 0, na.rm = TRUE),
+    manual_bet_one_trials = sum(player.computer_bet_one == 0, na.rm = TRUE),
+    manual_bet_two_trials = sum(player.computer_bet_two == 0, na.rm = TRUE),
     
     # Count trials where computer_choice is 0
     count_choice_one_zero = sum(player.computer_choice_one == 0, na.rm = TRUE),
@@ -257,51 +482,77 @@ summary_df <- data %>%
     avg_bet_two = mean(player.bet2[player.computer_bet_two == 0], na.rm = TRUE)
   )
 
-# Identify participants with too few manual trials
-low_manual_participants <- summary_df %>%
-  filter(total_manual_trials < 45) %>%
-  select(participant.id_in_session, participant.label, total_manual_trials) %>%
-  mutate(Reason = "Too few trials where all responses were manually made")
+# Create separate dataframes for each type of response with too few manual trials
+low_choice_one_participants <- summary_df %>%
+  filter(manual_choice_one_trials < 45) %>%
+  select(participant.id_in_session, participant.label, manual_choice_one_trials) %>%
+  mutate(Reason = "Too few manual choice one trials")
+
+low_choice_two_participants <- summary_df %>%
+  filter(manual_choice_two_trials < 45) %>%
+  select(participant.id_in_session, participant.label, manual_choice_two_trials) %>%
+  mutate(Reason = "Too few manual choice two trials")
+
+low_bet_one_participants <- summary_df %>%
+  filter(manual_bet_one_trials < 45) %>%
+  select(participant.id_in_session, participant.label, manual_bet_one_trials) %>%
+  mutate(Reason = "Too few manual bet one trials")
+
+low_bet_two_participants <- summary_df %>%
+  filter(manual_bet_two_trials < 45) %>%
+  select(participant.id_in_session, participant.label, manual_bet_two_trials) %>%
+  mutate(Reason = "Too few manual bet two trials")
+
+# Print results for each type
+cat("Participants with fewer than 45 manual choice one trials:\n")
+print(low_choice_one_participants)
+cat("\nParticipants with fewer than 45 manual choice two trials:\n")
+print(low_choice_two_participants)
+cat("\nParticipants with fewer than 45 manual bet one trials:\n")
+print(low_bet_one_participants)
+cat("\nParticipants with fewer than 45 manual bet two trials:\n")
+print(low_bet_two_participants)
+
+# Combine participants who have too few trials in either choice one or choice two
+combined_low_choices <- bind_rows(low_choice_one_participants, low_choice_two_participants, low_bet_one_participants, low_bet_two_participants) %>%
+  distinct(participant.id_in_session, .keep_all = TRUE)
 
 # Save to CSV
-write.csv(low_manual_participants,
+write.csv(combined_low_choices,
           file = "excluded_otree_subjects.csv",
           row.names = FALSE)
 
-# Print to console
-cat("Participants with fewer than 45 manual trials:\n")
-print(low_manual_participants)
+cat("Number of participants excluded:", nrow(combined_low_choices))
 ```
 
-
-Get the participants with too many choices of the same image
+Get the participants with too many choices of the same image (over 75% or under 25%)
 ```{r}
-# First read existing data and add the new column with NA values
+# First read existing data
 if(file.exists("excluded_otree_subjects.csv")) {
-  existing_data <- read.csv("excluded_otree_subjects.csv") %>%
-    mutate(count_ones_image_one = NA)  # Add new column with NAs
+  existing_data <- read.csv("excluded_otree_subjects.csv")
 } else {
   existing_data <- data.frame()
 }
 
-# Create new entries with NA for total_manual_trials
+# Remove players who choose the same image more than 75% of the time or less than 25% of the time
 high_ones_participants <- summary_df %>%
-  filter(count_ones_image_one > 40) %>%
+  filter(count_ones_image_one > 48 | count_ones_image_one < 16) %>%
   select(participant.id_in_session, participant.label, count_ones_image_one) %>%
   mutate(
-    total_manual_trials = NA,
-    Reason = "Too many choices of the same image"
+    manual_choice_one_trials = NA,
+    Reason = "Too many/few choices of the same image",
+    manual_choice_two_trials = NA
   )
 
+# Print to console
+cat("Participants with count_ones_image_one above 50:\n")
+print(high_ones_participants)
+
 # Combine and write back to CSV
-combined_data <- rbind(existing_data, high_ones_participants)
+combined_data <- bind_rows(existing_data, high_ones_participants)
 write.csv(combined_data, 
           file = "excluded_otree_subjects.csv",
           row.names = FALSE)
-
-# Still print to console
-cat("Participants with count_ones_image_one above 40:\n")
-print(high_ones_participants)
 ```
 
 
@@ -319,19 +570,248 @@ filtered_data <- data %>%
 # Print how many participants were excluded
 cat("Number of participants excluded:", nrow(excluded_participants), "\n")
 
-write_csv(filtered_data, here("data", "preprocessed", "otree", "pilots", "main_task_combined_filtered.csv"))
+write_csv(filtered_data, here("data", "preprocessed", "otree", "sessions", "main_task_combined_filtered.csv"))
+```
+
+
+# Remove participants who completed the task twice 
+
+```{r}
+rm(list=ls())
+
+# Load the filtered data
+data <- read_csv(here("data", "preprocessed", "otree", "sessions", "main_task_combined_filtered.csv"), show_col_types = FALSE)
+
+# Remove rows that match both conditions
+data <- data %>%
+  filter(!(participant.label == "666f1aec64844fbd48cd89b8" & participant.code == "xau7lc95"))
+
+# Save the filtered data back to the same file
+write_csv(data, here("data", "preprocessed", "otree", "sessions", "main_task_combined_filtered.csv"))
+
+# Reload the data from the saved file
+data <- read_csv(here("data", "preprocessed", "otree", "sessions", "main_task_combined_filtered.csv"), show_col_types = FALSE)
 ```
 
 
 # Perform basic checks and visualizations of the cleaned oTree data
 
-Load the filtered data
+# Plot filtered submission data - only include those who are included in the main task
 ```{r}
 rm(list=ls())
 
-data <- read_csv(here("data", "preprocessed", "otree", "pilots", "main_task_combined_filtered.csv"), show_col_types = FALSE)
+data <- read_csv(here("data", "preprocessed", "otree", "sessions", "main_task_combined_filtered.csv"), show_col_types = FALSE)
+
+# Load in submission data 
+submission_data <- read_csv(here("data", "preprocessed", "otree", "sessions", "combined_submissions.csv"), show_col_types = FALSE)
+
+# Get unique participant labels from data
+valid_participants <- unique(data$participant.label)
+
+# Filter submission_data to only include rows with valid participant labels
+filtered_submission_data <- submission_data %>%
+  filter(participant.label %in% valid_participants)
+
+# Save the filtered data
+write_csv(filtered_submission_data, here("data", "preprocessed", "otree", "sessions", "combined_filtered_submissions.csv"))
 ```
 
+
+# Various checks and visualizations - re-plot feedback, plot histograms of score/performance
+
+```{r, fig.width=10, fig.height=10}
+# First plot: Violin plot of survey measures
+long_data <- filtered_submission_data %>%
+  select(player.task_understanding, 
+         player.task_difficulty, 
+         player.engagement, 
+         player.influence, 
+         player.real_players, 
+         player.attention_focus) %>%
+  pivot_longer(cols = everything(),
+               names_to = "measure",
+               values_to = "score") %>%
+  mutate(measure = str_remove(measure, "player."))
+
+# Calculate means
+means <- long_data %>%
+  group_by(measure) %>%
+  summarise(mean_score = mean(score, na.rm = TRUE))
+
+# Create the violin plot
+violin_plot <- ggplot(long_data, aes(x = measure, y = score)) +
+  geom_violin(fill = "gray90", alpha = 0.5) +
+  geom_point(data = means, aes(y = mean_score), 
+             color = "red", size = 3) +
+  geom_text(data = means, 
+            aes(y = 110, label = sprintf("%.1f", mean_score)),
+            size = 4.5) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    plot.margin = margin(1, 0.5, 0.5, 1, "cm")
+  ) +
+  labs(x = NULL,
+       y = "Score",
+       title = NULL) +
+  scale_y_continuous(limits = c(-5, 120))
+
+# Filter out people with player.choice1_accuracy_sum < 10 for the histogram facet plots
+filtered_choices_data <- filtered_submission_data %>%
+  filter(player.choice1_accuracy_sum >= 10)
+
+# Create the long format data for the histograms
+long_choices <- filtered_choices_data %>%
+  select(player.choice1_sum_earnings, 
+         player.choice2_sum_earnings,
+         player.choice1_accuracy_sum,
+         player.choice2_accuracy_sum,
+         player.choice1_reward_binary_sum,
+         player.choice2_reward_binary_sum) %>%
+  pivot_longer(cols = everything(),
+               names_to = "metric",
+               values_to = "value") %>%
+  mutate(
+    choice = case_when(
+      str_detect(metric, "choice1") ~ "Choice 1",
+      str_detect(metric, "choice2") ~ "Choice 2",
+      TRUE ~ NA_character_
+    ),
+    measure_type = case_when(
+      str_detect(metric, "earnings") ~ "Earnings",
+      str_detect(metric, "accuracy") ~ "Accuracy",
+      str_detect(metric, "reward_binary") ~ "Reward Binary",
+      TRUE ~ NA_character_
+    )
+  )
+
+# Calculate means for each group
+means_data <- long_choices %>%
+  group_by(choice, measure_type) %>%
+  summarize(mean_value = mean(value, na.rm = TRUE), .groups = "drop")
+
+# Create separate plots for each measure type
+# 1. Accuracy plot
+p1 <- ggplot(long_choices %>% filter(measure_type == "Accuracy"), 
+            aes(x = value)) +
+  geom_histogram(fill = "steelblue", color = "black", alpha = 0.7, bins = 30) +
+  geom_vline(data = means_data %>% filter(measure_type == "Accuracy"),
+            aes(xintercept = mean_value), 
+            linetype = "dashed", color = "red", size = 1) +
+  geom_text(data = means_data %>% filter(measure_type == "Accuracy"),
+           aes(x = mean_value + 5, y = Inf, 
+               label = sprintf("%.1f", mean_value)),
+           vjust = 2, color = "red") +
+  facet_grid(. ~ choice) +
+  theme_classic() +
+  labs(x = "Value", y = "Count", title = "Accuracy") +
+  theme(strip.text = element_text(size = 12),
+        plot.title = element_text(hjust = 1))
+
+# 2. Earnings plot
+p2 <- ggplot(long_choices %>% filter(measure_type == "Earnings"), 
+            aes(x = value)) +
+  geom_histogram(fill = "steelblue", color = "black", alpha = 0.7, bins = 30) +
+  geom_vline(data = means_data %>% filter(measure_type == "Earnings"),
+            aes(xintercept = mean_value), 
+            linetype = "dashed", color = "red", size = 1) +
+  geom_text(data = means_data %>% filter(measure_type == "Earnings"),
+           aes(x = mean_value + 50, y = Inf, 
+               label = sprintf("%.1f", mean_value)),
+           vjust = 2, color = "red") +
+  facet_grid(. ~ choice) +
+  theme_classic() +
+  labs(x = "Value", y = "Count", title = "Earnings") +
+  theme(strip.text = element_text(size = 12),
+        plot.title = element_text(hjust = 1))
+
+# 3. Reward Binary plot
+p3 <- ggplot(long_choices %>% filter(measure_type == "Reward Binary"), 
+            aes(x = value)) +
+  geom_histogram(fill = "steelblue", color = "black", alpha = 0.7, bins = 30) +
+  geom_vline(data = means_data %>% filter(measure_type == "Reward Binary"),
+            aes(xintercept = mean_value), 
+            linetype = "dashed", color = "red", size = 1) +
+  geom_text(data = means_data %>% filter(measure_type == "Reward Binary"),
+           aes(x = mean_value + 5, y = Inf, 
+               label = sprintf("%.1f", mean_value)),
+           vjust = 2, color = "red") +
+  facet_grid(. ~ choice) +
+  theme_classic() +
+  labs(x = "Value", y = "Count", title = "Reward Binary") +
+  theme(strip.text = element_text(size = 12),
+        plot.title = element_text(hjust = 1))
+
+# Combine the histogram plots vertically with the patchwork package
+histograms_combined <- p1 / p2 / p3
+
+# Display the plots
+violin_plot
+histograms_combined
+```
+
+# count number of complete participants in groups - compare between filtered and unfiltered sample
+
+```{r}
+# Load the combined data
+combined_data <- read_csv(here("data", "preprocessed", "otree", "sessions", "combined_submissions.csv"), show_col_types = FALSE)
+
+# Calculate the group sizes and distribution for filtered_submission_data
+filtered_group_counts <- filtered_submission_data %>%
+  # Count how many participants have the same group ID within each session
+  group_by(session.code, player.main_task_group_id) %>%
+  summarise(members_per_group = n(), .groups = "drop") %>%
+  # Count how many groups of each size exist across all sessions
+  group_by(members_per_group) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Create the histogram for filtered_submission_data
+p1 <- ggplot(filtered_group_counts, aes(x = as.factor(members_per_group), y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.7) +
+  geom_text(aes(label = count), vjust = -0.5, size = 4.5) +
+  theme_classic() +
+  labs(
+    x = "Number of Participants in Group",
+    y = "Count of Groups",
+    title = "Distribution of Group Sizes (Filtered Data)"
+  ) +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    plot.title = element_text(hjust = 0.5, size = 16)
+  )
+
+# Calculate the group sizes and distribution for combined_data
+combined_group_counts <- combined_data %>%
+  # Count how many participants have the same group ID within each session
+  group_by(session.code, player.main_task_group_id) %>%
+  summarise(members_per_group = n(), .groups = "drop") %>%
+  # Count how many groups of each size exist across all sessions
+  group_by(members_per_group) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Create the histogram for combined_data
+p2 <- ggplot(combined_group_counts, aes(x = as.factor(members_per_group), y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.7) +
+  geom_text(aes(label = count), vjust = -0.5, size = 4.5) +
+  theme_classic() +
+  labs(
+    x = "Number of Participants in Group",
+    y = "Count of Groups",
+    title = "Distribution of Group Sizes (All Data)"
+  ) +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    plot.title = element_text(hjust = 0.5, size = 16)
+  )
+
+# Display both plots
+p1
+p2
+```
 
 Re-calculate the checks from before:
 
@@ -341,6 +821,10 @@ Re-calculate the checks from before:
 - Check the average manual bet 1 and bet 2
 
 ```{r}
+rm(list=ls())
+
+data <- read_csv(here("data", "preprocessed", "otree", "sessions", "main_task_combined_filtered.csv"), show_col_types = FALSE)
+
 summary_df <- data %>%
   group_by(participant.id_in_session, participant.label) %>%
   summarise(
@@ -349,10 +833,11 @@ summary_df <- data %>%
     sum_bet_one = sum(player.computer_bet_one, na.rm = TRUE),
     sum_bet_two = sum(player.computer_bet_two, na.rm = TRUE),
     
-    total_manual_trials = sum(player.computer_choice_one == 0 & 
-                            player.computer_choice_two == 0 & 
-                            player.computer_bet_one == 0 & 
-                            player.computer_bet_two == 0, na.rm = TRUE),
+    # Separate counts for manual trials of each type
+    manual_choice_one_trials = sum(player.computer_choice_one == 0, na.rm = TRUE),
+    manual_choice_two_trials = sum(player.computer_choice_two == 0, na.rm = TRUE),
+    manual_bet_one_trials = sum(player.computer_bet_one == 0, na.rm = TRUE),
+    manual_bet_two_trials = sum(player.computer_bet_two == 0, na.rm = TRUE),
     
     # Count trials where computer_choice is 0
     count_choice_one_zero = sum(player.computer_choice_one == 0, na.rm = TRUE),
@@ -372,6 +857,54 @@ summary_df <- data %>%
     avg_bet_one = mean(player.bet1[player.computer_bet_one == 0], na.rm = TRUE),
     avg_bet_two = mean(player.bet2[player.computer_bet_two == 0], na.rm = TRUE)
   )
+
+# Calculate group averages
+group_averages <- summary_df %>%
+  summarise(
+    avg_manual_choice_one = mean(manual_choice_one_trials, na.rm = TRUE),
+    avg_manual_choice_two = mean(manual_choice_two_trials, na.rm = TRUE),
+    avg_manual_bet_one = mean(manual_bet_one_trials, na.rm = TRUE),
+    avg_manual_bet_two = mean(manual_bet_two_trials, na.rm = TRUE)
+  )
+
+# Reshape the data to long format for plotting
+plot_data <- summary_df %>%
+  select(participant.id_in_session, 
+         manual_choice_one_trials, 
+         manual_choice_two_trials, 
+         manual_bet_one_trials, 
+         manual_bet_two_trials) %>%
+  pivot_longer(cols = starts_with("manual"),
+               names_to = "response_type",
+               values_to = "count") %>%
+  mutate(response_type = factor(response_type,
+                               levels = c("manual_choice_one_trials",
+                                        "manual_choice_two_trials",
+                                        "manual_bet_one_trials",
+                                        "manual_bet_two_trials"),
+                               labels = c("Choice 1",
+                                        "Choice 2",
+                                        "Bet 1",
+                                        "Bet 2")))
+
+# Calculate means for each response type
+means_data <- plot_data %>%
+  group_by(response_type) %>%
+  summarise(mean_count = mean(count, na.rm = TRUE))
+
+# Create the violin plot with means
+ggplot(plot_data, aes(x = response_type, y = count)) +
+  geom_violin(fill = "lightblue", alpha = 0.5) +
+  geom_boxplot(width = 0.1, alpha = 0.2, outlier.shape = NA) +
+  geom_text(data = means_data, 
+            aes(y = max(plot_data$count, na.rm = TRUE) * 1.05, 
+                label = sprintf("%.2f", mean_count)),
+            vjust = 0) +
+  theme_minimal() +
+  labs(x = "Response Type",
+       y = "Number of Manual Responses",
+       title = "Distribution of Manual Responses by Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
 Plot the number of time image 1 was chosen manually, and the average bet sizes
@@ -435,7 +968,7 @@ analyze_choices <- function(data, choice_column, computer_column, prop_title) {
       subsession.round_number <= 15 ~ "1-15",
       subsession.round_number <= 32 ~ "16-32",
       subsession.round_number <= 47 ~ "33-47",
-      TRUE ~ "48-60"
+      TRUE ~ "48-64"
     )) %>%
     group_by(participant.id_in_session, block) %>%
     summarize(
@@ -451,7 +984,7 @@ analyze_choices <- function(data, choice_column, computer_column, prop_title) {
       twos_fraction = sprintf("%d/%d", twos_count, total_trials),
       accuracy = case_when(
         block %in% c("1-15", "33-47") ~ prop_ones,
-        block %in% c("16-32", "48-60") ~ prop_twos
+        block %in% c("16-32", "48-64") ~ prop_twos
       )
     )
   
@@ -487,8 +1020,8 @@ analyze_choices <- function(data, choice_column, computer_column, prop_title) {
   
   # Create choice plot
   choice_plot <- ggplot(blocks_final, aes(x = block, y = proportion, color = choice)) +
-    geom_jitter(width = 0.2, alpha = 0.5) +
-    stat_summary(fun = mean, geom = "point", size = 3) +
+    geom_jitter(width = 0.2, alpha = 0.5, size = 0.4) +
+    stat_summary(fun = mean, geom = "point", size = 5) +
     stat_summary(fun = mean, geom = "line", aes(group = choice)) +
     geom_text(data = significance_tests, 
               aes(x = block, y = y_pos, label = significance),
@@ -518,7 +1051,7 @@ process_accuracy_data <- function(data, choice_column, computer_column, choice_l
       subsession.round_number <= 15 ~ "1-15",
       subsession.round_number <= 32 ~ "16-32",
       subsession.round_number <= 47 ~ "33-47",
-      TRUE ~ "48-60"
+      TRUE ~ "48-64"
     )) %>%
     group_by(participant.id_in_session, block) %>%
     summarize(
@@ -532,7 +1065,7 @@ process_accuracy_data <- function(data, choice_column, computer_column, choice_l
     mutate(
       accuracy = case_when(
         block %in% c("1-15", "33-47") ~ prop_ones,
-        block %in% c("16-32", "48-60") ~ prop_twos
+        block %in% c("16-32", "48-64") ~ prop_twos
       ),
       choice_type = choice_label
     )
@@ -566,9 +1099,9 @@ combined_accuracy <- rbind(accuracy_one, accuracy_two)
 # Create combined accuracy plot
 accuracy_plot <- ggplot(combined_accuracy, 
                        aes(x = block, y = accuracy, color = choice_type)) +
-  geom_jitter(width = 0.2, alpha = 0.3) +
-  stat_summary(fun = mean, geom = "point", size = 3) +
-  stat_summary(fun = mean, geom = "line", aes(group = choice_type)) +
+  geom_jitter(width = 0.2, alpha = 0.3, size = 0.8) +  
+  stat_summary(fun = mean, geom = "point", size = 3) +  
+  stat_summary(fun = mean, geom = "line", aes(group = choice_type), linewidth = 1) +
   theme_minimal() +
   labs(
     title = "Mean Accuracy by Block for Both Choices",
@@ -588,6 +1121,74 @@ print("Counts for First Choice:")
 print(results_one$counts)
 print("Counts for Second Choice:")
 print(results_two$counts)
+```
+
+
+Comparing accuracy to the 'ground truth'
+```{r}
+# Create a data frame for the red dots
+dot_data <- data.frame(
+  block = c("1-15", "16-32", "33-47", "48-64"),
+  y_value = c(0.8, 0.765, 0.733, 0.706)
+)
+
+# Calculate mean accuracy per block for each choice type
+mean_accuracy_by_block <- combined_accuracy %>%
+  group_by(block, choice_type) %>%
+  summarize(
+    mean_accuracy = mean(accuracy, na.rm = TRUE),
+    se = sd(accuracy, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  )
+
+# Calculate combined means across choice types
+combined_means <- combined_accuracy %>%
+  group_by(block) %>%
+  summarize(
+    combined_mean = mean(accuracy, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  mutate(
+    combined_mean_rounded = round(combined_mean, 1),
+    combined_label = sprintf("%.2f", combined_mean)
+  )
+
+# Create bar chart of mean accuracy by block with the red dots
+accuracy_bar_chart <- ggplot(mean_accuracy_by_block, 
+                           aes(x = block, y = mean_accuracy, fill = choice_type)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
+  coord_cartesian(ylim = c(0.5, 0.82)) +
+  geom_errorbar(aes(ymin = mean_accuracy - se, ymax = mean_accuracy + se),
+                position = position_dodge(width = 0.9), width = 0.25) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  # Add the red dots
+  geom_point(data = dot_data, mapping = aes(x = block, y = y_value), 
+             inherit.aes = FALSE, color = "red", size = 3) +
+  # Add labels below the red dots
+  geom_text(data = dot_data, mapping = aes(x = block, y = y_value, 
+            label = sprintf("%.2f", y_value)),
+            inherit.aes = FALSE, vjust = 1.5, color = "red", fontface = "bold") +
+  # Add combined mean labels at the bottom of the plot
+  geom_text(data = combined_means, mapping = aes(x = block, y = 0.51, 
+            label = combined_label),
+            inherit.aes = FALSE, vjust = 0, color = "black", fontface = "bold") +
+  theme_minimal() +
+  labs(
+    title = "Mean Accuracy by Block for Both Choices",
+    x = "Trial Block",
+    y = "Mean Accuracy",
+    fill = "Choice"
+  ) +
+  scale_fill_manual(values = c("First Choice" = "skyblue", "Second Choice" = "coral")) +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.position = "bottom"
+  ) +
+  scale_y_continuous(breaks = seq(0.5, 0.8, 0.1))
+
+# Display the bar chart
+accuracy_bar_chart
 ```
 
 
@@ -639,29 +1240,106 @@ ggbetweenstats(
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+Reaction time for manual choices and bets across blocks
+
+```{r}
+# Create a function to process and plot reaction times
+plot_reaction_times <- function(data, time_column, computer_column, title) {
+  # Filter and prepare data
+  rt_data <- data %>%
+    filter(!!sym(computer_column) == 0) %>%
+    filter(!!sym(time_column) <= 3) %>%  # Filter out trials > 3 seconds
+    mutate(block = case_when(
+      subsession.round_number <= 15 ~ "1-15",
+      subsession.round_number <= 32 ~ "16-32",
+      subsession.round_number <= 47 ~ "33-47",
+      TRUE ~ "48-64"
+    )) %>%
+    # Calculate participant averages per block
+    group_by(participant.id_in_session, block) %>%
+    summarise(
+      avg_rt = mean(!!sym(time_column), na.rm = TRUE)
+    ) %>%
+    ungroup() %>%
+    # Convert block to factor to maintain order
+    mutate(block = factor(block, levels = c("1-15", "16-32", "33-47", "48-64")))
+
+  # Create violin plot using ggbetweenstats
+  plot <- ggbetweenstats(
+    data = rt_data,
+    x = block,
+    y = avg_rt,
+    type = "nonparametric",
+    plot.type = "violin",
+    title = title,
+    xlab = "Trial Block",
+    ylab = "Average Response Time (seconds)",
+    violin.args = list(width = 0.5, alpha = 0.4),
+    point.args = list(
+      alpha = 0.5, 
+      size = 2,
+      position = position_jitter(width = 0.2, seed = 123)  # Add more jitter
+    ),
+    results.subtitle = FALSE,
+    pairwise.comparisons = FALSE
+  )
+  
+  return(plot)
+}
+
+# Generate all four plots
+initial_choice_plot <- plot_reaction_times(
+  data,
+  "player.initial_choice_time",
+  "player.computer_choice_one",
+  "Initial Choice Response Times by Block"
+)
+second_choice_plot <- plot_reaction_times(
+  data,
+  "player.second_choice_time",
+  "player.computer_choice_two",
+  "Second Choice Response Times by Block"
+)
+initial_bet_plot <- plot_reaction_times(
+  data,
+  "player.initial_bet_time",
+  "player.computer_bet_one",
+  "Initial Bet Response Times by Block"
+)
+second_bet_plot <- plot_reaction_times(
+  data,
+  "player.second_bet_time",
+  "player.computer_bet_two",
+  "Second Bet Response Times by Block"
+)
+
+# Display all plots
+initial_choice_plot
+second_choice_plot
+initial_bet_plot
+second_bet_plot
+```
+
 Cumulative earnings over trials from choice 2
 ```{r}
-# First, create a starting point dataframe
-start_points <- data %>%
-  select(participant.id_in_session) %>%
-  distinct() %>%
-  mutate(subsession.round_number = 0,
-         player.choice2_sum_earnings = 0)
-
-# Combine with original data
-data_with_start <- bind_rows(start_points, data)
+# First, calculate the mean score at the final round
+final_round <- max(data$subsession.round_number)
+final_mean_score <- data %>%
+  filter(subsession.round_number == final_round) %>%
+  summarise(mean_score = mean(player.choice2_sum_earnings, na.rm = TRUE)) %>%
+  pull(mean_score)
 
 # Now use this in the plot
 ggplot() +
   # Individual participant lines with high transparency
-  geom_line(data = data_with_start, 
+  geom_line(data = data, 
             aes(x = subsession.round_number, 
                 y = player.choice2_sum_earnings, 
                 group = participant.id_in_session,
                 color = factor(participant.id_in_session)),
             alpha = 0.2) +
   # Smoothed mean line with standard error
-  geom_smooth(data = data_with_start,
+  geom_smooth(data = data,
              aes(x = subsession.round_number, y = player.choice2_sum_earnings),
              color = "blue",
              size = 1.5,
@@ -671,12 +1349,23 @@ ggplot() +
   geom_vline(xintercept = 16, linetype = "dashed", color = "red") +
   geom_vline(xintercept = 33, linetype = "dashed", color = "red") +
   geom_vline(xintercept = 48, linetype = "dashed", color = "red") +
+  # Add text annotation for mean score
+  annotate("text", 
+           x = final_round + 1,  # Position slightly to the right of final round
+           y = final_mean_score,
+           label = sprintf("%.1f", final_mean_score),
+           hjust = 0,
+           color = "blue",
+           fontface = "bold",
+           size = 6) +
   labs(title = "Cumulative Score Over Trials by Participant (Choice 2 Outcome)",
        subtitle = "Blue line shows smoothed mean score with standard error bands",
        x = "Trial Number",
        y = "Score") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        plot.margin = margin(r = 40, unit = "pt")) +  # Add right margin
+  coord_cartesian(clip = "off")  # Allow drawing outside plot area
 ```
 
 # Testing to see if players make choices significantly different from chance
@@ -685,10 +1374,11 @@ Read the combined main task data from above
 ```{r}
 rm(list=ls())
 
-data <- read_csv(here("data", "preprocessed", "otree", "pilots", "main_task_combined_filtered.csv"), show_col_types = FALSE)
+data <- read_csv(here("data", "preprocessed", "otree", "sessions", "main_task_combined_filtered.csv"), show_col_types = FALSE)
 ```
 
 Check player choice accuracy across valid trials for both choices combined
+Run binomial tests to check if the player choice accuracy is significantly different from chance, for choice 1 and choice 2 separately and combined
 ```{r}
 # Calculate the player choice accuracy across valid trials
 summary_df <- data %>%
@@ -700,10 +1390,7 @@ summary_df <- data %>%
     valid_trials_choice1 = sum(player.computer_choice_one != 1),
     valid_trials_choice2 = sum(player.computer_choice_two != 1)
   )
-```
 
-Run binomial tests to check if the player choice accuracy is significantly different from chance, for choice 1 and choice 2 separately and combined
-```{r}
 # Add binomial test results and percentage accuracy for all three categories
 summary_df <- summary_df %>%
   mutate(
@@ -797,7 +1484,8 @@ means <- plot_data %>%
 # Create the plot
 ggplot(plot_data, aes(x = choice_type, y = accuracy)) +
   geom_violin(fill = "gray90", alpha = 0.5) +
-  geom_jitter(width = 0.1, alpha = 0.6, size = 1.5) +
+  geom_hline(yintercept = 50, linetype = "dashed", color = "red", alpha = 0.7) +
+  geom_jitter(width = 0.1, alpha = 0.6, size = 0.5) +
   geom_point(data = means, aes(y = mean_accuracy), 
              color = "red", size = 3) +
   geom_text(data = means, 
@@ -822,7 +1510,7 @@ ggplot(plot_data, aes(x = choice_type, y = accuracy)) +
 rm(list=ls())
 
 # Read and subset data (change the file path to the recent Qualtrics data)
-data <- read_csv(here("data", "raw", "qualtrics", "pilots", "qualtrics_2025-02-07.csv"))[, c("Finished", "QID10", "QID31",
+data <- read_csv(here("data", "raw", "qualtrics", "sessions", "qualtrics_2025-06-03.csv"))[, c("Finished", "QID10", "QID31",
                 paste0("SC", 1:19), "SC21", "SC22", "SC23", "SC24")]
 
 # Set column names from first row and remove top 2 rows
@@ -847,18 +1535,370 @@ colnames(data)[colnames(data) == "GENDER"] <- "gender"
 # Remove rows where Finished is not 1 and where checks is not 3
 data <- data %>% filter(Finished == 1, CHECKS == 3)
 
-# Save the preprocessed data (remove pilots if not a pilot)
-write_csv(data, here("data", "preprocessed", "qualtrics", "pilots", "qualtrics_2025-02-07_preprocessed.csv"))
+# Save the preprocessed data
+write_csv(data, here("data", "preprocessed", "qualtrics", "sessions", "qualtrics_2025-06-03_preprocessed.csv"))
 ```
+
+Remove duplicate IDs from the Qualtrics data
+```{r}
+# Read the preprocessed Qualtrics data
+data <- read_csv(here("data", "preprocessed", "qualtrics", "sessions", "qualtrics_2025-06-03_preprocessed.csv"))
+
+# Check how many rows before deduplication
+original_rows <- nrow(data)
+
+# Keep only the first occurrence of each ID
+data_deduplicated <- data %>%
+  distinct(id, .keep_all = TRUE)
+
+# Check how many rows were removed
+rows_removed <- original_rows - nrow(data_deduplicated)
+if(rows_removed > 0) {
+  message(paste("Removed", rows_removed, "duplicate rows"))
+} else {
+  message("No duplicate IDs found")
+}
+
+# Save the deduplicated data back to the same file
+write_csv(data_deduplicated, here("data", "preprocessed", "qualtrics", "sessions", "qualtrics_2025-06-03_preprocessed.csv"))
+```
+
+Psychological measures histogram from Qualtrics data
+```{r}
+# Read the preprocessed Qualtrics data
+data <- read_csv(here("data", "preprocessed", "qualtrics", "sessions", "qualtrics_2025-06-03_preprocessed.csv"), show_col_types = FALSE)
+
+# Prepare data for psychological measures
+psych_data <- data %>%
+  select(SSMS, DASS, LSAS, `SRP-SF`, AMI, `AQ-10`) %>%
+  pivot_longer(cols = everything(), 
+               names_to = "variable", 
+               values_to = "value")
+
+# Calculate means for psychological measures
+psych_means <- data %>%
+  select(SSMS, DASS, LSAS, `SRP-SF`, AMI, `AQ-10`) %>%
+  summarise(across(everything(), ~mean(., na.rm = TRUE))) %>%
+  pivot_longer(cols = everything(), 
+               names_to = "variable", 
+               values_to = "mean_val")
+
+# Create color palette
+colors <- c("skyblue", "lightgreen", "salmon", "purple", "orange", "pink")
+line_colors <- c("darkblue", "darkgreen", "darkred", "darkmagenta", "darkorange", "deeppink")
+
+# Split the data to handle AQ-10 and SSMS separately
+aq10_data <- psych_data %>% filter(variable == "AQ-10")
+ssms_data <- psych_data %>% filter(variable == "SSMS")
+other_psych_data <- psych_data %>% filter(!variable %in% c("AQ-10", "SSMS"))
+
+# Create the histogram facet grid for psychological measures
+psych_plot <- ggplot() +
+  # Regular histograms for all other variables
+  geom_histogram(data = other_psych_data, 
+                 aes(x = value, fill = variable), 
+                 color = "white", alpha = 0.8) +
+  # Specific histogram for AQ-10 with binwidth=1
+  geom_histogram(data = aq10_data, 
+                 aes(x = value, fill = variable), 
+                 color = "white", alpha = 0.8,
+                 binwidth = 1) +
+  # Specific histogram for SSMS with binwidth=1
+  geom_histogram(data = ssms_data, 
+                 aes(x = value, fill = variable), 
+                 color = "white", alpha = 0.8,
+                 binwidth = 1) +
+  # Add mean lines for all psychological measures
+  geom_vline(data = psych_means,
+             aes(xintercept = mean_val), 
+             color = "red", linetype = "dashed", linewidth = 1) +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  theme_minimal() +
+  labs(title = "Distribution of Psychological Measures",
+       x = NULL,
+       y = "Count") +
+  scale_fill_manual(values = colors) +
+  scale_color_manual(values = line_colors) +
+  theme(
+    strip.background = element_rect(fill = "lightgray", color = NA),
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    legend.position = "none"
+  )
+
+# Print the plot
+print(psych_plot)
+```
+
+Demographics
+```{r}
+# Demographic plots - separate graphs
+
+# Age histogram with mean line and value
+age_mean <- mean(data$age, na.rm = TRUE)
+age_plot <- ggplot(data, aes(x = age)) +
+  geom_histogram(fill = "skyblue", color = "white", alpha = 0.8) +
+  geom_vline(xintercept = age_mean, color = "red", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = age_mean, y = max(hist(data$age, plot = FALSE)$counts)/2, 
+           label = sprintf("Mean: %.1f", age_mean), color = "red", hjust = -0.2) +
+  theme_minimal() +
+  labs(title = "Distribution of Age",
+       x = "Age",
+       y = "Count") +
+  theme(panel.grid.minor = element_blank())
+
+# Education histogram with counts on top of bars
+education_count <- data %>%
+  group_by(education) %>%
+  summarise(count = n()) %>%
+  filter(!is.na(education))
+
+education_plot <- ggplot(data, aes(x = education)) +
+  geom_histogram(fill = "lightgreen", color = "white", alpha = 0.8, stat = "count") +
+  geom_text(data = education_count, 
+            aes(x = education, y = count, label = count),
+            vjust = -0.5, size = 3.5) +
+  theme_minimal() +
+  labs(title = "Distribution of Education Level",
+       x = "Education Level",
+       y = "Count") +
+  theme(panel.grid.minor = element_blank())
+
+# Gender bar chart with counts and percentages
+# First create a count table with percentages
+total_valid_gender <- sum(data$gender %in% c(1, 2), na.rm = TRUE)
+gender_counts <- data %>%
+  filter(gender %in% c(1, 2)) %>%
+  count(gender) %>%
+  mutate(
+    gender_label = ifelse(gender == 1, "Male", "Female"),
+    percentage = n / total_valid_gender * 100,
+    label = sprintf("%d (%.1f%%)", n, percentage)
+  )
+
+# Then plot - thinner version
+gender_plot <- ggplot(gender_counts, aes(x = gender_label, y = n, fill = gender_label)) +
+  geom_bar(stat = "identity", color = "white", alpha = 0.8, width = 0.5) + # Made bars thinner
+  geom_text(aes(label = label), vjust = -0.5, size = 3.5) +
+  scale_fill_manual(values = c("Male" = "steelblue", "Female" = "salmon")) +
+  theme_minimal() +
+  labs(title = "Gender Distribution",
+       x = NULL,
+       y = "Count") +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    plot.margin = margin(r = 100, l = 100, unit = "pt") # Added margins to make plot thinner
+  )
+
+# Display the plots
+print(age_plot)
+print(education_plot)
+print(gender_plot)
+```
+
+Questionnaires split by gender and age
+```{r, fig.width=10, fig.height=6}
+
+# 1. IMPROVED BAR CHART FACET GRID
+# ----------------------------------------------------
+
+# Reshape data for t-tests
+questionnaire_data_long <- data %>%
+  filter(gender %in% c(1, 2)) %>%
+  mutate(gender_label = ifelse(gender == 1, "Male", "Female")) %>%
+  select(gender_label, SSMS, DASS, LSAS, `SRP-SF`, AMI, `AQ-10`) %>%
+  pivot_longer(
+    cols = -gender_label,
+    names_to = "measure",
+    values_to = "score"
+  )
+
+# Run t-tests for each questionnaire
+t_test_results <- questionnaire_data_long %>%
+  group_by(measure) %>%
+  t_test(score ~ gender_label) %>%
+  add_significance() %>%
+  mutate(
+    p.signif = case_when(
+      p < 0.001 ~ "***",
+      p < 0.01 ~ "**", 
+      p < 0.05 ~ "*",
+      TRUE ~ "ns"
+    ),
+    p.label = case_when(
+      p < 0.001 ~ "p < 0.001",
+      TRUE ~ sprintf("p = %.3f", p)
+    )
+  )
+
+# Calculate means and standard errors
+questionnaire_means <- data %>%
+  filter(gender %in% c(1, 2)) %>%
+  mutate(gender_label = ifelse(gender == 1, "Male", "Female")) %>%
+  group_by(gender_label) %>%
+  summarise(across(c(SSMS, DASS, LSAS, `SRP-SF`, AMI, `AQ-10`), 
+                  list(mean = ~mean(., na.rm = TRUE), 
+                       se = ~sd(., na.rm = TRUE) / sqrt(sum(!is.na(.)))))) %>%
+  pivot_longer(
+    cols = -gender_label,
+    names_to = c("measure", ".value"),
+    names_pattern = "(.+)_(mean|se)"
+  )
+
+# Calculate appropriate y-axis limits for each measure
+y_limits <- questionnaire_means %>%
+  group_by(measure) %>%
+  summarise(
+    max_val = max(mean + se, na.rm = TRUE),
+    min_val = min(mean - se, na.rm = TRUE)
+  ) %>%
+  mutate(
+    y_max = max_val * 1.3,  # Add 30% space above the highest bar+error
+    y_min = min(0, min_val * 1.1)  # Include zero or go 10% below lowest value if negative
+  )
+
+# Join t-test results with y-limits data
+t_test_results <- t_test_results %>%
+  left_join(y_limits, by = "measure") %>%
+  mutate(
+    # Position the significance bracket at 85% of the plot height
+    y.position = y_min + 0.85 * (y_max - y_min),
+    # Position the p-value text lower
+    p.position = y.position - 0.05 * (y_max - y_min)
+  )
+
+# Create the improved bar plot
+gender_comparison_plot <- ggplot(questionnaire_means, 
+                              aes(x = gender_label, y = mean, fill = gender_label)) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.7, color = "black") +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), 
+                position = position_dodge(0.7), width = 0.25) +
+  # Add significance brackets
+  geom_bracket(
+    data = t_test_results,
+    aes(xmin = 1, xmax = 2, y.position = y.position, label = p.signif),
+    inherit.aes = FALSE,
+    tip.length = 0.02,
+    bracket.size = 0.5
+  ) +
+  # Add p-value text below the bracket
+  geom_text(
+    data = t_test_results,
+    aes(x = 1.5, y = p.position, label = p.label),
+    inherit.aes = FALSE,
+    size = 2.8
+  ) +
+  # Set y-axis limits based on calculated values
+  facet_wrap(~ measure, scales = "free_y", ncol = 3) +
+  scale_fill_manual(values = c("Male" = "#4472C4", "Female" = "#ED7D31")) +
+  labs(
+    title = "Mean Scores by Gender Across Psychological Measures",
+    x = NULL,
+    y = "Mean Score (± SE)",
+    fill = NULL
+  ) +
+  theme_pubr() +
+  theme(
+    strip.background = element_rect(fill = "white", color = "black"),
+    strip.text = element_text(face = "bold", size = 11),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    legend.position = "bottom",
+    panel.grid.major.y = element_line(color = "gray90"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 14, hjust = 0.5)
+  )
+
+# Manually set y-axis limits for each facet
+gender_comparison_plot <- gender_comparison_plot +
+  facetted_pos_scales(
+    y = lapply(
+      split(y_limits, y_limits$measure),
+      function(df) {
+        scale_y_continuous(limits = c(df$y_min, df$y_max))
+      }
+    )
+  )
+
+# 2. IMPROVED SCATTER PLOT FACET GRID
+# ----------------------------------------------------
+
+# Prepare data for correlation plots
+age_correlations_data <- data %>%
+  select(age, SSMS, DASS, LSAS, `SRP-SF`, AMI, `AQ-10`) %>%
+  pivot_longer(
+    cols = -age,
+    names_to = "measure",
+    values_to = "score"
+  )
+
+# Calculate correlation coefficients and p-values
+cor_results <- age_correlations_data %>%
+  group_by(measure) %>%
+  summarise(
+    r = cor(age, score, use = "pairwise.complete.obs"),
+    p_value = cor.test(age, score, use = "pairwise.complete.obs")$p.value
+  ) %>%
+  mutate(
+    significance = case_when(
+      p_value < 0.001 ~ "***",
+      p_value < 0.01 ~ "**",
+      p_value < 0.05 ~ "*",
+      TRUE ~ "ns"
+    ),
+    p_label = case_when(
+      p_value < 0.001 ~ "p < 0.001",
+      TRUE ~ sprintf("p = %.3f", p_value)
+    ),
+    # Create combined label with r and p on separate lines
+    label = sprintf("r = %.2f%s\n%s", r, significance, p_label)
+  )
+
+# Create the improved correlation plots
+age_correlation_plot <- ggplot(age_correlations_data, aes(x = age, y = score)) +
+  geom_point(alpha = 0.6, size = 1.5, color = "#4472C4") +
+  geom_smooth(method = "lm", color = "#D55E00", fill = "#D55E0080") +
+  geom_text(
+    data = cor_results,
+    aes(label = label),
+    x = Inf, y = Inf,
+    hjust = 1.1, vjust = 1.2,
+    size = 3,
+    lineheight = 0.8
+  ) +
+  facet_wrap(~ measure, scales = "free_y", ncol = 3) +
+  labs(
+    title = "Relationship Between Age and Psychological Measures",
+    x = "Age (years)",
+    y = "Score"
+  ) +
+  theme_pubr() +
+  theme(
+    strip.background = element_rect(fill = "white", color = "black"),
+    strip.text = element_text(face = "bold", size = 11),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    panel.grid.major = element_line(color = "gray90"),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 14, hjust = 0.5)
+  )
+
+# Display the plots
+print(gender_comparison_plot)
+print(age_correlation_plot)
+```
+
 
 Add Qualtrics questionnaire data to oTree data based on shared Prolific ID and organise properly
 ```{r}
 rm(list=ls())
 
-otree_data <- read.csv(here("data", "preprocessed", "otree", "pilots", "main_task_combined_filtered.csv"))
-qualtrics_data <- read.csv(here("data", "preprocessed", "qualtrics", "pilots", "qualtrics_2025-02-07_preprocessed.csv"))
+otree_data <- read.csv(here("data", "preprocessed", "otree", "sessions", "main_task_combined_filtered.csv"))
+qualtrics_data <- read.csv(here("data", "preprocessed", "qualtrics", "sessions", "qualtrics_2025-06-03_preprocessed.csv"))
 
-# First, create a copy of qualtrics_data without the CHECKS column
+# First, create a copy of qualtrics_data without the CHECKS and finished columns
 qualtrics_clean <- qualtrics_data[, !colnames(qualtrics_data) %in% c("CHECKS", "Finished")]
 
 # Convert column names to lowercase and replace dots with underscores
@@ -876,11 +1916,721 @@ merged_data <- merged_data[order(merged_data$subsession.round_number,
                                       merged_data$participant.id_in_session), ]
 
 # Save the preprocessed data (remove pilots if not a pilot)
-write_csv(merged_data, here("data", "preprocessed", "merged", "pilots", "otree_prolific_merged_filtered_2025-02-07.csv"))
+write_csv(merged_data, here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"))
+```
+
+# Check split of reaction times per trial per decision
+```{r}
+rm(list=ls())
+# Read the combined data
+data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), show_col_types = FALSE)
+
+# Create output directory if it doesn't exist
+dir.create(here("output", "preprocessing"), recursive = TRUE, showWarnings = FALSE)
+
+# First set of histograms
+par(mfrow=c(2,2))
+hist(data$player.initial_choice_time[data$player.initial_choice_time <= 3], 
+     main="Initial Choice Time", xlab="Time", col="skyblue", border="white")
+hist(data$player.initial_bet_time[data$player.initial_bet_time <= 3], 
+     main="Initial Bet Time", xlab="Time", col="lightgreen", border="white")
+hist(data$player.second_choice_time[data$player.second_choice_time <= 3], 
+     main="Second Choice Time", xlab="Time", col="salmon", border="white")
+hist(data$player.second_bet_time[data$player.second_bet_time <= 3], 
+     main="Second Bet Time", xlab="Time", col="purple", border="white")
+
+# Save histograms
+ggsave(here("output", "preprocessing", "time_histograms.pdf"), width = 10, height = 8)
+
+# Calculate aggregated data
+meanIC <- aggregate(player.initial_choice_time ~ group.trial_number, data=data, FUN=mean)
+meanIB <- aggregate(player.initial_bet_time ~ group.trial_number, data=data, FUN=mean)
+meanSC <- aggregate(player.second_choice_time ~ group.trial_number, data=data, FUN=mean)
+meanSB <- aggregate(player.second_bet_time ~ group.trial_number, data=data, FUN=mean)
+sumCC1 <- aggregate(player.computer_choice_one ~ group.trial_number, data=data, FUN=sum)
+sumCC2 <- aggregate(player.computer_choice_two ~ group.trial_number, data=data, FUN=sum)
+sumCB1 <- aggregate(player.computer_bet_one ~ group.trial_number, data=data, FUN=sum)
+sumCB2 <- aggregate(player.computer_bet_two ~ group.trial_number, data=data, FUN=sum)
+
+# Second set of plots (means by trial number)
+par(mfrow=c(2,2))
+plot(meanIC, type="l", main="Mean Initial Choice Time", 
+     xlab="Trial Number", ylab="Mean Time", col="blue", lwd=2)
+plot(meanIB, type="l", main="Mean Initial Bet Time", 
+     xlab="Trial Number", ylab="Mean Time", col="green", lwd=2)
+plot(meanSC, type="l", main="Mean Second Choice Time", 
+     xlab="Trial Number", ylab="Mean Time", col="red", lwd=2)
+plot(meanSB, type="l", main="Mean Second Bet Time", 
+     xlab="Trial Number", ylab="Mean Time", col="orange", lwd=2)
+
+# Save mean plots
+ggsave(here("output", "preprocessing", "mean_time_by_trial.pdf"), width = 10, height = 8)
+
+# Third set of plots (sums by trial number)
+par(mfrow=c(2,2))
+plot(sumCC1, type="l", main="Sum of Computer Choice One", 
+     xlab="Trial Number", ylab="Sum", col="purple", lwd=2)
+plot(sumCC2, type="l", main="Sum of Computer Choice Two", 
+     xlab="Trial Number", ylab="Sum", col="brown", lwd=2)
+plot(sumCB1, type="l", main="Sum of Computer Bet One", 
+     xlab="Trial Number", ylab="Sum", col="darkgreen", lwd=2)
+plot(sumCB2, type="l", main="Sum of Computer Bet Two", 
+     xlab="Trial Number", ylab="Sum", col="darkblue", lwd=2)
+
+# Save sum plots
+ggsave(here("output", "preprocessing", "sum_computer_by_trial.pdf"), width = 10, height = 8)
+
+# Reset the plotting layout
+par(mfrow=c(1,1))
+```
+
+# Add combined submission data to main task data
+```{r}
+rm(list=ls())
+
+# Read the combined main task data
+main_data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), show_col_types = FALSE)
+
+# Read the combined submission data
+submission_data <- read_csv(here("data", "preprocessed", "otree", "sessions", "combined_filtered_submissions.csv"), show_col_types = FALSE)
+
+# Select only the columns we want to add from submission_data
+submission_subset <- submission_data %>%
+  select(participant.label,
+         player.main_task_bonus,
+         player.task_understanding,
+         player.task_difficulty,
+         player.engagement,
+         player.influence,
+         player.real_players,
+         player.attention_focus,
+         player.main_task_group_id)
+
+# Join the datasets based on participant.label
+merged_data <- main_data %>%
+  left_join(submission_subset, by = "participant.label")
+
+# Save the merged data back to the original file
+write_csv(merged_data, 
+          here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"))
+```
+
+# Justify data cleaning by plotting how many trials have manual choices/bets and how many are made by the computer
+```{r, fig.width=6, fig.height=6}
+rm(list=ls())
+
+# Function to create and plot the counts summary for any dataset
+create_manual_vs_computer_plot <- function(data, title) {
+  # Select the columns of interest and reshape to long format
+  counts_data <- data %>%
+    select(
+      player.computer_choice_one,
+      player.computer_bet_one,
+      player.computer_choice_two,
+      player.computer_bet_two
+    ) %>%
+    rename(
+      "Choice 1" = player.computer_choice_one,
+      "Bet 1" = player.computer_bet_one,
+      "Choice 2" = player.computer_choice_two,
+      "Bet 2" = player.computer_bet_two
+    ) %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "variable",
+      values_to = "code"
+    ) %>%
+    filter(!is.na(code)) %>%
+    mutate(
+      type = ifelse(code == 0, "Manual", "Computer"),
+      variable = factor(variable, levels = c("Choice 1", "Bet 1", "Choice 2", "Bet 2"))
+    )
+  
+  # Count occurrences
+  counts_summary <- counts_data %>%
+    count(variable, type) %>%
+    group_by(variable) %>%
+    mutate(percentage = n / sum(n) * 100) %>%
+    ungroup() %>%
+    # Make sure "Manual" comes before "Computer" in the plot
+    mutate(type = factor(type, levels = c("Manual", "Computer")))
+  
+  # Create the faceted plot
+  ggplot(counts_summary, aes(x = type, y = n, fill = type)) +
+    geom_col(width = 0.7) +
+    # Manual bars - text inside
+    geom_text(data = subset(counts_summary, type == "Manual"),
+              aes(label = sprintf("%d\n(%.1f%%)", n, percentage)), 
+              position = position_stack(vjust = 0.5),
+              size = 4) +
+    # Computer bars - text above
+    geom_text(data = subset(counts_summary, type == "Computer"),
+              aes(label = sprintf("%d\n(%.1f%%)", n, percentage)), 
+              vjust = -0.5,  # Places text above the bar
+              size = 4) +
+    facet_wrap(~ variable, nrow = 2, ncol = 2) +
+    scale_fill_manual(values = c("Manual" = "skyblue", "Computer" = "salmon")) +
+    labs(
+      title = title,
+      x = NULL,
+      y = "Count",
+      fill = "Type"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      strip.text = element_text(size = 14, face = "bold"),
+      panel.spacing = unit(1, "lines"),
+      # Add some more space at the top for the labels
+      plot.margin = margin(t = 20, r = 10, b = 10, l = 10, unit = "pt")
+    )
+}
+
+# Read the first dataset (filtered data)
+data_filtered <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), 
+                        show_col_types = FALSE)
+
+# Read the second dataset (unfiltered data)
+data_unfiltered <- read_csv(here("data", "preprocessed", "otree", "sessions", "combined_main_task.csv"), 
+                           show_col_types = FALSE)
+
+# Create plot for filtered data
+plot_filtered <- create_manual_vs_computer_plot(data_filtered, "Manual vs. Computer Choices and Bets (Filtered Data)")
+
+# Create plot for unfiltered data
+plot_unfiltered <- create_manual_vs_computer_plot(data_unfiltered, "Manual vs. Computer Choices and Bets (Unfiltered Data)")
+
+# Display plots
+print(plot_filtered)
+print(plot_unfiltered)
+```
+
+Number of decisions that took 3 seconds versus number which didn't
+```{r, fig.width=6, fig.height=10}
+rm(list=ls())
+
+# Function to create the first plot: time == 3 vs time != 3
+create_time_comparison_plot <- function(data, title) {
+  # Select the columns of interest and reshape to long format
+  time_data <- data %>%
+    select(
+      player.initial_choice_time,
+      player.initial_bet_time,
+      player.second_choice_time,
+      player.second_bet_time
+    ) %>%
+    rename(
+      "Initial Choice" = player.initial_choice_time,
+      "Initial Bet" = player.initial_bet_time,
+      "Second Choice" = player.second_choice_time,
+      "Second Bet" = player.second_bet_time
+    ) %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "variable",
+      values_to = "time"
+    ) %>%
+    filter(!is.na(time)) %>%
+    mutate(
+      time_category = ifelse(time == 3, "Time = 3", "Time ≠ 3"),
+      variable = factor(variable, levels = c("Initial Choice", "Initial Bet", "Second Choice", "Second Bet"))
+    )
+  
+  # Count occurrences
+  time_summary <- time_data %>%
+    count(variable, time_category) %>%
+    group_by(variable) %>%
+    mutate(percentage = n / sum(n) * 100) %>%
+    ungroup() %>%
+    # Make sure "Time = 3" comes before "Time ≠ 3" in the plot
+    mutate(time_category = factor(time_category, levels = c("Time = 3", "Time ≠ 3")))
+  
+  # Create the faceted plot
+  ggplot(time_summary, aes(x = time_category, y = n, fill = time_category)) +
+    geom_col(width = 0.7) +
+    geom_text(aes(label = sprintf("%d\n(%.1f%%)", n, percentage)), 
+              position = position_stack(vjust = 0.5),
+              size = 4) +
+    facet_wrap(~ variable, nrow = 2, ncol = 2) +
+    scale_fill_manual(values = c("Time = 3" = "skyblue", "Time ≠ 3" = "orange")) +
+    labs(
+      title = title,
+      x = NULL,
+      y = "Count",
+      fill = "Time Category"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      strip.text = element_text(size = 14, face = "bold"),
+      panel.spacing = unit(1, "lines"),
+      plot.margin = margin(t = 20, r = 10, b = 10, l = 10, unit = "pt")
+    )
+}
+
+# Function to create the second plot: manual vs computer for time == 3
+create_time3_manual_vs_computer_plot <- function(data, title) {
+  # Create a dataframe for initial choice where time == 3
+  initial_choice_data <- data %>%
+    filter(player.initial_choice_time == 3, !is.na(player.computer_choice_one)) %>%
+    mutate(
+      variable = "Initial Choice",
+      type = ifelse(player.computer_choice_one == 0, "Manual", "Computer")
+    ) %>%
+    select(variable, type)
+  
+  # Create a dataframe for initial bet where time == 3
+  initial_bet_data <- data %>%
+    filter(player.initial_bet_time == 3, !is.na(player.computer_bet_one)) %>%
+    mutate(
+      variable = "Initial Bet",
+      type = ifelse(player.computer_bet_one == 0, "Manual", "Computer")
+    ) %>%
+    select(variable, type)
+  
+  # Create a dataframe for second choice where time == 3
+  second_choice_data <- data %>%
+    filter(player.second_choice_time == 3, !is.na(player.computer_choice_two)) %>%
+    mutate(
+      variable = "Second Choice",
+      type = ifelse(player.computer_choice_two == 0, "Manual", "Computer")
+    ) %>%
+    select(variable, type)
+  
+  # Create a dataframe for second bet where time == 3
+  second_bet_data <- data %>%
+    filter(player.second_bet_time == 3, !is.na(player.computer_bet_two)) %>%
+    mutate(
+      variable = "Second Bet",
+      type = ifelse(player.computer_bet_two == 0, "Manual", "Computer")
+    ) %>%
+    select(variable, type)
+  
+  # Combine all dataframes
+  combined_data <- bind_rows(
+    initial_choice_data,
+    initial_bet_data,
+    second_choice_data,
+    second_bet_data
+  ) %>%
+    mutate(variable = factor(variable, levels = c("Initial Choice", "Initial Bet", "Second Choice", "Second Bet")))
+  
+  # Count occurrences
+  counts_summary <- combined_data %>%
+    count(variable, type) %>%
+    group_by(variable) %>%
+    mutate(percentage = n / sum(n) * 100) %>%
+    ungroup() %>%
+    # Make sure "Manual" comes before "Computer" in the plot
+    mutate(type = factor(type, levels = c("Manual", "Computer")))
+  
+  # Create the faceted plot
+  ggplot(counts_summary, aes(x = type, y = n, fill = type)) +
+    geom_col(width = 0.7) +
+    geom_text(aes(label = sprintf("%d\n(%.1f%%)", n, percentage)), 
+              position = position_stack(vjust = 0.5),
+              size = 4) +
+    facet_wrap(~ variable, nrow = 2, ncol = 2) +
+    scale_fill_manual(values = c("Manual" = "skyblue", "Computer" = "salmon")) +
+    labs(
+      title = title,
+      x = NULL,
+      y = "Count",
+      fill = "Type"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      strip.text = element_text(size = 14, face = "bold"),
+      panel.spacing = unit(1, "lines"),
+      plot.margin = margin(t = 20, r = 10, b = 10, l = 10, unit = "pt")
+    )
+}
+
+# Read the datasets
+data_filtered <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), 
+                         show_col_types = FALSE)
+data_unfiltered <- read_csv(here("data", "preprocessed", "otree", "sessions", "combined_main_task.csv"), 
+                           show_col_types = FALSE)
+
+# Create and display the first plots (time == 3 vs time != 3)
+plot_time_filtered <- create_time_comparison_plot(data_filtered, "Time = 3 vs Time ≠ 3 (Filtered Data)")
+plot_time_unfiltered <- create_time_comparison_plot(data_unfiltered, "Time = 3 vs Time ≠ 3 (Unfiltered Data)")
+
+# Display the first plots
+print(plot_time_filtered)
+print(plot_time_unfiltered)
+
+# Create and display the second plots (manual vs computer for time == 3)
+plot_time3_filtered <- create_time3_manual_vs_computer_plot(data_filtered, "Manual vs. Computer for Time = 3 (Filtered Data)")
+plot_time3_unfiltered <- create_time3_manual_vs_computer_plot(data_unfiltered, "Manual vs. Computer for Time = 3 (Unfiltered Data)")
+
+# Display the second plots
+print(plot_time3_filtered)
+print(plot_time3_unfiltered)
+```
+
+```{r, fig.width=6, fig.height=10}
+# Function to create a plot comparing time == 0 vs time != 0
+create_time_zero_comparison_plot <- function(data, title) {
+  # Select the columns of interest and reshape to long format
+  time_data <- data %>%
+    select(
+      player.initial_choice_time,
+      player.initial_bet_time,
+      player.second_choice_time,
+      player.second_bet_time
+    ) %>%
+    rename(
+      "Initial Choice" = player.initial_choice_time,
+      "Initial Bet" = player.initial_bet_time,
+      "Second Choice" = player.second_choice_time,
+      "Second Bet" = player.second_bet_time
+    ) %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "variable",
+      values_to = "time"
+    ) %>%
+    filter(!is.na(time)) %>%
+    mutate(
+      time_category = ifelse(time == 0, "Time = 0", "Time ≠ 0"),
+      variable = factor(variable, levels = c("Initial Choice", "Initial Bet", "Second Choice", "Second Bet"))
+    )
+  
+  # Count occurrences
+  time_summary <- time_data %>%
+    count(variable, time_category) %>%
+    group_by(variable) %>%
+    mutate(percentage = n / sum(n) * 100) %>%
+    ungroup() %>%
+    # Make sure "Time = 0" comes before "Time ≠ 0" in the plot
+    mutate(time_category = factor(time_category, levels = c("Time = 0", "Time ≠ 0")))
+  
+  # Create the faceted plot
+  ggplot(time_summary, aes(x = time_category, y = n, fill = time_category)) +
+    geom_col(width = 0.7) +
+    geom_text(aes(label = sprintf("%d\n(%.1f%%)", n, percentage)), 
+              position = position_stack(vjust = 0.5),
+              size = 4) +
+    facet_wrap(~ variable, nrow = 2, ncol = 2) +
+    scale_fill_manual(values = c("Time = 0" = "lightgreen", "Time ≠ 0" = "coral")) +
+    labs(
+      title = title,
+      x = NULL,
+      y = "Count",
+      fill = "Time Category"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      strip.text = element_text(size = 14, face = "bold"),
+      panel.spacing = unit(1, "lines"),
+      plot.margin = margin(t = 20, r = 10, b = 10, l = 10, unit = "pt")
+    )
+}
+
+# Function to create a plot comparing time > 3 vs time <= 3
+create_time_gt3_comparison_plot <- function(data, title) {
+  # Select the columns of interest and reshape to long format
+  time_data <- data %>%
+    select(
+      player.initial_choice_time,
+      player.initial_bet_time,
+      player.second_choice_time,
+      player.second_bet_time
+    ) %>%
+    rename(
+      "Initial Choice" = player.initial_choice_time,
+      "Initial Bet" = player.initial_bet_time,
+      "Second Choice" = player.second_choice_time,
+      "Second Bet" = player.second_bet_time
+    ) %>%
+    pivot_longer(
+      cols = everything(),
+      names_to = "variable",
+      values_to = "time"
+    ) %>%
+    filter(!is.na(time)) %>%
+    mutate(
+      time_category = ifelse(time > 3, "Time > 3", "Time ≤ 3"),
+      variable = factor(variable, levels = c("Initial Choice", "Initial Bet", "Second Choice", "Second Bet"))
+    )
+  
+  # Count occurrences
+  time_summary <- time_data %>%
+    count(variable, time_category) %>%
+    group_by(variable) %>%
+    mutate(percentage = n / sum(n) * 100) %>%
+    ungroup() %>%
+    # Make sure "Time > 3" comes before "Time ≤ 3" in the plot
+    mutate(time_category = factor(time_category, levels = c("Time > 3", "Time ≤ 3")))
+  
+  # Create the faceted plot
+  ggplot(time_summary, aes(x = time_category, y = n, fill = time_category)) +
+    geom_col(width = 0.7) +
+    geom_text(aes(label = sprintf("%d\n(%.1f%%)", n, percentage)), 
+              position = position_stack(vjust = 0.5),
+              size = 4) +
+    facet_wrap(~ variable, nrow = 2, ncol = 2) +
+    scale_fill_manual(values = c("Time > 3" = "purple", "Time ≤ 3" = "lightblue")) +
+    labs(
+      title = title,
+      x = NULL,
+      y = "Count",
+      fill = "Time Category"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      strip.text = element_text(size = 14, face = "bold"),
+      panel.spacing = unit(1, "lines"),
+      plot.margin = margin(t = 20, r = 10, b = 10, l = 10, unit = "pt")
+    )
+}
+
+# Create and display the plots for the filtered dataset only
+plot_time_zero_filtered <- create_time_zero_comparison_plot(data_filtered, "Time = 0 vs Time ≠ 0 (Filtered Data)")
+plot_time_gt3_filtered <- create_time_gt3_comparison_plot(data_filtered, "Time > 3 vs Time ≤ 3 (Filtered Data)")
+
+# Display the plots
+print(plot_time_zero_filtered)
+print(plot_time_gt3_filtered)
+```
+
+# Split data by real players ratings
+```{r, fig.width=10, fig.height=6}
+rm(list=ls())
+
+# Read the combined dataset
+combined_data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), 
+                         show_col_types = FALSE)
+
+
+# First, ensure we have only unique participants
+unique_data <- combined_data %>%
+  distinct(participant.label, .keep_all = TRUE)
+
+# Calculate mean and median
+mean_val <- mean(unique_data$player.real_players, na.rm = TRUE)
+median_val <- median(unique_data$player.real_players, na.rm = TRUE)
+
+# Create the histogram with bin width of 2
+ggplot(unique_data, aes(x = player.real_players)) +
+  geom_histogram(binwidth = 2, fill = "lightblue", color = "black") +
+  # Add vertical line for mean
+  geom_vline(aes(xintercept = mean_val), color = "red", linetype = "dashed", size = 1) +
+  # Add vertical line for median
+  geom_vline(aes(xintercept = median_val), color = "blue", linetype = "dashed", size = 1) +
+  # Add labels for mean and median
+  annotate("text", x = mean_val, y = Inf, label = paste("Mean =", round(mean_val, 2)), 
+           vjust = 1.5, hjust = -0.1, color = "red") +
+  annotate("text", x = median_val, y = Inf, label = paste("Median =", round(median_val, 2)), 
+           vjust = 3, hjust = -0.1, color = "blue") +
+  labs(x = "Real Players Belief (Rating 0-100", y = "Count") +
+  scale_x_continuous(breaks = seq(min(unique_data$player.real_players, na.rm = TRUE), 
+                                 max(unique_data$player.real_players, na.rm = TRUE), 
+                                 by = 2)) +
+  theme_minimal() +
+  theme(panel.grid = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        plot.background = element_rect(fill = "white"))
+
+# First, extract the values and sort them
+sorted_values <- unique_data %>%
+  pull(player.real_players) %>%
+  sort()
+
+# Create a function to get the nth value
+x <- function(n) {
+  if(n <= 0 || n > length(sorted_values)) {
+    return(paste("Error: Position", n, "is out of bounds. Valid range is 1 to", length(sorted_values)))
+  }
+  return(sorted_values[n])
+}
+```
+Now let's get our thresholds for high and low belief
+
+```{r}
+# Define the thresholds
+low_threshold <- 30
+high_threshold <- 99
+
+# First, examine the distribution of player.real_players scores
+player_belief_summary <- combined_data %>%
+  group_by(participant.label) %>%
+  summarize(belief_score = first(player.real_players)) %>%
+  arrange(belief_score)
+
+# Get lists of participant IDs for high and low belief based on thresholds
+high_belief_ids <- player_belief_summary %>%
+  filter(belief_score > high_threshold) %>%
+  pull(participant.label)
+
+low_belief_ids <- player_belief_summary %>%
+  filter(belief_score < low_threshold) %>%
+  pull(participant.label)
+
+# Create high belief and low belief datasets
+high_belief_data <- combined_data %>%
+  filter(participant.label %in% high_belief_ids)
+
+low_belief_data <- combined_data %>%
+  filter(participant.label %in% low_belief_ids)
+
+# Create the output filenames
+input_filename <- "otree_prolific_merged_filtered_2025-06-03.csv"
+high_belief_filename <- gsub("\\.csv$", "_high_belief.csv", input_filename)
+low_belief_filename <- gsub("\\.csv$", "_low_belief.csv", input_filename)
+
+# Save the datasets
+write_csv(high_belief_data, 
+          here("data", "preprocessed", "merged", "sessions", high_belief_filename))
+
+write_csv(low_belief_data, 
+          here("data", "preprocessed", "merged", "sessions", low_belief_filename))
+
 ```
 
 
+# Create dataList for stan modeling from combined dataset
 
+```{r}
+rm(list=ls())
+
+# Read data
+data <- read_csv(here("data", "preprocessed", "merged", "pilots", "otree_prolific_merged_filtered_2025-02-07.csv"), 
+                 show_col_types = FALSE)
+
+# Create new list
+testdataList <- list()
+
+# Get unique IDs and sort them
+unique_ids <- sort(unique(data$participant.id_in_session))
+
+# Set nSubjects and nTrials
+testdataList$nSubjects <- as.numeric(length(unique_ids))
+testdataList$nTrials <- as.integer(max(data$group.trial_number))
+
+# Create 2D arrays
+testdataList$choice1 <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$choice2 <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$bet1 <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$bet2 <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$choice1Acc <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$choice2Acc <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$reward <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$winprob <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$choice1with <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$choice1against <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$choice2with <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$choice2against <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+testdataList$chswitch <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials))
+
+# Create 3D arrays
+testdataList$otherChoice1 <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials, 4))
+testdataList$otherChoice2 <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials, 4))
+testdataList$otherChoice1Acc <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials, 4))
+testdataList$otherChoice2Acc <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials, 4))
+testdataList$otherReward <- array(NA, dim = c(testdataList$nSubjects, testdataList$nTrials, 4))
+
+# Fill the arrays
+for(subject_idx in 1:length(unique_ids)) {
+    actual_id <- unique_ids[subject_idx]
+    for(trial in 1:testdataList$nTrials) {
+        subj_trial_idx <- which(data$participant.id_in_session == actual_id & 
+                               data$group.trial_number == trial)
+        
+        if(length(subj_trial_idx) > 0) {
+            # 3D arrays
+            testdataList$otherChoice1[subject_idx, trial, ] <- c(
+                data$player.player1_choice_one[subj_trial_idx],
+                data$player.player2_choice_one[subj_trial_idx],
+                data$player.player3_choice_one[subj_trial_idx],
+                data$player.player4_choice_one[subj_trial_idx]
+            )
+            
+            testdataList$otherChoice2[subject_idx, trial, ] <- c(
+                data$player.player1_choice_two[subj_trial_idx],
+                data$player.player2_choice_two[subj_trial_idx],
+                data$player.player3_choice_two[subj_trial_idx],
+                data$player.player4_choice_two[subj_trial_idx]
+            )
+            
+            testdataList$otherChoice1Acc[subject_idx, trial, ] <- c(
+                data$player.player1_choice1_accuracy[subj_trial_idx],
+                data$player.player2_choice1_accuracy[subj_trial_idx],
+                data$player.player3_choice1_accuracy[subj_trial_idx],
+                data$player.player4_choice1_accuracy[subj_trial_idx]
+            )
+            
+            testdataList$otherChoice2Acc[subject_idx, trial, ] <- c(
+                data$player.player1_choice2_accuracy[subj_trial_idx],
+                data$player.player2_choice2_accuracy[subj_trial_idx],
+                data$player.player3_choice2_accuracy[subj_trial_idx],
+                data$player.player4_choice2_accuracy[subj_trial_idx]
+            )
+            
+            testdataList$otherReward[subject_idx, trial, ] <- c(
+                data$player.player1_loss_or_gain[subj_trial_idx],
+                data$player.player2_loss_or_gain[subj_trial_idx],
+                data$player.player3_loss_or_gain[subj_trial_idx],
+                data$player.player4_loss_or_gain[subj_trial_idx]
+            )
+            
+            # 2D arrays
+            testdataList$choice1[subject_idx, trial] <- data$player.chosen_image_one_binary[subj_trial_idx]
+            testdataList$choice2[subject_idx, trial] <- data$player.chosen_image_two_binary[subj_trial_idx]
+            testdataList$chswitch[subject_idx, trial] <- data$player.switch_vs_stay[subj_trial_idx]
+            testdataList$bet1[subject_idx, trial] <- data$player.bet1[subj_trial_idx]
+            testdataList$bet2[subject_idx, trial] <- data$player.bet2[subj_trial_idx]
+            testdataList$reward[subject_idx, trial] <- data$player.trial_reward[subj_trial_idx]
+            testdataList$winprob[subject_idx, trial] <- data$group.reward_probability_A[subj_trial_idx]
+            testdataList$choice1Acc[subject_idx, trial] <- data$player.choice1_accuracy[subj_trial_idx]
+            testdataList$choice2Acc[subject_idx, trial] <- data$player.choice2_accuracy[subj_trial_idx]
+            testdataList$choice1with[subject_idx, trial] <- data$player.choice1_with[subj_trial_idx]
+            testdataList$choice1against[subject_idx, trial] <- data$player.choice1_against[subj_trial_idx]
+            testdataList$choice2with[subject_idx, trial] <- data$player.choice2_with[subj_trial_idx]
+            testdataList$choice2against[subject_idx, trial] <- data$player.choice2_against[subj_trial_idx]
+        }
+    }
+}
+
+# Create new list with desired order
+testdataList <- testdataList[c(
+  "nSubjects",
+  "nTrials",
+  "choice1",
+  "choice2", 
+  "chswitch",
+  "bet1",
+  "bet2",
+  "reward",
+  "choice1Acc",
+  "choice2Acc",
+  "winprob",
+  "otherChoice1",
+  "otherChoice2",
+  "otherReward",
+  "choice1with",
+  "choice1against",
+  "choice2with",
+  "choice2against",
+  "otherChoice1Acc",
+  "otherChoice2Acc"
+)]
+
+# Save the reordered list
+save(testdataList, file = here::here("data", "rdata", "testdata.RData"))
+
+# Load Lei's data for comparison
+load(here::here("data", "rdata", "subset_data.RData"))
+```
 
 
 

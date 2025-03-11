@@ -1,0 +1,2236 @@
+---
+title: "behav_plotting_low_high_belief"
+author: "Aamir Sohail"
+date: "2025-01-08"
+output: html_document
+---
+
+# Description of this script
+
+This script runs the linear mixed-effects models as part of the behavioural analysis comparing low belief and high belief groups. It runs the equivalent analyses as in the original script, but with added between-group comparisons.
+
+## Set-up and installation
+
+```{r}
+rm(list=ls())
+```
+
+```{r setup, include=FALSE, message=FALSE, cache=TRUE}
+# Install packages only if they are not already installed
+required_packages <- c("ggplot2", "tidyverse", "ggpubr", "rstatix", "ez", "lme4", "lmerTest", "car", "emmeans", "here", "MuMIn", "conflicted", "cowplot", "ggsignif")
+install_if_missing <- required_packages[!required_packages %in% installed.packages()]
+if (length(install_if_missing) > 0) {
+  install.packages(install_if_missing, quietly = TRUE)
+}
+
+# Load libraries
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+library(ez)
+library(lme4)
+library(car)
+library(readr)
+library(lmerTest)
+library(emmeans)
+library(here)
+library(MuMIn)
+library(conflicted)
+library(cowplot)
+library(ggsignif)
+
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflicts_prefer(lmerTest::lmer)
+
+# Create output directory if it doesn't exist
+dir.create(here("output", "behav", "group_comparison"), recursive = TRUE, showWarnings = FALSE)
+```
+
+Load and prepare data
+
+```{r}
+# Read in both datasets
+low_belief_data <- read_csv(here("data", "preprocessed", "merged", "sessions", 
+                                 "otree_prolific_merged_filtered_2025-06-03_low_belief.csv"),
+                            show_col_types = FALSE)
+high_belief_data <- read_csv(here("data", "preprocessed", "merged", "sessions", 
+                                   "otree_prolific_merged_filtered_2025-06-03_high_belief.csv"),
+                             show_col_types = FALSE)
+
+# Add group identifier
+low_belief_data$belief_group <- "Low Belief"
+high_belief_data$belief_group <- "High Belief"
+
+# Combine datasets
+data <- bind_rows(low_belief_data, high_belief_data) %>%
+  mutate(belief_group = factor(belief_group))
+```
+
+
+# Choice accuracy and bet magnitude
+Plot average choice accuracy and bet magnitude with group comparisons
+
+```{r, fig.width=6, fig.height=10}
+# Choice accuracy and bet magnitude
+# Plot average choice accuracy and bet magnitude with group comparisons
+
+# Create filtered datasets for each analysis
+choice1_data <- data %>%
+  filter(player.computer_choice_one == 0)
+
+choice2_data <- data %>%
+  filter(player.computer_choice_two == 0)
+
+bet1_data <- data %>%
+  filter(player.computer_choice_one == 0, 
+         player.computer_bet_one == 0)
+
+bet2_data <- data %>%
+  filter(player.computer_choice_two == 0, 
+         player.computer_bet_two == 0)
+
+# Perform t-tests for within-group comparisons
+low_choice_ttest <- t.test(
+  choice2_data$player.choice2_accuracy[choice2_data$belief_group == "Low Belief"] * 100, 
+  choice1_data$player.choice1_accuracy[choice1_data$belief_group == "Low Belief"] * 100, 
+  paired = FALSE
+)
+
+high_choice_ttest <- t.test(
+  choice2_data$player.choice2_accuracy[choice2_data$belief_group == "High Belief"] * 100, 
+  choice1_data$player.choice1_accuracy[choice1_data$belief_group == "High Belief"] * 100, 
+  paired = FALSE
+)
+
+# Perform t-tests for between-group comparisons
+choice1_group_ttest <- t.test(
+  choice1_data$player.choice1_accuracy[choice1_data$belief_group == "High Belief"] * 100,
+  choice1_data$player.choice1_accuracy[choice1_data$belief_group == "Low Belief"] * 100,
+  paired = FALSE
+)
+
+choice2_group_ttest <- t.test(
+  choice2_data$player.choice2_accuracy[choice2_data$belief_group == "High Belief"] * 100,
+  choice2_data$player.choice2_accuracy[choice2_data$belief_group == "Low Belief"] * 100,
+  paired = FALSE
+)
+
+# Same for bet data
+low_bet_ttest <- t.test(
+  bet2_data$player.bet2[bet2_data$belief_group == "Low Belief"], 
+  bet1_data$player.bet1[bet1_data$belief_group == "Low Belief"], 
+  paired = FALSE
+)
+
+high_bet_ttest <- t.test(
+  bet2_data$player.bet2[bet2_data$belief_group == "High Belief"], 
+  bet1_data$player.bet1[bet1_data$belief_group == "High Belief"], 
+  paired = FALSE
+)
+
+bet1_group_ttest <- t.test(
+  bet1_data$player.bet1[bet1_data$belief_group == "High Belief"],
+  bet1_data$player.bet1[bet1_data$belief_group == "Low Belief"],
+  paired = FALSE
+)
+
+bet2_group_ttest <- t.test(
+  bet2_data$player.bet2[bet2_data$belief_group == "High Belief"],
+  bet2_data$player.bet2[bet2_data$belief_group == "Low Belief"],
+  paired = FALSE
+)
+
+# Apply multiple comparison corrections within each family of tests
+# Choice accuracy family
+choice_p_values <- c(
+  low_choice_ttest$p.value, 
+  high_choice_ttest$p.value, 
+  choice1_group_ttest$p.value, 
+  choice2_group_ttest$p.value
+)
+choice_adjusted_p <- p.adjust(choice_p_values, method = "holm")
+
+# Bet magnitude family
+bet_p_values <- c(
+  low_bet_ttest$p.value, 
+  high_bet_ttest$p.value, 
+  bet1_group_ttest$p.value, 
+  bet2_group_ttest$p.value
+)
+bet_adjusted_p <- p.adjust(bet_p_values, method = "holm")
+
+# Store the original p-values for reporting
+low_choice_original_p <- low_choice_ttest$p.value
+high_choice_original_p <- high_choice_ttest$p.value
+choice1_group_original_p <- choice1_group_ttest$p.value
+choice2_group_original_p <- choice2_group_ttest$p.value
+
+low_bet_original_p <- low_bet_ttest$p.value
+high_bet_original_p <- high_bet_ttest$p.value
+bet1_group_original_p <- bet1_group_ttest$p.value
+bet2_group_original_p <- bet2_group_ttest$p.value
+
+# Update the p-values for significance testing
+low_choice_ttest$p.value <- choice_adjusted_p[1]
+high_choice_ttest$p.value <- choice_adjusted_p[2]
+choice1_group_ttest$p.value <- choice_adjusted_p[3]
+choice2_group_ttest$p.value <- choice_adjusted_p[4]
+
+low_bet_ttest$p.value <- bet_adjusted_p[1]
+high_bet_ttest$p.value <- bet_adjusted_p[2]
+bet1_group_ttest$p.value <- bet_adjusted_p[3]
+bet2_group_ttest$p.value <- bet_adjusted_p[4]
+
+# Define Cohen's d function and calculate effect sizes (MOVED UP)
+cohens_d <- function(t, df) {
+  return(2 * t / sqrt(df))
+}
+
+# Calculate and store effect sizes
+low_choice_d <- cohens_d(low_choice_ttest$statistic, low_choice_ttest$parameter)
+high_choice_d <- cohens_d(high_choice_ttest$statistic, high_choice_ttest$parameter)
+choice1_group_d <- cohens_d(choice1_group_ttest$statistic, choice1_group_ttest$parameter)
+choice2_group_d <- cohens_d(choice2_group_ttest$statistic, choice2_group_ttest$parameter)
+
+low_bet_d <- cohens_d(low_bet_ttest$statistic, low_bet_ttest$parameter)
+high_bet_d <- cohens_d(high_bet_ttest$statistic, high_bet_ttest$parameter)
+bet1_group_d <- cohens_d(bet1_group_ttest$statistic, bet1_group_ttest$parameter)
+bet2_group_d <- cohens_d(bet2_group_ttest$statistic, bet2_group_ttest$parameter)
+
+# Add helper functions for significance annotation
+get_stars <- function(p) {
+  if(is.na(p)) return("ns")
+  if(p < 0.001) return("***")
+  else if(p < 0.01) return("**")
+  else if(p < 0.05) return("*")
+  else return("ns")
+}
+
+# New function to include effect size with stars
+get_stars_with_d <- function(p, d) {
+  stars <- if(is.na(p)) "ns" 
+           else if(p < 0.001) "***"
+           else if(p < 0.01) "**"
+           else if(p < 0.05) "*"
+           else "ns"
+  
+  return(paste0(stars, ", d = ", round(d, 2)))
+}
+
+# Function to format test results for saving
+format_test_results <- function(within_low, within_high, between_1, between_2, data_type, 
+                               orig_p_within_low, orig_p_within_high, orig_p_between_1, orig_p_between_2,
+                               d_within_low, d_within_high, d_between_1, d_between_2) {
+  paste0(
+    toupper(data_type), " ANALYSIS WITH BELIEF GROUP COMPARISON\n",
+    "==========================================\n\n",
+    "Run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n",
+    "WITHIN-GROUP T-TEST RESULTS\n",
+    "========================\n",
+    "Low Belief Group (", data_type, " 2 vs ", data_type, " 1):\n",
+    sprintf("t = %.3f\n", within_low$statistic),
+    sprintf("df = %.2f\n", within_low$parameter),
+    sprintf("Original p = %.3e\n", orig_p_within_low),
+    sprintf("Adjusted p = %.3e (Holm-Bonferroni)\n", within_low$p.value),
+    sprintf("Cohen's d = %.3f\n", d_within_low),
+    sprintf("95%% CI [%.3f, %.3f]\n\n", within_low$conf.int[1], within_low$conf.int[2]),
+    
+    "High Belief Group (", data_type, " 2 vs ", data_type, " 1):\n",
+    sprintf("t = %.3f\n", within_high$statistic),
+    sprintf("df = %.2f\n", within_high$parameter),
+    sprintf("Original p = %.3e\n", orig_p_within_high),
+    sprintf("Adjusted p = %.3e (Holm-Bonferroni)\n", within_high$p.value),
+    sprintf("Cohen's d = %.3f\n", d_within_high),
+    sprintf("95%% CI [%.3f, %.3f]\n\n", within_high$conf.int[1], within_high$conf.int[2]),
+    
+    "BETWEEN-GROUP T-TEST RESULTS\n",
+    "=========================\n",
+    data_type, " 1 (High Belief vs Low Belief):\n",
+    sprintf("t = %.3f\n", between_1$statistic),
+    sprintf("df = %.2f\n", between_1$parameter),
+    sprintf("Original p = %.3e\n", orig_p_between_1),
+    sprintf("Adjusted p = %.3e (Holm-Bonferroni)\n", between_1$p.value),
+    sprintf("Cohen's d = %.3f\n", d_between_1),
+    sprintf("95%% CI [%.3f, %.3f]\n\n", between_1$conf.int[1], between_1$conf.int[2]),
+    
+    data_type, " 2 (High Belief vs Low Belief):\n",
+    sprintf("t = %.3f\n", between_2$statistic),
+    sprintf("df = %.2f\n", between_2$parameter),
+    sprintf("Original p = %.3e\n", orig_p_between_2),
+    sprintf("Adjusted p = %.3e (Holm-Bonferroni)\n", between_2$p.value),
+    sprintf("Cohen's d = %.3f\n", d_between_2),
+    sprintf("95%% CI [%.3f, %.3f]\n\n", between_2$conf.int[1], between_2$conf.int[2])
+  )
+}
+
+# Write results to files
+writeLines(
+  format_test_results(low_choice_ttest, high_choice_ttest, choice1_group_ttest, choice2_group_ttest, 
+                     "Choice", low_choice_original_p, high_choice_original_p, choice1_group_original_p, 
+                     choice2_group_original_p, low_choice_d, high_choice_d, choice1_group_d, choice2_group_d),
+  here("output", "behav", "group_comparison", "choice_accuracy_group_comparison.txt")
+)
+
+writeLines(
+  format_test_results(low_bet_ttest, high_bet_ttest, bet1_group_ttest, bet2_group_ttest, 
+                     "Bet", low_bet_original_p, high_bet_original_p, bet1_group_original_p, 
+                     bet2_group_original_p, low_bet_d, high_bet_d, bet1_group_d, bet2_group_d),
+  here("output", "behav", "group_comparison", "bet_magnitude_group_comparison.txt")
+)
+
+# Create summary data for choice accuracy
+choice_data <- tibble(
+  value = c(
+    mean(choice1_data$player.choice1_accuracy[choice1_data$belief_group == "Low Belief"]) * 100,
+    mean(choice2_data$player.choice2_accuracy[choice2_data$belief_group == "Low Belief"]) * 100,
+    mean(choice1_data$player.choice1_accuracy[choice1_data$belief_group == "High Belief"]) * 100,
+    mean(choice2_data$player.choice2_accuracy[choice2_data$belief_group == "High Belief"]) * 100
+  ),
+  se = c(
+    sd(choice1_data$player.choice1_accuracy[choice1_data$belief_group == "Low Belief"]) * 100,
+    sd(choice2_data$player.choice2_accuracy[choice2_data$belief_group == "Low Belief"]) * 100,
+    sd(choice1_data$player.choice1_accuracy[choice1_data$belief_group == "High Belief"]) * 100,
+    sd(choice2_data$player.choice2_accuracy[choice2_data$belief_group == "High Belief"]) * 100
+  ) / sqrt(c(
+    sum(choice1_data$belief_group == "Low Belief"),
+    sum(choice2_data$belief_group == "Low Belief"),
+    sum(choice1_data$belief_group == "High Belief"),
+    sum(choice2_data$belief_group == "High Belief")
+  )),
+  choice_type = factor(c("Choice 1", "Choice 2", "Choice 1", "Choice 2")),
+  belief_group = factor(c("Low Belief", "Low Belief", "High Belief", "High Belief"))
+)
+
+# Create summary data for bet magnitude
+bet_data <- tibble(
+  value = c(
+    mean(bet1_data$player.bet1[bet1_data$belief_group == "Low Belief"]),
+    mean(bet2_data$player.bet2[bet2_data$belief_group == "Low Belief"]),
+    mean(bet1_data$player.bet1[bet1_data$belief_group == "High Belief"]),
+    mean(bet2_data$player.bet2[bet2_data$belief_group == "High Belief"])
+  ),
+  se = c(
+    sd(bet1_data$player.bet1[bet1_data$belief_group == "Low Belief"]),
+    sd(bet2_data$player.bet2[bet2_data$belief_group == "Low Belief"]),
+    sd(bet1_data$player.bet1[bet1_data$belief_group == "High Belief"]),
+    sd(bet2_data$player.bet2[bet2_data$belief_group == "High Belief"])
+  ) / sqrt(c(
+    sum(bet1_data$belief_group == "Low Belief"),
+    sum(bet2_data$belief_group == "Low Belief"),
+    sum(bet1_data$belief_group == "High Belief"),
+    sum(bet2_data$belief_group == "High Belief")
+  )),
+  bet_type = factor(c("Bet 1", "Bet 2", "Bet 1", "Bet 2")),
+  belief_group = factor(c("Low Belief", "Low Belief", "High Belief", "High Belief"))
+)
+
+# Create choice accuracy plot with effect sizes included in annotations
+choice_plot <- ggplot(choice_data, aes(x = choice_type, y = value, fill = belief_group)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
+  geom_errorbar(
+    aes(ymin = value - se, ymax = value + se),
+    position = position_dodge(width = 0.9),
+    width = 0.25
+  ) +
+  scale_fill_manual(values = c("Low Belief" = "#69b3e7", "High Belief" = "#1f77b4")) +
+  scale_y_continuous(limits = c(50, 67),  # Increased upper limit to accommodate longer annotations
+                    breaks = seq(50, 65, by = 5),
+                    expand = c(0, 0),
+                    oob = scales::squish) +
+  labs(
+    title = "Choice Accuracy",
+    subtitle = "p-values adjusted using Holm-Bonferroni correction\nEffect sizes shown as Cohen's d",
+    y = "Choice accuracy (%)",
+    fill = "Belief Group"
+  ) +
+  # Add significance bars for between-group comparisons with effect sizes
+  geom_signif(
+    xmin = 0.7, xmax = 1.3,
+    y_position = 65.5,
+    annotation = get_stars_with_d(choice1_group_ttest$p.value, choice1_group_d),
+    tip_length = 0.02
+  ) +
+  geom_signif(
+    xmin = 1.7, xmax = 2.3,
+    y_position = 65.5,
+    annotation = get_stars_with_d(choice2_group_ttest$p.value, choice2_group_d),
+    tip_length = 0.02
+  ) +
+  # Add significance bars for within-group comparisons with effect sizes
+  geom_signif(
+    xmin = 0.8, xmax = 1.8,
+    y_position = 62.5,
+    annotation = get_stars_with_d(low_choice_ttest$p.value, low_choice_d),
+    tip_length = 0.02,
+    color = "#69b3e7"
+  ) +
+  geom_signif(
+    xmin = 1.2, xmax = 2.2,
+    y_position = 64.0,
+    annotation = get_stars_with_d(high_choice_ttest$p.value, high_choice_d),
+    tip_length = 0.02,
+    color = "#1f77b4"
+  ) +
+  theme_classic() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 16),
+    axis.text = element_text(size = 14),
+    legend.position = "top",
+    legend.text = element_text(size = 12),
+    plot.title = element_text(size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 10, hjust = 0.5, face = "italic")
+  )
+
+# Create bet magnitude plot with effect sizes included in annotations
+bet_plot <- ggplot(bet_data, aes(x = bet_type, y = value, fill = belief_group)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.8) +
+  geom_errorbar(
+    aes(ymin = value - se, ymax = value + se),
+    position = position_dodge(width = 0.9),
+    width = 0.25
+  ) +
+  scale_fill_manual(values = c("Low Belief" = "#98cb85", "High Belief" = "#2ca02c")) +
+  scale_y_continuous(limits = c(2.1, 2.65),  # Increased upper limit for annotations
+                    breaks = seq(2.1, 2.6, by = 0.1),
+                    expand = c(0, 0),
+                    oob = scales::squish) +
+  labs(
+    title = "Bet Magnitude",
+    subtitle = "p-values adjusted using Holm-Bonferroni correction\nEffect sizes shown as Cohen's d",
+    y = "Bet magnitude",
+    fill = "Belief Group"
+  ) +
+  # Add significance bars for between-group comparisons with effect sizes
+  geom_signif(
+    xmin = 0.7, xmax = 1.3,
+    y_position = 2.6,
+    annotation = get_stars_with_d(bet1_group_ttest$p.value, bet1_group_d),
+    tip_length = 0.02
+  ) +
+  geom_signif(
+    xmin = 1.7, xmax = 2.3,
+    y_position = 2.6,
+    annotation = get_stars_with_d(bet2_group_ttest$p.value, bet2_group_d),
+    tip_length = 0.02
+  ) +
+  # Add significance bars for within-group comparisons with effect sizes
+  geom_signif(
+    xmin = 0.8, xmax = 1.8,
+    y_position = 2.48,
+    annotation = get_stars_with_d(low_bet_ttest$p.value, low_bet_d),
+    tip_length = 0.02,
+    color = "#98cb85"
+  ) +
+  geom_signif(
+    xmin = 1.2, xmax = 2.2,
+    y_position = 2.54,
+    annotation = get_stars_with_d(high_bet_ttest$p.value, high_bet_d),
+    tip_length = 0.02,
+    color = "#2ca02c"
+  ) +
+  theme_classic() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 16),
+    axis.text = element_text(size = 14),
+    legend.position = "top",
+    legend.text = element_text(size = 12),
+    plot.title = element_text(size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 10, hjust = 0.5, face = "italic")
+  )
+
+# Print plots
+print(choice_plot)
+print(bet_plot)
+
+# Arrange plots in a grid
+combined_plot <- plot_grid(choice_plot, bet_plot, ncol = 1)
+print(combined_plot)
+```
+
+# Choice switch probability and bet difference by group consensus
+Run linear-mixed effect models for choice switch probability and bet difference by group consensus, with belief group comparison
+
+```{r, fig.width=10, fig.height=10}
+rm(list=ls())
+
+source(here("R", "group_behavioural_plots.R"))
+
+# Read in both datasets
+low_belief_data <- read_csv(here("data", "preprocessed", "merged", "sessions", 
+                                 "otree_prolific_merged_filtered_2025-06-03_low_belief.csv"),
+                            show_col_types = FALSE)
+high_belief_data <- read_csv(here("data", "preprocessed", "merged", "sessions", 
+                                   "otree_prolific_merged_filtered_2025-06-03_high_belief.csv"),
+                             show_col_types = FALSE)
+
+# Add group identifier
+low_belief_data$belief_group <- "Low Belief"
+high_belief_data$belief_group <- "High Belief"
+
+# Combine datasets
+data <- bind_rows(low_belief_data, high_belief_data) %>%
+  mutate(belief_group = factor(belief_group))
+
+################## SPECIFIC PREPROCESSING ###################
+process_consensus_data_groups <- function(data, outcome_type) {
+  # Initial filtering based on outcome type
+  filtered_data <- if(outcome_type == "switch") {
+    data %>%
+      filter(
+        player.computer_choice_one == 0,
+        player.computer_choice_two == 0,
+        player.player1_choice1_computer == 0,
+        player.player2_choice1_computer == 0,
+        player.player3_choice1_computer == 0,
+        player.player4_choice1_computer == 0
+      )
+  } else {
+    data %>%
+      filter(
+        player.player1_choice1_computer == 0,
+        player.player2_choice1_computer == 0,
+        player.player3_choice1_computer == 0,
+        player.player4_choice1_computer == 0,
+        player.computer_bet_one == 0,
+        player.computer_bet_two == 0
+      )
+  }
+  
+  # Continue with existing processing, but keep belief_group
+  processed <- if(outcome_type == "switch") {
+    filtered_data %>%
+      group_by(participant.id_in_session, 
+               consensus = player.choice1_with, 
+               gender,
+               belief_group) %>%
+      summarise(
+        outcome_value = mean(player.switch_vs_stay) * 100,
+        .groups = 'drop'
+      )
+  } else {
+    filtered_data %>%
+      mutate(bet_difference = player.bet2 - player.bet1) %>%
+      group_by(participant.id_in_session,
+               consensus = player.choice1_with,
+               gender,
+               belief_group) %>%
+      summarise(
+        outcome_value = mean(bet_difference),
+        .groups = 'drop'
+      )
+  }
+  
+  processed %>%
+    left_join(
+      filtered_data %>%
+        group_by(participant.id_in_session) %>%
+        slice(1) %>%
+        select(participant.id_in_session, age),
+      by = "participant.id_in_session"
+    ) %>%
+    mutate(
+      direction = if_else(consensus >= 0.5, "With group", "Against group"),
+      consensus_numeric = case_when(
+        consensus %in% c(0, 1) ~ 2,
+        consensus %in% c(0.25, 0.75) ~ 1,
+        consensus == 0.5 ~ 0
+      ),
+      gender = factor(gender),
+      belief_group = factor(belief_group),
+      age = scale(age)[,1]
+    )
+}
+
+################## SPECIFIC MODEL FORMULAS ###################
+consensus_model_formulas_groups <- list(
+  m1 = outcome_value ~ belief_group * direction * consensus_numeric + age + 
+         (1|participant.id_in_session),
+  
+  m2 = outcome_value ~ belief_group * direction * consensus_numeric + age + 
+         (1|participant.id_in_session) + (1|gender),
+  
+  m3 = outcome_value ~ belief_group * direction * consensus_numeric + age + 
+         (1|participant.id_in_session) + (1|gender) + 
+         (1|direction:participant.id_in_session),
+  
+  m4 = outcome_value ~ belief_group * direction * consensus_numeric + age + 
+         (1|participant.id_in_session) + (1|gender) + 
+         (1|consensus_numeric:participant.id_in_session),
+  
+  m5 = outcome_value ~ belief_group * direction * consensus_numeric + age + 
+         (1|participant.id_in_session) + (1|gender) + 
+         (1|direction:participant.id_in_session) + 
+         (1|consensus_numeric:participant.id_in_session)
+)
+
+################## SPECIFIC PLOTTING FUNCTION ###################
+create_consensus_plot_groups <- function(data, model_results, anova_results, params) {
+  # Extract key p-values for interactions
+  belief_by_direction_p <- anova_results["belief_group:direction", "Pr(>Chisq)"]
+  belief_by_consensus_p <- anova_results["belief_group:consensus_numeric", "Pr(>Chisq)"]
+  three_way_p <- anova_results["belief_group:direction:consensus_numeric", "Pr(>Chisq)"]
+  
+  # Extract effect sizes (partial eta-squared)
+  eta_squared <- calculate_partial_eta_squared(anova_results)
+  belief_by_direction_eta <- eta_squared$partial_eta_sq[eta_squared$Effect == "belief_group:direction"]
+  belief_by_consensus_eta <- eta_squared$partial_eta_sq[eta_squared$Effect == "belief_group:consensus_numeric"]
+  three_way_eta <- eta_squared$partial_eta_sq[eta_squared$Effect == "belief_group:direction:consensus_numeric"]
+  
+  # Run additional specific contrast for against group comparison between belief groups
+  # Create emmeans object with all factors
+  emm <- emmeans(model_results$winning_model, specs = c("belief_group", "direction", "consensus_numeric"))
+  
+  # Compare "Against group" specifically between belief groups at each consensus level
+  against_contrasts <- contrast(emm, 
+                               method = "pairwise", 
+                               simple = "belief_group", 
+                               by = c("direction", "consensus_numeric"),
+                               adjust = "holm") %>%  # Use Holm correction for planned comparisons
+                      as.data.frame()
+  
+  # Filter to keep only "Against group" comparisons and add effect sizes
+  against_comparisons <- against_contrasts %>%
+    filter(direction == "Against group") %>%
+    mutate(
+      # Calculate Cohen's d
+      cohens_d = 2 * t.ratio / sqrt(df),
+      p_formatted = ifelse(p.value < 0.001, "p < 0.001", 
+                          sprintf("p = %.3f", p.value)),
+      d_formatted = sprintf("d = %.2f", cohens_d),
+      # Format for display
+      result_text = paste0(p_formatted, ", ", d_formatted),
+      is_sig = p.value < 0.05
+    )
+  
+  # Create plots for each belief group
+  plots <- list()
+  processed_data <- list()
+  
+  for (group in c("Low Belief", "High Belief")) {
+    # First, prepare the data with consensus levels
+    base_data <- data %>% 
+      filter(belief_group == group) %>%
+      mutate(
+        consensus_level = case_when(
+          consensus_numeric == 0 ~ "2:2",
+          consensus_numeric == 1 ~ "3:1",
+          consensus_numeric == 2 ~ "4:0"
+        ),
+        consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0"))
+      )
+    
+    # Calculate mean values for each consensus level and direction
+    group_data <- base_data %>%
+      group_by(consensus_level, direction) %>%
+      summarise(
+        mean_outcome = mean(outcome_value),
+        se = sd(outcome_value) / sqrt(n()),
+        .groups = 'drop'
+      )
+    
+    # For 2:2 consensus, the split is even so both directions should show the same value
+    data_2_2 <- base_data %>% 
+      filter(consensus_numeric == 0) %>%
+      summarise(
+        mean_outcome = mean(outcome_value),
+        se = sd(outcome_value) / sqrt(n()),
+        .groups = 'drop'
+      )
+    
+    # Create two rows, one for each direction, with the same values
+    both_directions_2_2 <- tibble(
+      consensus_level = rep("2:2", 2),
+      direction = c("Against group", "With group"),
+      mean_outcome = rep(data_2_2$mean_outcome, 2),
+      se = rep(data_2_2$se, 2)
+    )
+    
+    # Remove any existing 2:2 data and replace with our new values
+    processed_data[[group]] <- group_data %>%
+      filter(consensus_level != "2:2") %>%
+      bind_rows(both_directions_2_2) %>%
+      # Make sure factors are ordered correctly for plotting
+      mutate(
+        consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
+        direction = factor(direction, levels = c("Against group", "With group"))
+      )
+  }
+  
+  # Get shared y-axis limits
+  y_limits <- get_shared_y_limits(
+    processed_data[["Low Belief"]], 
+    processed_data[["High Belief"]], 
+    "mean_outcome",
+    buffer = 0.1
+  )
+  
+  # Now create plots with shared y-axis
+  for (group in c("Low Belief", "High Belief")) {
+    # Create plot for this group
+    p <- ggplot(processed_data[[group]], 
+           aes(x = consensus_level, 
+               y = mean_outcome, 
+               color = direction,
+               group = direction)) +
+      ggtitle(group) +
+      geom_line(linewidth = 1) +
+      geom_point(size = 3) +
+      geom_errorbar(aes(ymin = mean_outcome - se, 
+                        ymax = mean_outcome + se), 
+                    width = 0.2) +
+      geom_ribbon(aes(ymin = mean_outcome - se, 
+                      ymax = mean_outcome + se,
+                      fill = direction), 
+                  alpha = 0.2,
+                  color = NA) +
+      scale_color_manual(values = c("Against group" = "red", "With group" = "blue"),
+                        name = NULL) +
+      scale_fill_manual(values = c("Against group" = "red", "With group" = "blue"),
+                        name = NULL) +
+      # Use shared y-axis limits
+      scale_y_continuous(limits = c(y_limits$min, y_limits$max)) +
+      labs(x = "Group consensus",
+           y = params$y_label) +
+      theme_classic() +
+      theme(
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        legend.position = "top",
+        legend.text = element_text(size = 10),
+        plot.title = element_text(size = 14, hjust = 0.5)
+      )
+    
+    plots[[group]] <- p
+  }
+  
+  # Create combined plot
+  combined_plot <- plot_grid(
+    plots[["Low Belief"]], 
+    plots[["High Belief"]], 
+    ncol = 2,
+    align = "h",
+    axis = "tb"
+  )
+  
+  # Create title
+  title <- ggdraw() + 
+    draw_label(
+      "Group Consensus × Direction × Belief Group Interaction",
+      fontface = 'bold', 
+      size = 14, 
+      x = 0.5, 
+      y = 0.8
+    )
+  
+  # Add key interactions with p-values and effect sizes
+  title <- title + 
+    draw_line(x = c(0.3, 0.7), y = c(0.65, 0.65), size = 0.75) +
+    draw_text(
+      sprintf("Three-way Interaction: p = %.3f, η²ₚ = %.3f %s", 
+             three_way_p, 
+             three_way_eta,
+             ifelse(three_way_p < 0.05, "(significant)", "(not significant)")),
+      x = 0.5, 
+      y = 0.58, 
+      size = 12
+    ) +
+    draw_text(
+      sprintf("Belief × Direction: p = %.3f, η²ₚ = %.3f %s", 
+             belief_by_direction_p, 
+             belief_by_direction_eta,
+             ifelse(belief_by_direction_p < 0.05, "(significant)", "(not significant)")),
+      x = 0.5, 
+      y = 0.52, 
+      size = 10
+    ) +
+    draw_text(
+      sprintf("Belief × Consensus: p = %.3f, η²ₚ = %.3f %s", 
+             belief_by_consensus_p, 
+             belief_by_consensus_eta,
+             ifelse(belief_by_consensus_p < 0.05, "(significant)", "(not significant)")),
+      x = 0.5, 
+      y = 0.46, 
+      size = 10
+    )
+  
+  # Add "Against group" specific comparison results
+  results_text <- "Belief Group Comparison (High vs Low) for Against Group:"
+  
+  # Add significance symbols
+  against_comparisons <- against_comparisons %>%
+    mutate(sig_symbol = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01 ~ "**",
+      p.value < 0.05 ~ "*",
+      TRUE ~ "ns"
+    ))
+  
+  # Add results for each consensus level
+  for (i in 1:nrow(against_comparisons)) {
+    level <- against_comparisons$consensus_numeric[i]
+    consensus_label <- case_when(
+      level == 0 ~ "2:2",
+      level == 1 ~ "3:1",
+      level == 2 ~ "4:0"
+    )
+    
+    results_text <- paste0(results_text, 
+                          sprintf("\n• %s consensus: Diff = %.2f, %s, d = %.2f %s", 
+                                 consensus_label,
+                                 against_comparisons$estimate[i],
+                                 against_comparisons$p_formatted[i],
+                                 against_comparisons$cohens_d[i],
+                                 against_comparisons$sig_symbol[i]))
+  }
+  
+  title <- title + 
+    draw_text(
+      results_text,
+      x = 0.5,
+      y = 0.3,
+      size = 10,
+      hjust = 0.5
+    )
+  
+  # Note about multiple comparison correction and effect sizes
+  title <- title + 
+    draw_text(
+      "Note: All p-values adjusted using Holm-Bonferroni correction\nEffect sizes shown as partial eta-squared (η²ₚ) for interactions and Cohen's d for specific contrasts",
+      x = 0.5,
+      y = 0.1,
+      size = 8,
+      hjust = 0.5,
+      fontface = "italic"
+    )
+  
+  # Combine the title and plot
+  final_plot <- plot_grid(
+    title, 
+    combined_plot,
+    ncol = 1,
+    rel_heights = c(0.3, 1)
+  )
+  
+  return(final_plot)
+}
+
+################## RUN ANALYSES ###################
+# Run switch analysis
+switch_results <- run_mixed_model_pipeline(
+  data = data,
+  preprocessing_function = function(x) process_consensus_data_groups(x, "switch"),
+  model_formulas = consensus_model_formulas_groups,
+  plot_function = create_consensus_plot_groups,
+  analysis_name = "Choice Switch by Group Consensus and Belief Group",
+  output_path = here("output", "behav", "group_comparison", 
+                    "choice_switching_by_group_consensus_belief.txt"),
+  additional_params = list(
+    emmeans_specs = c("belief_group", "direction", "consensus_numeric"),
+    y_label = "Choice switch probability (%)"
+  )
+)
+
+# Run bet difference analysis
+bet_results <- run_mixed_model_pipeline(
+  data = data,
+  preprocessing_function = function(x) process_consensus_data_groups(x, "bet"),
+  model_formulas = consensus_model_formulas_groups,
+  plot_function = create_consensus_plot_groups,
+  analysis_name = "Bet Difference by Group Consensus and Belief Group",
+  output_path = here("output", "behav", "group_comparison", 
+                    "bet_difference_by_group_consensus_belief.txt"),
+  additional_params = list(
+    emmeans_specs = c("belief_group", "direction", "consensus_numeric"),
+    y_label = "Bet difference (Bet 2 - Bet 1)"
+  )
+)
+```
+
+# Choice accuracy and bet magnitude by switching across trials
+Plot Choice 1 accuracy and Bet 1 magnitude as a function of switch difference across trials and group consensus, with belief group comparison
+
+```{r, fig.width=10, fig.height=10}
+rm(list=ls())
+
+source(here("R", "group_behavioural_plots.R"))
+
+# Read in both datasets
+low_belief_data <- read_csv(here("data", "preprocessed", "merged", "sessions", 
+                                 "otree_prolific_merged_filtered_2025-06-03_low_belief.csv"),
+                            show_col_types = FALSE)
+high_belief_data <- read_csv(here("data", "preprocessed", "merged", "sessions", 
+                                   "otree_prolific_merged_filtered_2025-06-03_high_belief.csv"),
+                             show_col_types = FALSE)
+
+# Add group identifier
+low_belief_data$belief_group <- "Low Belief"
+high_belief_data$belief_group <- "High Belief"
+
+# Combine datasets
+data <- bind_rows(low_belief_data, high_belief_data) %>%
+  mutate(belief_group = factor(belief_group))
+
+################## SPECIFIC PREPROCESSING ###################
+process_switch_accuracy_data_groups <- function(data, outcome_type) {
+  # First calculate switches across trials
+  processed_data <- data %>%
+    group_by(participant.id_in_session) %>%
+    arrange(group.trial_number) %>%
+    mutate(
+      # Calculate switches only for consecutive trials 
+      is_consecutive = group.trial_number == lag(group.trial_number) + 1,
+      choice_switch_across_trials = case_when(
+        is.na(lag(group.trial_number)) ~ NA_real_,  # First trial
+        !is_consecutive ~ NA_real_,  # Non-consecutive trials
+        TRUE ~ as.numeric(player.chosen_image_one_binary != lag(player.chosen_image_two_binary))
+      ),
+      # Add flags for computer/group choices
+      valid_current_choice = player.computer_choice_one == 0,
+      valid_prev_choice = lag(player.computer_choice_two) == 0,
+      valid_prev_group = lag(player.player1_choice2_computer) == 0 & 
+                        lag(player.player2_choice2_computer) == 0 &
+                        lag(player.player3_choice2_computer) == 0 & 
+                        lag(player.player4_choice2_computer) == 0,
+      # Add bet-specific flags
+      valid_current_bet = player.computer_bet_one == 0,
+      valid_prev_bet = lag(player.computer_bet_two) == 0
+    ) %>%
+    ungroup()
+
+  # Apply specific filtering based on outcome type
+  filtered_data <- if(outcome_type == "accuracy") {
+    processed_data %>%
+      filter(
+        valid_current_choice,  # Current trial Choice 1 by participant
+        valid_prev_choice,     # Previous trial Choice 2 by participant  
+        valid_prev_group,      # Previous trial Choice 2 by group
+        !is.na(choice_switch_across_trials)  # Valid switch calculation
+      )
+  } else {
+    processed_data %>%
+      filter(
+        valid_current_choice,  # Current trial Choice 1 by participant
+        valid_current_bet,     # Current trial Bet 1 by participant
+        valid_prev_choice,     # Previous trial Choice 2 by participant
+        valid_prev_bet,        # Previous trial Bet 2 by participant
+        valid_prev_group,      # Previous trial Choice 2 by group
+        !is.na(choice_switch_across_trials)  # Valid switch calculation
+      )
+  }
+
+  # Create derived columns
+  filtered_data <- filtered_data %>%
+    mutate(
+      outcome_value = if(outcome_type == "accuracy") {
+        player.choice1_accuracy * 100
+      } else {
+        player.bet1
+      },
+      switch_difference = choice_switch_across_trials,
+      consensus_numeric = case_when(
+        player.choice2_with %in% c(0, 1) ~ 2,
+        player.choice2_with %in% c(0.25, 0.75) ~ 1,
+        player.choice2_with == 0.5 ~ 0
+      ),
+      consensus_level = case_when(
+        consensus_numeric == 2 ~ "4:0",
+        consensus_numeric == 1 ~ "3:1",
+        consensus_numeric == 0 ~ "2:2"
+      ),
+      direction = case_when(
+        player.choice2_with > 0.5 ~ "With group",
+        TRUE ~ "Against group"
+      ),
+      trial_type = factor(if_else(choice_switch_across_trials == 0, "Stay", "Switch"), 
+                         levels = c("Stay", "Switch")),
+      consensus_level = factor(consensus_level, levels = c("2:2", "3:1", "4:0")),
+      direction = factor(direction, levels = c("Against group", "With group")),
+      belief_group = factor(belief_group)  # Keep belief_group
+    )
+
+  # Create separate dataframes for With and Against groups using choice 2 consensus
+  df_with <- filtered_data %>%
+    mutate(direction = "With group") %>%
+    filter(player.choice2_with > 0.5)
+  
+  df_against <- filtered_data %>%
+    mutate(direction = "Against group") %>%
+    filter(player.choice2_with <= 0.5)
+  
+  # Combine and prepare final dataset
+  combined_data <- bind_rows(df_with, df_against) %>%
+    filter(!is.na(choice_switch_across_trials)) %>%
+    mutate(
+      consensus_numeric = case_when(
+        player.choice2_with %in% c(0, 1) ~ 2,
+        player.choice2_with %in% c(0.25, 0.75) ~ 1,
+        player.choice2_with == 0.5 ~ 0
+      ),
+      direction = factor(direction),
+      gender = factor(gender),
+      belief_group = factor(belief_group),
+      choice_switch_across_trials = factor(choice_switch_across_trials),
+      participant.id_in_session = factor(participant.id_in_session)
+    )
+  
+  return(combined_data)
+}
+
+################## SPECIFIC MODEL FORMULAS ###################
+get_switch_accuracy_formulas_groups <- function(outcome_var) {
+  formula_base <- as.formula(paste(
+    outcome_var,
+    "~ belief_group * direction * consensus_numeric * choice_switch_across_trials"
+  ))
+  
+  list(
+    m1 = update(formula_base, . ~ . + (1|participant.id_in_session)),
+    m2 = update(formula_base, . ~ . + (1|participant.id_in_session) + (1|gender)),
+    m3 = update(formula_base, . ~ . + (1|participant.id_in_session) + (1|gender) + 
+                (1|direction:participant.id_in_session)),
+    m4 = update(formula_base, . ~ . + (1|participant.id_in_session) + (1|gender) + 
+                (1|consensus_numeric:participant.id_in_session)),
+    m5 = update(formula_base, . ~ . + (1|participant.id_in_session) + (1|gender) + 
+                (1|direction:participant.id_in_session) + 
+                (1|consensus_numeric:participant.id_in_session))
+  )
+}
+
+################## SPECIFIC PLOTTING FUNCTION ###################
+create_switch_accuracy_plot_groups <- function(data, model_results, anova_results, params) {
+  # Extract all key p-values 
+  four_way_p <- anova_results["belief_group:direction:consensus_numeric:choice_switch_across_trials", "Pr(>Chisq)"]
+  
+  # Calculate partial eta-squared values for key interactions
+  eta_squared <- calculate_partial_eta_squared(anova_results)
+  four_way_eta <- eta_squared$partial_eta_sq[eta_squared$Effect == "belief_group:direction:consensus_numeric:choice_switch_across_trials"]
+  
+  # Get other important 2-way and 3-way interactions
+  three_way_effects <- c(
+    "belief_group:direction:consensus_numeric",
+    "belief_group:direction:choice_switch_across_trials",
+    "belief_group:consensus_numeric:choice_switch_across_trials",
+    "direction:consensus_numeric:choice_switch_across_trials"
+  )
+  
+  three_way_data <- data.frame(
+    Effect = character(),
+    P_Value = numeric(),
+    Eta_Sq = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  for (effect in three_way_effects) {
+    if (effect %in% rownames(anova_results)) {
+      p_val <- anova_results[effect, "Pr(>Chisq)"]
+      eta_val <- eta_squared$partial_eta_sq[eta_squared$Effect == effect]
+      three_way_data <- rbind(three_way_data, data.frame(
+        Effect = effect,
+        P_Value = p_val,
+        Eta_Sq = eta_val
+      ))
+    }
+  }
+  
+  # Extract F statistic for four-way interaction
+  four_way_f <- NULL
+  four_way_df <- NULL
+  for (row in rownames(anova_results)) {
+    if (row == "belief_group:direction:consensus_numeric:choice_switch_across_trials") {
+      four_way_f <- anova_results[row, "F"]
+      four_way_df <- paste(anova_results[row, "Df"], collapse = ",")
+      break
+    }
+  }
+  
+  # Run specific contrasts
+  emm <- emmeans(model_results$winning_model, 
+                 specs = c("belief_group", "direction", "consensus_numeric", "choice_switch_across_trials"))
+  
+  # 1. Compare "Switch trials" in "With group" between belief groups at each consensus level
+  switch_with_contrasts <- contrast(emm, 
+                                   method = "pairwise", 
+                                   simple = "belief_group", 
+                                   by = c("choice_switch_across_trials", "direction", "consensus_numeric"),
+                                   adjust = "holm") %>%  # Apply Holm correction
+                          as.data.frame() %>%
+                          filter(choice_switch_across_trials == 1, 
+                                direction == "With group") %>%
+                          mutate(
+                            # Calculate Cohen's d
+                            cohens_d = 2 * t.ratio / sqrt(df),
+                            p_formatted = ifelse(p.value < 0.001, "p < 0.001", 
+                                              sprintf("p = %.3f", p.value)),
+                            d_formatted = sprintf("d = %.2f", cohens_d),
+                            is_sig = p.value < 0.05,
+                            comparison = "Switch trials - With group")
+  
+  # 2. Compare "Stay trials" in "With group" between belief groups at each consensus level
+  stay_with_contrasts <- contrast(emm, 
+                                 method = "pairwise", 
+                                 simple = "belief_group", 
+                                 by = c("choice_switch_across_trials", "direction", "consensus_numeric"),
+                                 adjust = "holm") %>%  # Apply Holm correction
+                        as.data.frame() %>%
+                        filter(choice_switch_across_trials == 0, 
+                              direction == "With group") %>%
+                        mutate(
+                          # Calculate Cohen's d
+                          cohens_d = 2 * t.ratio / sqrt(df),
+                          p_formatted = ifelse(p.value < 0.001, "p < 0.001", 
+                                            sprintf("p = %.3f", p.value)),
+                          d_formatted = sprintf("d = %.2f", cohens_d),
+                          is_sig = p.value < 0.05,
+                          comparison = "Stay trials - With group")
+  
+  # 3. Compare "Stay trials" in "Against group" between belief groups at each consensus level
+  stay_against_contrasts <- contrast(emm, 
+                                    method = "pairwise", 
+                                    simple = "belief_group", 
+                                    by = c("choice_switch_across_trials", "direction", "consensus_numeric"),
+                                    adjust = "holm") %>%  # Apply Holm correction
+                           as.data.frame() %>%
+                           filter(choice_switch_across_trials == 0, 
+                                 direction == "Against group") %>%
+                           mutate(
+                             # Calculate Cohen's d
+                             cohens_d = 2 * t.ratio / sqrt(df),
+                             p_formatted = ifelse(p.value < 0.001, "p < 0.001", 
+                                               sprintf("p = %.3f", p.value)),
+                             d_formatted = sprintf("d = %.2f", cohens_d),
+                             is_sig = p.value < 0.05,
+                             comparison = "Stay trials - Against group")
+  
+  # Combine all contrasts
+  all_contrasts <- bind_rows(switch_with_contrasts, 
+                             stay_with_contrasts, 
+                             stay_against_contrasts)
+  
+  # Create plots for each belief group
+  plots <- list()
+  processed_data <- list()
+  
+  for (group in c("Low Belief", "High Belief")) {
+    group_data <- data %>% 
+      filter(belief_group == group) %>%
+      group_by(consensus_numeric, direction, choice_switch_across_trials) %>%
+      summarise(
+        value = mean(!!sym(params$outcome_var)),
+        se = sd(!!sym(params$outcome_var)) / sqrt(n()),
+        .groups = 'drop'
+      ) %>%
+      mutate(
+        consensus_category = case_when(
+          consensus_numeric == 2 ~ "4:0",
+          consensus_numeric == 1 ~ "3:1",
+          consensus_numeric == 0 ~ "2:2"
+        ),
+        consensus_category = factor(consensus_category, 
+                                  levels = c("2:2", "3:1", "4:0")),
+        trial_display = ifelse(choice_switch_across_trials == 1, 
+                             "Switch trials", "Stay trials"),
+        trial_display = factor(trial_display, 
+                             levels = c("Switch trials", "Stay trials"))
+      )
+    
+    if(params$is_accuracy) {
+      group_data <- group_data %>%
+        mutate(
+          value = value * 100,
+          se = se * 100
+        )
+    }
+    
+    # Get the 2:2 values
+    against_2_2 <- group_data %>%
+      filter(direction == "Against group", consensus_category == "2:2") %>%
+      mutate(direction = "With group")
+    
+    # Add to group_data
+    processed_data[[group]] <- bind_rows(group_data, against_2_2)
+  }
+  
+  # Get shared y-axis limits
+  y_limits <- get_shared_y_limits(
+    processed_data[["Low Belief"]], 
+    processed_data[["High Belief"]], 
+    "value",
+    buffer = 0.1
+  )
+  
+  # Now create plots with shared y-axis
+  for (group in c("Low Belief", "High Belief")) {
+    # Create plot for this group
+    p <- ggplot(processed_data[[group]], 
+           aes(x = consensus_category, 
+               y = value, 
+               color = direction, 
+               group = direction)) +
+      facet_wrap(~trial_display) +
+      ggtitle(group) +
+      geom_line(linewidth = 1) +
+      geom_point(size = 3) +
+      geom_errorbar(aes(ymin = value - se,
+                        ymax = value + se),
+                    width = 0.2) +
+      geom_ribbon(aes(ymin = value - se,
+                      ymax = value + se,
+                      fill = direction),
+                  alpha = 0.2,
+                  color = NA) +
+      scale_color_manual(values = c("Against group" = "red", 
+                                   "With group" = "blue")) +
+      scale_fill_manual(values = c("Against group" = "red", 
+                                  "With group" = "blue")) +
+      # Use shared y-axis limits
+      scale_y_continuous(limits = c(y_limits$min, y_limits$max)) +
+      labs(
+        x = "Group consensus",
+        y = params$y_label,
+        color = "Direction",
+        fill = "Direction"
+      ) +
+      theme_classic() +
+      theme(
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        strip.text = element_text(size = 12),
+        plot.title = element_text(size = 14, hjust = 0.5)
+      )
+    
+    plots[[group]] <- p
+  }
+  
+  # Create combined plot
+  combined_plot <- plot_grid(
+    plots[["Low Belief"]], 
+    plots[["High Belief"]], 
+    nrow = 2,
+    align = "v"
+  )
+  
+  # Format the p-value and F statistic
+  p_formatted <- if(four_way_p < 0.0001) {
+    "P < 0.0001"
+  } else {
+    sprintf("P = %.3f", four_way_p)
+  }
+  
+  # Create informative title with explanation and effect size
+  title <- ggdraw() + 
+    draw_label(
+      sprintf("Four-way interaction: Belief × Direction × Consensus × Switch/Stay\nF_%s = %.2f, %s, η²ₚ = %.3f", 
+            four_way_df, four_way_f, p_formatted, four_way_eta),
+      fontface = 'bold',
+      size = 12,
+      x = 0.5,
+      y = 0.9
+    ) +
+    draw_text(
+      "Testing whether the three-way interaction pattern\n(Belief × Direction × Consensus) differs between switch and stay trials",
+      x = 0.5,
+      y = 0.8,
+      size = 10,
+      hjust = 0.5
+    )
+  
+  # Add results of specific contrasts
+  # Add significance symbols to contrasts
+  all_contrasts <- all_contrasts %>%
+    mutate(sig_symbol = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01 ~ "**",
+      p.value < 0.05 ~ "*",
+      TRUE ~ "ns"
+    ))
+  
+  # Format consensus levels for display
+  all_contrasts <- all_contrasts %>%
+    mutate(consensus_label = case_when(
+      consensus_numeric == 0 ~ "2:2",
+      consensus_numeric == 1 ~ "3:1",
+      consensus_numeric == 2 ~ "4:0"
+    ))
+  
+  # Add significant 3-way interactions, if any
+  if (nrow(three_way_data) > 0) {
+    three_way_results <- three_way_data %>%
+      filter(P_Value < 0.05) %>%
+      mutate(
+        Effect_Name = case_when(
+          Effect == "belief_group:direction:consensus_numeric" ~ "Belief × Direction × Consensus",
+          Effect == "belief_group:direction:choice_switch_across_trials" ~ "Belief × Direction × Switch",
+          Effect == "belief_group:consensus_numeric:choice_switch_across_trials" ~ "Belief × Consensus × Switch",
+          Effect == "direction:consensus_numeric:choice_switch_across_trials" ~ "Direction × Consensus × Switch",
+          TRUE ~ Effect
+        )
+      )
+    
+    if (nrow(three_way_results) > 0) {
+      three_way_text <- "Significant 3-way interactions:"
+      
+      for (i in 1:nrow(three_way_results)) {
+        three_way_text <- paste0(three_way_text, 
+                               sprintf("\n• %s: p = %.3f, η²ₚ = %.3f", 
+                                      three_way_results$Effect_Name[i],
+                                      three_way_results$P_Value[i],
+                                      three_way_results$Eta_Sq[i]))
+      }
+      
+      title <- title + 
+        draw_text(
+          three_way_text,
+          x = 0.5,
+          y = 0.7,
+          size = 10,
+          hjust = 0.5
+        )
+    }
+  }
+  
+  # Create sections for each comparison type with effect sizes
+  results_text <- "Specific Belief Group Comparisons (High vs Low):"
+  
+  # 1. Switch - With Group
+  switch_with_text <- "\nSwitch trials - With group:"
+  switch_with_results <- all_contrasts %>% 
+    filter(comparison == "Switch trials - With group") %>%
+    arrange(consensus_numeric)
+  
+  for (i in 1:nrow(switch_with_results)) {
+    switch_with_text <- paste0(switch_with_text, 
+                              sprintf("\n• %s consensus: Diff = %.2f, %s, d = %.2f %s", 
+                                     switch_with_results$consensus_label[i],
+                                     switch_with_results$estimate[i],
+                                     switch_with_results$p_formatted[i],
+                                     switch_with_results$cohens_d[i],
+                                     switch_with_results$sig_symbol[i]))
+  }
+  
+  # 2. Stay - With Group
+  stay_with_text <- "\n\nStay trials - With group:"
+  stay_with_results <- all_contrasts %>% 
+    filter(comparison == "Stay trials - With group") %>%
+    arrange(consensus_numeric)
+  
+  for (i in 1:nrow(stay_with_results)) {
+    stay_with_text <- paste0(stay_with_text, 
+                            sprintf("\n• %s consensus: Diff = %.2f, %s, d = %.2f %s", 
+                                   stay_with_results$consensus_label[i],
+                                   stay_with_results$estimate[i],
+                                   stay_with_results$p_formatted[i],
+                                   stay_with_results$cohens_d[i],
+                                   stay_with_results$sig_symbol[i]))
+  }
+  
+  # 3. Stay - Against Group
+  stay_against_text <- "\n\nStay trials - Against group:"
+  stay_against_results <- all_contrasts %>% 
+    filter(comparison == "Stay trials - Against group") %>%
+    arrange(consensus_numeric)
+  
+  for (i in 1:nrow(stay_against_results)) {
+    stay_against_text <- paste0(stay_against_text, 
+                               sprintf("\n• %s consensus: Diff = %.2f, %s, d = %.2f %s", 
+                                      stay_against_results$consensus_label[i],
+                                      stay_against_results$estimate[i],
+                                      stay_against_results$p_formatted[i],
+                                      stay_against_results$cohens_d[i],
+                                      stay_against_results$sig_symbol[i]))
+  }
+  
+  # Combine all text
+  results_text <- paste0(results_text, switch_with_text, stay_with_text, stay_against_text)
+  
+  # Add contrast results to title
+  title <- title + 
+    draw_text(
+      results_text,
+      x = 0.5,
+      y = 0.3,
+      size = 8,
+      hjust = 0.5
+    )
+  
+  # Add note about correction and effect sizes
+  title <- title + 
+    draw_text(
+      "Note: All p-values adjusted using Holm-Bonferroni correction within each comparison type\nEffect sizes shown as partial eta-squared (η²ₚ) for interactions and Cohen's d for specific contrasts",
+      x = 0.5,
+      y = 0.02,
+      size = 8,
+      hjust = 0.5,
+      fontface = "italic"
+    )
+  
+  # Add the title to the plot with dynamic height
+  plot_with_title <- plot_grid(
+    title, 
+    combined_plot,
+    ncol = 1,
+    rel_heights = c(0.5, 1)
+  )
+  
+  return(plot_with_title)
+}
+
+# Run bet magnitude analysis
+bet_results <- run_mixed_model_pipeline(
+  data = data,
+  preprocessing_function = function(x) process_switch_accuracy_data_groups(x, "bet"),
+  model_formulas = get_switch_accuracy_formulas_groups("player.bet1"),
+  plot_function = create_switch_accuracy_plot_groups,
+  analysis_name = "Bet Magnitude by Switch, Consensus, and Belief",
+  output_path = here("output", "behav", "group_comparison", 
+                    "bet_magnitude_by_switch_consensus_belief.txt"),
+  additional_params = list(
+    outcome_var = "player.bet1",
+    y_label = "Bet 1 magnitude on t + 1",
+    is_accuracy = FALSE,
+    emmeans_specs = c("belief_group", "direction", "consensus_numeric", "choice_switch_across_trials")
+  )
+)
+```
+
+
+# Bet difference by choice switching
+Bet difference as a function of choice switching on the current trial and group consensus, with belief group comparison
+
+```{r, fig.width=10, fig.height=10}
+rm(list=ls())
+
+source(here("R", "group_behavioural_plots.R"))
+
+# Read in both datasets
+low_belief_data <- read_csv(here("data", "preprocessed", "merged", "sessions", 
+                                 "otree_prolific_merged_filtered_2025-06-03_low_belief.csv"),
+                            show_col_types = FALSE)
+high_belief_data <- read_csv(here("data", "preprocessed", "merged", "sessions", 
+                                   "otree_prolific_merged_filtered_2025-06-03_high_belief.csv"),
+                             show_col_types = FALSE)
+
+# Add group identifier
+low_belief_data$belief_group <- "Low Belief"
+high_belief_data$belief_group <- "High Belief"
+
+# Combine datasets
+data <- bind_rows(low_belief_data, high_belief_data) %>%
+  mutate(belief_group = factor(belief_group))
+
+################## SPECIFIC PREPROCESSING ###################
+process_bet_difference_data_groups <- function(data) {
+  # First filter out computer trials
+  filtered_data <- data %>%
+    filter(
+      player.computer_bet_one == 0,
+      player.computer_bet_two == 0,
+      player.computer_choice_one == 0,
+      player.computer_choice_two == 0,
+      player.player1_choice1_computer == 0,
+      player.player2_choice1_computer == 0,
+      player.player3_choice1_computer == 0,
+      player.player4_choice1_computer == 0
+    )
+
+  # Continue with preprocessing
+  processed_data <- filtered_data %>%
+    {
+      nTrials <<- nrow(.)
+      .
+    } %>%
+    mutate(
+      bet_difference = player.bet2 - player.bet1,
+      direction = if_else(player.choice1_with > 0.5, 
+                         "With group", "Against group")
+    ) %>%
+    filter(!is.na(direction)) %>%
+    mutate(
+      consensus_numeric = case_when(
+        player.choice1_with %in% c(0, 1) ~ 2,
+        player.choice1_with %in% c(0.25, 0.75) ~ 1,
+        player.choice1_with == 0.5 ~ 0
+      ),
+      direction = factor(direction),
+      gender = factor(gender),
+      belief_group = factor(belief_group),  # Keep belief_group
+      switch_vs_stay = factor(player.switch_vs_stay),
+      participant.id_in_session = factor(participant.id_in_session)
+    )
+  
+  return(processed_data)
+}
+
+################## SPECIFIC MODEL FORMULAS ###################
+bet_difference_formulas_groups <- list(
+  m1 = bet_difference ~ belief_group * direction * consensus_numeric * switch_vs_stay + 
+         (1|participant.id_in_session),
+  
+  m2 = bet_difference ~ belief_group * direction * consensus_numeric * switch_vs_stay + 
+         (1|participant.id_in_session) + (1|gender),
+  
+  m3 = bet_difference ~ belief_group * direction * consensus_numeric * switch_vs_stay + 
+         (1|participant.id_in_session) + (1|gender) + 
+         (1|direction:participant.id_in_session),
+  
+  m4 = bet_difference ~ belief_group * direction * consensus_numeric * switch_vs_stay + 
+         (1|participant.id_in_session) + (1|gender) + 
+         (1|consensus_numeric:participant.id_in_session),
+  
+  m5 = bet_difference ~ belief_group * direction * consensus_numeric * switch_vs_stay + 
+         (1|participant.id_in_session) + (1|gender) + 
+         (1|direction:participant.id_in_session) + 
+         (1|consensus_numeric:participant.id_in_session)
+)
+
+################## SPECIFIC PLOTTING FUNCTION ###################
+create_bet_difference_plot_groups <- function(data, model_results, anova_results, params) {
+  # Extract key p-value
+  four_way_p <- anova_results["belief_group:direction:consensus_numeric:switch_vs_stay", "Pr(>Chisq)"]
+  
+  # Calculate partial eta-squared for interactions
+  eta_squared <- calculate_partial_eta_squared(anova_results)
+  four_way_eta <- eta_squared$partial_eta_sq[eta_squared$Effect == "belief_group:direction:consensus_numeric:switch_vs_stay"]
+  
+  # Get significant 3-way interactions
+  three_way_effects <- c(
+    "belief_group:direction:consensus_numeric",
+    "belief_group:direction:switch_vs_stay",
+    "belief_group:consensus_numeric:switch_vs_stay",
+    "direction:consensus_numeric:switch_vs_stay"
+  )
+  
+  significant_three_way <- data.frame(
+    Effect = character(),
+    P_Value = numeric(),
+    Eta_Sq = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  for (effect in three_way_effects) {
+    if (effect %in% rownames(anova_results)) {
+      p_val <- anova_results[effect, "Pr(>Chisq)"]
+      eta_val <- eta_squared$partial_eta_sq[eta_squared$Effect == effect]
+      
+      if (p_val < 0.05) {
+        significant_three_way <- rbind(significant_three_way, data.frame(
+          Effect = effect,
+          P_Value = p_val,
+          Eta_Sq = eta_val
+        ))
+      }
+    }
+  }
+  
+  # Extract F statistic for four-way interaction
+  four_way_f <- NULL
+  four_way_df <- NULL
+  for (row in rownames(anova_results)) {
+    if (row == "belief_group:direction:consensus_numeric:switch_vs_stay") {
+      four_way_f <- anova_results[row, "F"]
+      four_way_df <- paste(anova_results[row, "Df"], collapse = ",")
+      break
+    }
+  }
+  
+  # Run specific contrasts for comparing bet difference by group consensus 
+  # for switch trials in both With and Against groups between high and low belief
+  emm <- emmeans(model_results$winning_model, 
+                 specs = c("belief_group", "direction", "consensus_numeric", "switch_vs_stay"))
+  
+  # 1. Compare "Switch trials" in "With group" between belief groups at each consensus level
+  switch_with_contrasts <- contrast(emm, 
+                                   method = "pairwise", 
+                                   simple = "belief_group", 
+                                   by = c("switch_vs_stay", "direction", "consensus_numeric"),
+                                   adjust = "holm") %>%  # Apply Holm correction
+                          as.data.frame() %>%
+                          filter(switch_vs_stay == 1, 
+                                direction == "With group") %>%
+                          mutate(
+                            # Calculate Cohen's d
+                            cohens_d = 2 * t.ratio / sqrt(df),
+                            p_formatted = ifelse(p.value < 0.001, "p < 0.001", 
+                                              sprintf("p = %.3f", p.value)),
+                            d_formatted = sprintf("d = %.2f", cohens_d),
+                            is_sig = p.value < 0.05,
+                            comparison = "Switch trials - With group")
+  
+  # 2. Compare "Switch trials" in "Against group" between belief groups at each consensus level
+  switch_against_contrasts <- contrast(emm, 
+                                      method = "pairwise", 
+                                      simple = "belief_group", 
+                                      by = c("switch_vs_stay", "direction", "consensus_numeric"),
+                                      adjust = "holm") %>%  # Apply Holm correction
+                             as.data.frame() %>%
+                             filter(switch_vs_stay == 1, 
+                                   direction == "Against group") %>%
+                             mutate(
+                               # Calculate Cohen's d
+                               cohens_d = 2 * t.ratio / sqrt(df),
+                               p_formatted = ifelse(p.value < 0.001, "p < 0.001", 
+                                                 sprintf("p = %.3f", p.value)),
+                               d_formatted = sprintf("d = %.2f", cohens_d),
+                               is_sig = p.value < 0.05,
+                               comparison = "Switch trials - Against group")
+  
+  # Combine contrasts
+  all_contrasts <- bind_rows(switch_with_contrasts, switch_against_contrasts)
+  
+  # Create plots for each belief group
+  plots <- list()
+  
+  for (group in c("Low Belief", "High Belief")) {
+    group_data <- data %>% 
+      filter(belief_group == group) %>%
+      group_by(consensus_numeric, direction, switch_vs_stay) %>%
+      summarise(
+        mean_diff = mean(bet_difference),
+        se = sd(bet_difference) / sqrt(n()),
+        .groups = 'drop'
+      ) %>%
+      mutate(
+        consensus_category = case_when(
+          consensus_numeric == 2 ~ "4:0",
+          consensus_numeric == 1 ~ "3:1",
+          consensus_numeric == 0 ~ "2:2"
+        ),
+        consensus_category = factor(consensus_category, 
+                                  levels = c("2:2", "3:1", "4:0")),
+        trial_display = ifelse(switch_vs_stay == 1, 
+                             '"Switch" trials:\nC2(t) ≠ C1(t)', 
+                             '"Stay" trials:\nC2(t) = C1(t)'),
+        trial_display = factor(trial_display, 
+                             levels = c('"Switch" trials:\nC2(t) ≠ C1(t)', 
+                                       '"Stay" trials:\nC2(t) = C1(t)'))
+      )
+    
+    # Get the 2:2 values
+    against_2_2 <- group_data %>%
+      filter(direction == "Against group", consensus_category == "2:2") %>%
+      mutate(direction = "With group")
+    
+    # Add to group_data
+    group_data <- bind_rows(group_data, against_2_2)
+    
+    # Calculate appropriate y-axis bounds based on data
+    y_min <- floor(min(group_data$mean_diff - group_data$se) * 10) / 10
+    y_max <- ceiling(max(group_data$mean_diff + group_data$se) * 10) / 10
+    
+    # Add some padding to ensure data points aren't at the edges
+    y_min <- max(y_min - 0.1, -0.3)
+    y_max <- min(y_max + 0.1, 0.6)
+    
+    # Create plot for this group
+    p <- ggplot(group_data, 
+           aes(x = consensus_category, 
+               y = mean_diff, 
+               color = direction, 
+               group = direction)) +
+      facet_wrap(~trial_display) +
+      ggtitle(group) +
+      geom_line(linewidth = 1) +
+      geom_point(size = 3) +
+      geom_errorbar(aes(ymin = mean_diff - se,
+                        ymax = mean_diff + se),
+                    width = 0.2) +
+      geom_ribbon(aes(ymin = mean_diff - se,
+                      ymax = mean_diff + se,
+                      fill = direction),
+                  alpha = 0.2,
+                  color = NA) +
+      scale_color_manual(values = c("Against group" = "red", 
+                                   "With group" = "blue")) +
+      scale_fill_manual(values = c("Against group" = "red", 
+                                  "With group" = "blue")) +
+      scale_y_continuous(limits = c(y_min, y_max), 
+                        breaks = seq(y_min, y_max, by = 0.1),
+                        labels = function(x) sprintf("%.1f", x)) +
+      labs(
+        x = "Group consensus",
+        y = "Bet difference (Bet 2 - Bet 1)",
+        color = "Direction",
+        fill = "Direction"
+      ) +
+      theme_classic() +
+      theme(
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        strip.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        plot.title = element_text(size = 14, hjust = 0.5)
+      )
+    
+    plots[[group]] <- p
+  }
+  
+  # Create combined plot
+  combined_plot <- plot_grid(
+    plots[["Low Belief"]], 
+    plots[["High Belief"]], 
+    nrow = 2,
+    align = "v"
+  )
+  
+  # Format p-value for four-way interaction
+  p_formatted <- if(four_way_p < 0.0001) {
+    "P < 0.0001"
+  } else {
+    sprintf("P = %.3f", four_way_p)
+  }
+  
+  # Add significance symbols to contrasts
+  all_contrasts <- all_contrasts %>%
+    mutate(sig_symbol = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01 ~ "**",
+      p.value < 0.05 ~ "*",
+      TRUE ~ "ns"
+    ))
+  
+  # Format consensus levels for display
+  all_contrasts <- all_contrasts %>%
+    mutate(consensus_label = case_when(
+      consensus_numeric == 0 ~ "2:2",
+      consensus_numeric == 1 ~ "3:1",
+      consensus_numeric == 2 ~ "4:0"
+    ))
+  
+  # Create title and add interaction results
+  title <- ggdraw() + 
+    draw_label(
+      sprintf("Four-way interaction: Belief × Direction × Consensus × Choice Switch\nF_%s = %.2f, %s, η²ₚ = %.3f", 
+             four_way_df, four_way_f, p_formatted, four_way_eta),
+      fontface = 'bold',
+      size = 12,
+      x = 0.5,
+      y = 0.9
+    )
+  
+  # Create sections for each comparison type with effect sizes
+  results_text <- "Specific Belief Group Comparisons (High vs Low):"
+  
+  # 1. Switch - With Group
+  switch_with_text <- "\nSwitch trials - With group:"
+  switch_with_results <- all_contrasts %>% 
+    filter(comparison == "Switch trials - With group") %>%
+    arrange(consensus_numeric)
+  
+  for (i in 1:nrow(switch_with_results)) {
+    switch_with_text <- paste0(switch_with_text, 
+                              sprintf("\n• %s consensus: Diff = %.2f, %s, d = %.2f %s", 
+                                     switch_with_results$consensus_label[i],
+                                     switch_with_results$estimate[i],
+                                     switch_with_results$p_formatted[i],
+                                     switch_with_results$cohens_d[i],
+                                     switch_with_results$sig_symbol[i]))
+  }
+  
+  # 2. Switch - Against Group
+  switch_against_text <- "\n\nSwitch trials - Against group:"
+  switch_against_results <- all_contrasts %>% 
+    filter(comparison == "Switch trials - Against group") %>%
+    arrange(consensus_numeric)
+  
+  for (i in 1:nrow(switch_against_results)) {
+    switch_against_text <- paste0(switch_against_text, 
+                                 sprintf("\n• %s consensus: Diff = %.2f, %s, d = %.2f %s", 
+                                        switch_against_results$consensus_label[i],
+                                        switch_against_results$estimate[i],
+                                        switch_against_results$p_formatted[i],
+                                        switch_against_results$cohens_d[i],
+                                        switch_against_results$sig_symbol[i]))
+  }
+  
+  # Combine all text
+  results_text <- paste0(results_text, switch_with_text, switch_against_text)
+  
+  # Add contrast results to title
+  title <- title + 
+    draw_text(
+      results_text,
+      x = 0.5,
+      y = 0.55,
+      size = 9,
+      hjust = 0.5
+    )
+  
+  # Add significant three-way interactions if present
+  if (nrow(significant_three_way) > 0) {
+    significant_three_way <- significant_three_way %>%
+      mutate(
+        Effect_Name = case_when(
+          Effect == "belief_group:direction:consensus_numeric" ~ "Belief × Direction × Consensus",
+          Effect == "belief_group:direction:switch_vs_stay" ~ "Belief × Direction × Switch",
+          Effect == "belief_group:consensus_numeric:switch_vs_stay" ~ "Belief × Consensus × Switch",
+          Effect == "direction:consensus_numeric:switch_vs_stay" ~ "Direction × Consensus × Switch",
+          TRUE ~ Effect
+        )
+      )
+    
+    three_way_text <- "Other significant interactions:"
+    for(i in 1:nrow(significant_three_way)) {
+      three_way_text <- paste0(three_way_text, 
+                             sprintf("\n• %s: p = %.3f, η²ₚ = %.3f *", 
+                                    significant_three_way$Effect_Name[i],
+                                    significant_three_way$P_Value[i],
+                                    significant_three_way$Eta_Sq[i]))
+    }
+    
+    title <- title + 
+      draw_text(
+        three_way_text,
+        x = 0.5,
+        y = 0.2,
+        size = 9,
+        hjust = 0.5
+      )
+  }
+  
+  # Add note about correction and effect sizes
+  title <- title + 
+    draw_text(
+      "Note: All p-values adjusted using Holm-Bonferroni correction within each comparison type\nEffect sizes shown as partial eta-squared (η²ₚ) for interactions and Cohen's d for specific contrasts",
+      x = 0.5,
+      y = 0.1,
+      size = 8,
+      hjust = 0.5,
+      fontface = "italic"
+    )
+  
+  # Add the title to the plot with dynamic height
+  rel_heights <- 0.4
+  if(nrow(significant_three_way) > 0) {
+    rel_heights <- rel_heights + 0.1
+  }
+  
+  plot_with_title <- plot_grid(
+    title, combined_plot,
+    ncol = 1,
+    rel_heights = c(rel_heights, 1)
+  )
+  
+  return(plot_with_title)
+}
+
+################## RUN ANALYSIS ###################
+# Run analysis
+bet_difference_results <- run_mixed_model_pipeline(
+  data = data,
+  preprocessing_function = process_bet_difference_data_groups,
+  model_formulas = bet_difference_formulas_groups,
+  plot_function = create_bet_difference_plot_groups,
+  analysis_name = "Bet Difference by Choice Switch and Belief",
+  output_path = here("output", "behav", "group_comparison",
+                    "bet_difference_by_choice_switch_belief.txt"),
+  additional_params = list(
+    emmeans_specs = c("belief_group", "direction", "consensus_numeric", "switch_vs_stay")
+  )
+)
+```
+
+# Choice accuracy and bet magnitude relative to reversal
+Choice accuracy and bet magnitude relative to reversal (plus and minus 3 trials), with belief group comparison
+
+```{r, fig.width=7, fig.height=12}
+rm(list=ls())
+
+source(here("R", "group_behavioural_plots.R"))
+
+# Read in both datasets
+low_belief_data <- read_csv(here("data", "preprocessed", "merged", "sessions", 
+                                 "otree_prolific_merged_filtered_2025-06-03_low_belief.csv"),
+                            show_col_types = FALSE)
+high_belief_data <- read_csv(here("data", "preprocessed", "merged", "sessions", 
+                                   "otree_prolific_merged_filtered_2025-06-03_high_belief.csv"),
+                             show_col_types = FALSE)
+
+# Add group identifier
+low_belief_data$belief_group <- "Low Belief"
+high_belief_data$belief_group <- "High Belief"
+
+# Combine datasets
+data <- bind_rows(low_belief_data, high_belief_data) %>%
+  mutate(belief_group = factor(belief_group))
+
+################## SPECIFIC PREPROCESSING ###################
+process_reversal_data_groups <- function(data, outcome_type) {
+  # Get reversal trials
+  reversal_trials <- data %>% 
+    filter(group.reversal_happened == 1) %>%
+    select(group.trial_number) %>%
+    distinct()
+  
+  # Define columns based on outcome type
+  cols <- if(outcome_type == "accuracy") {
+    c(player.choice1_accuracy = "Choice 1", 
+      player.choice2_accuracy = "Choice 2")
+  } else {
+    c(player.bet1 = "Bet 1", 
+      player.bet2 = "Bet 2")
+  }
+  
+  # Process data with additional filtering
+  processed_data <- data %>%
+    group_by(participant.id_in_session) %>%
+    mutate(
+      trial_to_reversal = map_dbl(group.trial_number, function(x) {
+        reversal_trial <- reversal_trials$group.trial_number
+        relative_pos <- x - reversal_trial
+        if(any(abs(relative_pos) <= 3)) {
+          relative_pos[which.min(abs(relative_pos))]
+        } else {
+          NA
+        }
+      })
+    ) %>%
+    filter(!is.na(trial_to_reversal)) %>%
+    # Modified filtering based on outcome type
+    filter(
+      if(outcome_type == "accuracy") {
+        player.computer_choice_one == 0 & player.computer_choice_two == 0
+      } else {
+        player.computer_bet_one == 0 & player.computer_bet_two == 0
+      }
+    ) %>%
+    pivot_longer(
+      cols = names(cols),
+      names_to = if(outcome_type == "accuracy") "choice_type" else "bet_type",
+      values_to = if(outcome_type == "accuracy") "accuracy" else "bet"
+    ) %>%
+    mutate(
+      choice_type = if(outcome_type == "accuracy") 
+        factor(choice_type, levels = names(cols), labels = cols) else NULL,
+      bet_type = if(outcome_type == "bet")
+        factor(bet_type, levels = names(cols), labels = cols) else NULL,
+      belief_group = factor(belief_group),
+      trial_to_reversal = factor(trial_to_reversal),
+      participant.id_in_session = factor(participant.id_in_session),
+      gender = factor(gender)
+    )
+  
+  return(processed_data)
+}
+
+################## SPECIFIC MODEL FORMULAS ###################
+get_reversal_formulas_groups <- function(outcome_type) {
+  # Set up formula components
+  dv <- if(outcome_type == "accuracy") "accuracy" else "bet"
+  iv <- if(outcome_type == "accuracy") "choice_type" else "bet_type"
+  
+  list(
+    m1 = as.formula(paste(dv, "~ belief_group *", iv, "*trial_to_reversal + 
+                         (1|participant.id_in_session)")),
+    
+    m2 = as.formula(paste(dv, "~ belief_group *", iv, "*trial_to_reversal + 
+                         (1|participant.id_in_session) + (1|gender)")),
+    
+    m3 = as.formula(paste(dv, "~ belief_group *", iv, "*trial_to_reversal + 
+                         (1|participant.id_in_session) + (1|gender) + (1|", 
+                         iv, ":participant.id_in_session)"))
+  )
+}
+
+################## SPECIFIC PLOTTING FUNCTION ###################
+create_reversal_plot_groups <- function(data, model_results, anova_results, params) {
+  # Extract key p-values
+  belief_by_trial_p <- anova_results["belief_group:trial_to_reversal", "Pr(>Chisq)"]
+  
+  belief_by_type_p <- if(params$is_accuracy) {
+    anova_results["belief_group:choice_type", "Pr(>Chisq)"]
+  } else {
+    anova_results["belief_group:bet_type", "Pr(>Chisq)"]
+  }
+  
+  three_way_p <- if(params$is_accuracy) {
+    anova_results["belief_group:choice_type:trial_to_reversal", "Pr(>Chisq)"]
+  } else {
+    anova_results["belief_group:bet_type:trial_to_reversal", "Pr(>Chisq)"]
+  }
+  
+  # Calculate partial eta-squared values
+  eta_squared <- calculate_partial_eta_squared(anova_results)
+  
+  belief_by_trial_eta <- eta_squared$partial_eta_sq[eta_squared$Effect == "belief_group:trial_to_reversal"]
+  
+  belief_by_type_eta <- if(params$is_accuracy) {
+    eta_squared$partial_eta_sq[eta_squared$Effect == "belief_group:choice_type"]
+  } else {
+    eta_squared$partial_eta_sq[eta_squared$Effect == "belief_group:bet_type"]
+  }
+  
+  three_way_eta <- if(params$is_accuracy) {
+    eta_squared$partial_eta_sq[eta_squared$Effect == "belief_group:choice_type:trial_to_reversal"]
+  } else {
+    eta_squared$partial_eta_sq[eta_squared$Effect == "belief_group:bet_type:trial_to_reversal"]
+  }
+  
+  # Extract F statistics for three-way interaction
+  three_way_f <- NULL
+  three_way_df <- NULL
+  interaction_key <- if(params$is_accuracy) "belief_group:choice_type:trial_to_reversal" else "belief_group:bet_type:trial_to_reversal"
+  
+  for (row in rownames(anova_results)) {
+    if (row == interaction_key) {
+      three_way_f <- anova_results[row, "F"]
+      three_way_df <- paste(anova_results[row, "Df"], collapse = ",")
+      break
+    }
+  }
+  
+  # Run specific contrasts between belief groups at each trial point and for each type
+  emm <- emmeans(model_results$winning_model, 
+                 specs = c("belief_group", "trial_to_reversal", params$type_col))
+  
+  # Compare belief groups at each trial point and for each type
+  belief_contrasts <- contrast(emm, 
+                             method = "pairwise", 
+                             simple = "belief_group", 
+                             by = c("trial_to_reversal", params$type_col),
+                             adjust = "holm") %>%
+                    as.data.frame() %>%
+                    mutate(
+                      # Remove Cohen's d calculation
+                      p_formatted = ifelse(p.value < 0.001, "p < 0.001", 
+                                         sprintf("p = %.3f", p.value)),
+                      is_sig = p.value < 0.05
+                    )
+  
+  # Create plots for each belief group
+  plots <- list()
+  processed_data <- list()
+  
+  for (group in c("Low Belief", "High Belief")) {
+    group_data <- data %>% 
+      filter(belief_group == group) %>%
+      group_by(trial_to_reversal, !!sym(params$type_col)) %>%
+      summarise(
+        value = mean(!!sym(params$value_col)) * params$scale_factor,
+        se = sd(!!sym(params$value_col)) / sqrt(n()) * params$scale_factor,
+        .groups = 'drop'
+      )
+    
+    processed_data[[group]] <- group_data
+  }
+  
+  # Get shared y-axis limits
+  y_limits <- get_shared_y_limits(
+    processed_data[["Low Belief"]], 
+    processed_data[["High Belief"]], 
+    "value",
+    buffer = 0.1
+  )
+  
+  # Now create plots with shared y-axis
+  for (group in c("Low Belief", "High Belief")) {
+    # Create plot for this group
+    p <- ggplot(processed_data[[group]], 
+           aes(x = trial_to_reversal, 
+               y = value, 
+               color = !!sym(params$type_col), 
+               group = !!sym(params$type_col))) +
+      ggtitle(group) +
+      # Add lines and points
+      geom_line(linewidth = 1, position = position_dodge(width = 0.3)) +
+      geom_point(size = 3, position = position_dodge(width = 0.3)) +
+      geom_errorbar(aes(ymin = value - se,
+                        ymax = value + se),
+                    width = 0.2,
+                    position = position_dodge(width = 0.3)) +
+      scale_color_manual(values = params$colors) +
+      scale_x_discrete(labels = c("-3", "-2", "-1", "0", "1", "2", "3")) +
+      # Use shared y-axis limits
+      scale_y_continuous(limits = c(y_limits$min, y_limits$max)) +
+      labs(
+        x = "Trial (relative to reversal)",
+        y = params$y_label,
+        color = params$legend_title
+      ) +
+      theme_classic() +
+      theme(
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        legend.text = element_text(size = 10),
+        plot.title = element_text(size = 14, hjust = 0.5)
+      )
+    
+    plots[[group]] <- p
+  }
+  
+  # Create combined plot
+  combined_plot <- plot_grid(
+    plots[["Low Belief"]], 
+    plots[["High Belief"]], 
+    nrow = 2,
+    align = "v"
+  )
+  
+  # Format p-values
+  format_p <- function(p) {
+    if(is.na(p)) return("NA")
+    if(p < 0.0001) return("p < 0.0001")
+    else return(sprintf("p = %.3f", p))
+  }
+  
+  # Create informative title with explanation
+  type_label <- if(params$is_accuracy) "Choice Type" else "Bet Type"
+  
+  # Add three-way F and p-value to title
+  title_text <- sprintf("Belief Group × %s × Trial Relative to Reversal", type_label)
+  if(!is.null(three_way_f) && !is.null(three_way_df)) {
+    title_text <- paste0(title_text, sprintf("\nF_%s = %.2f, %s, η²ₚ = %.3f", 
+                                           three_way_df, three_way_f, 
+                                           format_p(three_way_p), three_way_eta))
+  } else {
+    title_text <- paste0(title_text, sprintf("\n%s, η²ₚ = %.3f", 
+                                           format_p(three_way_p), three_way_eta))
+  }
+  
+  title <- ggdraw() + 
+    draw_label(
+      title_text,
+      fontface = 'bold', 
+      size = 14, 
+      x = 0.5, 
+      y = 0.8
+    )
+  
+  # Explanation text with p-values and effect sizes for all interactions
+  explanation <- "Testing:"
+  
+  # Show p-values and effect sizes for all interactions regardless of significance
+  explanation <- paste0(explanation, sprintf("\n• Belief × Trial: %s, η²ₚ = %.3f %s", 
+                                          format_p(belief_by_trial_p),
+                                          belief_by_trial_eta,
+                                          ifelse(belief_by_trial_p < 0.05, "(significant)", "(not significant)")))
+  if (belief_by_trial_p < 0.05) {
+    explanation <- paste0(explanation, "\n  The effect of trial position around reversal differs between belief groups")
+  }
+  
+  explanation <- paste0(explanation, sprintf("\n• Belief × %s: %s, η²ₚ = %.3f %s", 
+                                          type_label, 
+                                          format_p(belief_by_type_p),
+                                          belief_by_type_eta,
+                                          ifelse(belief_by_type_p < 0.05, "(significant)", "(not significant)")))
+  if (belief_by_type_p < 0.05) {
+    explanation <- paste0(explanation, sprintf("\n  The difference between %s types varies by belief group", tolower(type_label)))
+  }
+  
+  explanation <- paste0(explanation, sprintf("\n• Three-way interaction: %s, η²ₚ = %.3f %s", 
+                                          format_p(three_way_p),
+                                          three_way_eta,
+                                          ifelse(three_way_p < 0.05, "(significant)", "(not significant)")))
+  if (three_way_p < 0.05) {
+    explanation <- paste0(explanation, sprintf("\n  The %s type difference across trials varies by belief group", tolower(type_label)))
+  }
+  
+  title <- title + 
+    draw_text(
+      explanation,
+      x = 0.1,
+      y = 0.4,
+      size = 10,
+      hjust = 0,
+      vjust = 1
+    )
+  
+  # Add specific belief group contrasts (if there are significant differences)
+  significant_contrasts <- belief_contrasts %>% 
+    filter(is_sig == TRUE) %>%
+    arrange(!!sym(params$type_col), trial_to_reversal)
+  
+  if (nrow(significant_contrasts) > 0) {
+    contrast_text <- "Significant belief group differences (High vs Low):"
+    
+    for (i in 1:nrow(significant_contrasts)) {
+      type_val <- significant_contrasts[[params$type_col]][i]
+      trial_val <- significant_contrasts$trial_to_reversal[i]
+      
+      contrast_text <- paste0(contrast_text, 
+                            sprintf("\n• %s, Trial %s: Diff = %.2f, %s", 
+                                   type_val,
+                                   trial_val,
+                                   significant_contrasts$estimate[i],
+                                   significant_contrasts$p_formatted[i]))
+    }
+    
+    title <- title + 
+      draw_text(
+        contrast_text,
+        x = 0.8,
+        y = 0.4,
+        size = 9,
+        hjust = 1,
+        vjust = 1
+      )
+  }
+  
+  # Add note about multiple comparisons adjustments and effect sizes
+  title <- title + 
+    draw_text(
+      "Note: All p-values adjusted using Holm-Bonferroni correction for multiple testing\nEffect sizes shown as partial eta-squared (η²ₚ) for interactions",
+      x = 0.5,
+      y = 0.5,
+      size = 8,
+      hjust = 0.5,
+      fontface = "italic"
+    )
+  
+  # Combine the title and plot
+  final_plot <- plot_grid(
+    title, 
+    combined_plot,
+    ncol = 1,
+    rel_heights = c(0.3, 1)
+  )
+  
+  return(final_plot)
+}
+
+################## RUN ANALYSES ###################
+# Run accuracy analysis
+accuracy_results <- run_mixed_model_pipeline(
+  data = data,
+  preprocessing_function = function(x) process_reversal_data_groups(x, "accuracy"),
+  model_formulas = get_reversal_formulas_groups("accuracy"),
+  plot_function = create_reversal_plot_groups,
+  analysis_name = "Choice Accuracy by Trial Reversal and Belief",
+  output_path = here("output", "behav", "group_comparison",
+                    "choice_accuracy_by_trial_reversal_belief.txt"),
+  additional_params = list(
+    type_col = "choice_type",
+    value_col = "accuracy",
+    y_label = "Choice accuracy (%)",
+    legend_title = "Choice type",
+    colors = c("Choice 1" = "lightblue", "Choice 2" = "darkblue"),
+    is_accuracy = TRUE,
+    scale_factor = 100,
+    emmeans_specs = c("belief_group", "trial_to_reversal", "choice_type")
+  )
+)
+
+# Run bet magnitude analysis
+bet_results <- run_mixed_model_pipeline(
+  data = data,
+  preprocessing_function = function(x) process_reversal_data_groups(x, "bet"),
+  model_formulas = get_reversal_formulas_groups("bet"),
+  plot_function = create_reversal_plot_groups,
+  analysis_name = "Bet Magnitude by Trial Reversal and Belief",
+  output_path = here("output", "behav", "group_comparison",
+                    "bet_magnitude_by_trial_reversal_belief.txt"),
+  additional_params = list(
+    type_col = "bet_type",
+    value_col = "bet",
+    y_label = "Bet magnitude",
+    legend_title = "Bet type",
+    colors = c("Bet 1" = "#90EE90", "Bet 2" = "#006400"),
+    is_accuracy = FALSE,
+    scale_factor = 1,
+    emmeans_specs = c("belief_group", "trial_to_reversal", "bet_type")
+  )
+)
+```

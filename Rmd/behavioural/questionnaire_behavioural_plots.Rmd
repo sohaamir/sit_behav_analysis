@@ -5,9 +5,12 @@ date: "2025-01-17"
 output: html_document
 ---
 
-```{r setup, include=FALSE, message=FALSE, cache=TRUE}
+```{r setup, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE, cache.lazy=FALSE}
 # Install packages only if they are not already installed
-required_packages <- c("ggplot2", "tidyverse", "ggpubr", "rstatix", "ez", "lme4", "lmerTest", "car", "emmeans", "MuMIn", "psych", "interactions", "effects", "here", "lm.beta", "effectsize", "parallel", "gridExtra", "grid", "conflicted")
+required_packages <- c("ggplot2", "tidyverse", "ggpubr", "rstatix", "ez", "lme4", 
+                       "lmerTest", "car", "emmeans", "MuMIn", "psych", "interactions", 
+                       "effects", "here", "lm.beta", "effectsize", "parallel", 
+                       "gridExtra", "grid", "conflicted")
 install_if_missing <- required_packages[!required_packages %in% installed.packages()]
 if (length(install_if_missing) > 0) {
   install.packages(install_if_missing, quietly = TRUE)
@@ -43,11 +46,12 @@ conflict_prefer("filter", "dplyr")
 conflicts_prefer(lmerTest::lmer)
 conflicts_prefer(effectsize::eta_squared)
 conflicts_prefer(effectsize::cohens_d)
+conflicts_prefer(dplyr::lag)
 ```
 
 ## Plot average choice accuracy and bet magnitude 
 
-```{r setup, include=FALSE, message=FALSE}
+```{r choice_accuracy_and_bet_magnitude, include=FALSE, message=FALSE, warning=FALSE}
 rm(list=ls())
 
 # Source the core pipeline functions
@@ -182,23 +186,23 @@ plot_relationship <- function(questionnaire, measure = "choice", data = particip
 
 ################## RUN ANALYSIS ###################
 # Read data
-data <- read_csv(here("data", "preprocessed", "merged", "pilots", "otree_prolific_merged_filtered_2025-02-07.csv"), 
+data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), 
                 show_col_types = FALSE)
 
 # Create filtered datasets for each analysis condition
 choice1_data <- data %>%
-  filter(is.na(player.computer_choice1))
+  filter(player.computer_choice_one == 0)
 
 choice2_data <- data %>%
-  filter(is.na(player.computer_choice1) & is.na(player.computer_choice2))
+  filter(player.computer_choice_two == 0)
 
 bet1_data <- data %>%
-  filter(is.na(player.computer_choice1) & is.na(player.computer_bet_one))
+  filter(player.computer_choice_one == 0, 
+         player.computer_bet_one == 0)
 
 bet2_data <- data %>%
-  filter(is.na(player.computer_choice1) & 
-         is.na(player.computer_bet_one) & 
-         is.na(player.computer_choice2))
+  filter(player.computer_choice_two == 0, 
+         player.computer_bet_two == 0)
 
 # Preprocess each filtered dataset
 participant_data_choice1 <- prepare_participant_data(choice1_data)
@@ -229,7 +233,7 @@ dir.create(txt_base_dir, recursive = TRUE, showWarnings = FALSE)
 participant_data <- prepare_participant_data(data)
 questionnaires <- c("ssms", "dass", "lsas", "srp_sf", "ami", "aq_10")
 
-# Modify analyze_questionnaire_effects calls to use the appropriate datasets
+# Process only main questionnaires
 results <- map_df(questionnaires, function(quest) {
   choice_results <- analyze_single_measure(participant_data_choice2, quest, "choice", "choice_accuracy_diff")
   bet_results <- analyze_single_measure(participant_data_bet2, quest, "bet", "bet_magnitude_diff")
@@ -264,47 +268,7 @@ results <- results %>%
     bet_p_adj = p.adjust(bet_p, method = "fdr")
   )
 
-# Run subscale analyses
-subscale_results <- map_df(questionnaires, function(quest) {
-  if(!is.null(SUBSCALE_MAPPING[[quest]])) {
-    map_df(SUBSCALE_MAPPING[[quest]], function(subscale) {
-      choice_results <- analyze_single_measure(participant_data_choice2, subscale, "choice", "choice_accuracy_diff")
-      bet_results <- analyze_single_measure(participant_data_bet2, subscale, "bet", "bet_magnitude_diff")
-      
-      tibble(
-        questionnaire = subscale,
-        choice_p = choice_results$p_value,
-        bet_p = bet_results$p_value,
-        choice_r = choice_results$r_value,
-        bet_r = bet_results$r_value,
-        choice_r_ci_low = choice_results$r_ci_low,
-        choice_r_ci_high = choice_results$r_ci_high,
-        bet_r_ci_low = bet_results$r_ci_low,
-        bet_r_ci_high = bet_results$r_ci_high,
-        choice_beta = choice_results$beta,
-        bet_beta = bet_results$beta,
-        choice_resid_norm = choice_results$resid_norm,
-        bet_resid_norm = bet_results$resid_norm,
-        choice_r2 = choice_results$r2,
-        bet_r2 = bet_results$r2,
-        choice_f = choice_results$f_stat,
-        choice_df = choice_results$df,
-        bet_f = bet_results$f_stat,
-        bet_df = bet_results$df,
-        parent_scale = quest
-      )
-    })
-  }
-}) %>%
-  filter(!is.na(parent_scale)) %>%
-  group_by(parent_scale) %>%
-  mutate(
-    choice_p_adj = p.adjust(choice_p, method = "fdr"),
-    bet_p_adj = p.adjust(bet_p, method = "fdr")
-  ) %>%
-  ungroup()
-
-# Plot and save main scale relationships
+# Plot and save main scale relationships only
 for(quest in questionnaires) {
   # Choice plots
   p_choice <- plot_relationship(quest, "choice", participant_data, results)
@@ -325,42 +289,17 @@ for(quest in questionnaires) {
   )
 }
 
-# Plot subscale relationships
-for(scale in unique(subscale_results$parent_scale)) {
-  scale_results <- subscale_results %>% filter(parent_scale == scale)
-  
-  for(subscale in scale_results$questionnaire) {
-    # Choice plots
-    p_choice <- plot_relationship(subscale, "choice", participant_data, scale_results)
-    ggsave(
-      filename = file.path(plot_choice_dir, "subscales", paste0(subscale, ".png")),
-      plot = p_choice,
-      width = 8,
-      height = 6
-    )
-    
-    # Bet plots
-    p_bet <- plot_relationship(subscale, "bet", participant_data, scale_results)
-    ggsave(
-      filename = file.path(plot_bet_dir, "subscales", paste0(subscale, ".png")),
-      plot = p_bet,
-      width = 8,
-      height = 6
-    )
-  }
-}
-
 # Create params list for format_results
 analysis_params <- list(
   analysis_type = "overall_effects",
   preprocessing_fn = prepare_participant_data,
   questionnaire_vars = questionnaires,
   analysis_name = "Overall Choice and Bet Effects",
-  subscale_mapping = SUBSCALE_MAPPING
+  subscale_mapping = SUBSCALE_MAPPING  # Kept for reference only
 )
 
-# Format and save text results
-results_text <- format_results_overall(results, subscale_results, analysis_params)
+# Format and save text results (without subscale results)
+results_text <- format_results_overall(results, NULL, analysis_params)
 writeLines(results_text, file.path(txt_base_dir, "choice_and_bet_magnitude.txt"))
 
 # Print analysis completion message
@@ -372,7 +311,7 @@ cat("Results saved in:", analysis_dir, "\n")
 
 ## Within-trial choice switch probability and bet difference by group consensus and direction
 
-```{r setup, include=FALSE, message=FALSE}
+```{r ch_switch_within_trial, include=FALSE, message=FALSE, warning=FALSE}
 rm(list=ls())
 
 # Source the core pipeline functions
@@ -548,7 +487,7 @@ bet_params <- list(
 
 ################## RUN ANALYSES AND SAVE OUTPUT ###################
 # Read data
-data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), 
                  show_col_types = FALSE)
 
 # Define directory structure
@@ -579,11 +518,67 @@ bet_results <- run_model_pipeline(
 # Save plots for both analyses (chunk 1)
 save_analysis_plots(switch_results, "choice_switch", analysis_dir)
 save_analysis_plots(bet_results, "bet_difference", analysis_dir)
+
+# Run post-hoc tests for significant relationships
+message("\n\n====== RUNNING POST-HOC TESTS ======\n")
+
+# Run post-hoc tests for LSAS on choice switching
+message("Running post-hoc tests for LSAS on choice switching...")
+lsas_choice_posthoc <- run_posthoc_tests(
+  model = switch_results[["lsas"]]$moderation_results$main_results$model,
+  data = switch_results[["lsas"]]$processed_data,
+  var_name = "lsas",
+  analysis_type = "choice_consensus",
+  output_dir = analysis_dir
+)
+lsas_choice_plots <- plot_posthoc_simple_slopes(
+  data = switch_results[["lsas"]]$processed_data,
+  var_name = "lsas",
+  analysis_type = "choice_consensus",
+  output_dir = analysis_dir,
+  test_results = lsas_choice_posthoc$test_results
+)
+
+# Run post-hoc tests for AQ-10 on choice switching
+message("Running post-hoc tests for AQ-10 on choice switching...")
+aq10_choice_posthoc <- run_posthoc_tests(
+  model = switch_results[["aq_10"]]$moderation_results$main_results$model,
+  data = switch_results[["aq_10"]]$processed_data,
+  var_name = "aq_10",
+  analysis_type = "choice_consensus",
+  output_dir = analysis_dir
+)
+aq10_choice_plots <- plot_posthoc_simple_slopes(
+  data = switch_results[["aq_10"]]$processed_data,
+  var_name = "aq_10",
+  analysis_type = "choice_consensus",
+  output_dir = analysis_dir,
+  test_results = aq10_choice_posthoc$test_results
+)
+
+# Run post-hoc tests for DASS on choice switching
+message("Running post-hoc tests for DASS on choice switching...")
+dass_choice_posthoc <- run_posthoc_tests(
+  model = switch_results[["dass"]]$moderation_results$main_results$model,
+  data = switch_results[["dass"]]$processed_data,
+  var_name = "dass",
+  analysis_type = "choice_consensus",
+  output_dir = analysis_dir
+)
+dass_choice_plots <- plot_posthoc_simple_slopes(
+  data = switch_results[["dass"]]$processed_data,
+  var_name = "dass",
+  analysis_type = "choice_consensus",
+  output_dir = analysis_dir,
+  test_results = dass_choice_posthoc$test_results
+)
+
+message("\nPost-hoc tests complete.")
 ```
 
 ## Choice accuracy and bet magnitude as a function of switch difference across trials (Choice 2 - Choice 1), by group consensus and direction
 
-```{r setup, include=FALSE, message=FALSE}
+```{r ch_switch_across_trial, include=FALSE, message=FALSE, warning=FALSE}
 rm(list=ls())
 
 # Source the core pipeline functions
@@ -591,40 +586,54 @@ source(here("R", "questionnaire_behavioural_plots.R"))
 
 ################## SPECIFIC PREPROCESSING ###################
 preprocess_switch_diff_data <- function(data, outcome_type, questionnaire_var, params) {
-  # First apply the filtering as in original analysis
-  filtered_data <- data %>%
-    filter(
-      player.computer_choice_one == 0,
-      player.computer_choice_two == 0,
-      player.computer_bet_one == 0,
-      player.computer_bet_two == 0,
-      player.player1_choice1_computer == 0,
-      player.player2_choice1_computer == 0,
-      player.player3_choice1_computer == 0,
-      player.player4_choice1_computer == 0,
-      player.player1_choice2_computer == 0,
-      player.player2_choice2_computer == 0,
-      player.player3_choice2_computer == 0,
-      player.player4_choice2_computer == 0
-    )
-
-  # Calculate switches across trials, as in original analysis
-  processed_data <- filtered_data %>%
+  # First calculate switches across trials
+  processed_data <- data %>%
     group_by(participant.id_in_session) %>%
     arrange(group.trial_number) %>%
     mutate(
+      # Calculate switches only for consecutive trials 
       is_consecutive = group.trial_number == lag(group.trial_number) + 1,
       choice_switch_across_trials = case_when(
-        is.na(lag(group.trial_number)) ~ NA_real_,
-        !is_consecutive ~ NA_real_,
+        is.na(lag(group.trial_number)) ~ NA_real_,  # First trial
+        !is_consecutive ~ NA_real_,  # Non-consecutive trials
         TRUE ~ as.numeric(player.chosen_image_one_binary != lag(player.chosen_image_two_binary))
-      )
+      ),
+      # Add flags for computer/group choices
+      valid_current_choice = player.computer_choice_one == 0,
+      valid_prev_choice = lag(player.computer_choice_two) == 0,
+      valid_prev_group = lag(player.player1_choice2_computer) == 0 & 
+                        lag(player.player2_choice2_computer) == 0 &
+                        lag(player.player3_choice2_computer) == 0 & 
+                        lag(player.player4_choice2_computer) == 0,
+      # Add bet-specific flags
+      valid_current_bet = player.computer_bet_one == 0,
+      valid_prev_bet = lag(player.computer_bet_two) == 0
     ) %>%
-    ungroup() %>%
-    select(-is_consecutive)
+    ungroup()
+  
+  # Apply specific filtering based on outcome type
+  filtered_data <- if(outcome_type == "accuracy") {
+    processed_data %>%
+      filter(
+        valid_current_choice,  # Current trial Choice 1 by participant
+        valid_prev_choice,     # Previous trial Choice 2 by participant  
+        valid_prev_group,      # Previous trial Choice 2 by group
+        !is.na(choice_switch_across_trials)  # Valid switch calculation
+      )
+  } else {
+    processed_data %>%
+      filter(
+        valid_current_choice,  # Current trial Choice 1 by participant
+        valid_current_bet,     # Current trial Bet 1 by participant
+        valid_prev_choice,     # Previous trial Choice 2 by participant
+        valid_prev_bet,        # Previous trial Bet 2 by participant
+        valid_prev_group,      # Previous trial Choice 2 by group
+        !is.na(choice_switch_across_trials)  # Valid switch calculation
+      )
+  }
 
   # Create outcome value based on type
-  processed_data <- processed_data %>%
+  filtered_data <- filtered_data %>%
     mutate(
       outcome_value = if(outcome_type == "accuracy") {
         player.choice1_accuracy * 100
@@ -638,8 +647,7 @@ preprocess_switch_diff_data <- function(data, outcome_type, questionnaire_var, p
   subscales <- params$subscale_mapping[[questionnaire_var]]
   
   # Create final dataset with all transformations
-  final_data <- processed_data %>%
-    filter(!is.na(choice_switch_across_trials)) %>%
+  final_data <- filtered_data %>%
     mutate(
       consensus_numeric = case_when(
         player.choice2_with %in% c(0, 1) ~ 2,
@@ -671,6 +679,8 @@ preprocess_switch_diff_data <- function(data, outcome_type, questionnaire_var, p
       final_data[[subscale]] <- as.numeric(scale(final_data[[subscale]]))
     }
   }
+  
+    write_csv(final_data, here("data", "preprocessed", "merged", "sessions", paste0("switch_diff_final_", outcome_type, ".csv")))
   
   return(final_data)
 }
@@ -748,7 +758,7 @@ bet_params <- list(
 
 ################## RUN ANALYSES AND SAVE OUTPUT ####################
 # Read data
-data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), 
                  show_col_types = FALSE)
 
 # Define directory structure
@@ -776,7 +786,7 @@ bet_results <- run_model_pipeline(
   output_path = file.path(txt_base_dir, "bet_magnitude_by_switch_difference.txt")
 )
 
-# Save plots for both analyses (chunk 2)
+# Save plots for both analyses (chunk 3)
 save_analysis_plots(accuracy_results, "choice_accuracy", analysis_dir)
 save_analysis_plots(bet_results, "bet_magnitude", analysis_dir)
 ```
@@ -785,7 +795,7 @@ save_analysis_plots(bet_results, "bet_magnitude", analysis_dir)
 
 Bet difference as a function of choice switching on the current trial and group consensus (Fig Supp 2A)
 
-```{r setup, include=FALSE, message=FALSE}
+```{r ch_switch_within_trial_bet_diff, include=FALSE, message=FALSE, warning=FALSE}
 rm(list=ls())
 
 # Source the core pipeline functions
@@ -919,7 +929,7 @@ within_trial_params <- list(
 
 ################## RUN ANALYSES AND SAVE OUTPUT ###################
 # Read data
-data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), 
                  show_col_types = FALSE)
 
 # Define directory structure
@@ -938,18 +948,74 @@ within_trial_results <- run_model_pipeline(
 
 # Save plots (chunk 3)
 save_analysis_plots(within_trial_results, "within_trial_switch", analysis_dir)
+
+# Run post-hoc tests for significant relationships
+message("\n\n====== RUNNING POST-HOC TESTS ======\n")
+
+# Run post-hoc tests for SSMS on bet difference
+message("Running post-hoc tests for SSMS on bet difference...")
+ssms_bet_posthoc <- run_posthoc_tests(
+  model = within_trial_results[["ssms"]]$moderation_results$main_results$model,
+  data = within_trial_results[["ssms"]]$processed_data,
+  var_name = "ssms",
+  analysis_type = "within_trial_switch",
+  output_dir = analysis_dir
+)
+ssms_bet_plots <- plot_posthoc_simple_slopes(
+  data = within_trial_results[["ssms"]]$processed_data,
+  var_name = "ssms",
+  analysis_type = "within_trial_switch",
+  output_dir = analysis_dir,
+  test_results = ssms_bet_posthoc$test_results
+)
+
+# Run post-hoc tests for LSAS on bet difference
+message("Running post-hoc tests for LSAS on bet difference...")
+lsas_bet_posthoc <- run_posthoc_tests(
+  model = within_trial_results[["lsas"]]$moderation_results$main_results$model,
+  data = within_trial_results[["lsas"]]$processed_data,
+  var_name = "lsas",
+  analysis_type = "within_trial_switch",
+  output_dir = analysis_dir
+)
+lsas_bet_plots <- plot_posthoc_simple_slopes(
+  data = within_trial_results[["lsas"]]$processed_data,
+  var_name = "lsas",
+  analysis_type = "within_trial_switch",
+  output_dir = analysis_dir,
+  test_results = lsas_bet_posthoc$test_results
+)
+
+# Run post-hoc tests for AQ-10 on bet difference
+message("Running post-hoc tests for AQ-10 on bet difference...")
+aq10_bet_posthoc <- run_posthoc_tests(
+  model = within_trial_results[["aq_10"]]$moderation_results$main_results$model,
+  data = within_trial_results[["aq_10"]]$processed_data,
+  var_name = "aq_10",
+  analysis_type = "within_trial_switch",
+  output_dir = analysis_dir
+)
+aq10_bet_plots <- plot_posthoc_simple_slopes(
+  data = within_trial_results[["aq_10"]]$processed_data,
+  var_name = "aq_10",
+  analysis_type = "within_trial_switch",
+  output_dir = analysis_dir,
+  test_results = aq10_bet_posthoc$test_results
+)
+
+message("\nPost-hoc tests complete.")
 ```
 
 ## Questionnaire effects on choice accuracy and bet magnitude around reversals
 
-```{r setup, include=FALSE, message=FALSE}
+```{r reversal_trials, include=FALSE, message=FALSE, warning=FALSE}
 rm(list=ls())
 
 # Source the core pipeline functions
 source(here("R", "questionnaire_behavioural_plots.R"))
 
 # Read data
-data <- read_csv(here("data", "preprocessed", "merged_test_data.csv"), 
+data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), 
                  show_col_types = FALSE)
 
 ################## PRE-PROCESSING ###################
@@ -970,19 +1036,17 @@ reversal_data <- data %>%
     player.bet2,
     group.reversal_happened,
     # Add computer columns for filtering
-    player.player1_choice1_computer,
-    player.player1_choice2_computer,
+    player.computer_choice_one,
+    player.computer_choice_two,
     player.computer_bet_one,
     player.computer_bet_two,
-    # Main scales
+    # Main scales and subscales (don't scale them yet)
     ssms, dass, lsas, srp_sf, ami, aq_10,
-    # Subscales
     lsas_p, lsas_s,
     dass_a, dass_d, dass_s,
     ssms_cd, ssms_ia,
     srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct,
     ami_es, ami_sm, ami_ba,
-    # Demographics
     age, gender
   ) %>%
   # Get trials relative to reversal and check for complete windows
@@ -1018,23 +1082,48 @@ reversal_data <- data %>%
     trial_to_reversal = factor(trial_to_reversal),
     participant.id_in_session = factor(participant.id_in_session),
     # Scale questionnaire variables and age
-    across(c(ssms, dass, lsas, srp_sf, ami, aq_10, age), scale)
+    across(c(ssms, dass, lsas, srp_sf, ami, aq_10, age,
+            lsas_p, lsas_s,
+            dass_a, dass_d, dass_s,
+            ssms_cd, ssms_ia,
+            srp_sf_ipm, srp_sf_ca, srp_sf_els, srp_sf_ct,
+            ami_es, ami_sm, ami_ba), scale)
   )
 
 ################## CREATE FILTERED DATASETS ###################
 # Create choice-specific dataset
 choice_data <- reversal_data %>%
   filter(
-    player.player1_choice1_computer == 0,
-    player.player1_choice2_computer == 0
+    player.computer_choice_one == 0,
+    player.computer_choice_two == 0
   )
 
 # Create bet-specific dataset
 bet_data <- reversal_data %>%
   filter(
     player.computer_bet_one == 0,
-    player.computer_bet_two == 0
+    player.computer_bet_two == 0,
+    player.computer_choice_one == 0,
+    player.computer_choice_two == 0
   )
+
+# Create directory for output if it doesn't exist
+dir.create("processed_data", showWarnings = FALSE)
+
+# Save the main reversal dataset
+write.csv(reversal_data, 
+          "processed_data/reversal_data_complete.csv", 
+          row.names = FALSE)
+
+# Save the choice-specific dataset
+write.csv(choice_data, 
+          "processed_data/choice_data_filtered.csv", 
+          row.names = FALSE)
+
+# Save the bet-specific dataset
+write.csv(bet_data, 
+          "processed_data/bet_data_filtered.csv", 
+          row.names = FALSE)
 
 # Print summary of data
 cat("\nReversal Analysis Data Summary:\n")
@@ -1069,7 +1158,7 @@ dir.create(plot_bet_dir, recursive = TRUE, showWarnings = FALSE)
 all_choice_results <- ""
 all_bet_results <- ""
 
-# Run analysis for each questionnaire
+# Run analysis for each questionnaire (main scales only)
 for(var in questionnaire_vars) {
   # Create plots and get test results for choice data
   choice_results <- plot_median_split_reversal(choice_data, var, NULL, NULL, var)
@@ -1093,12 +1182,11 @@ for(var in questionnaire_vars) {
     height = 7
   )
   
-  # Format and append choice results
+  # Format and append results
   formatted_choice_results <- format_results_reversal(choice_results$test_results, 
                                                     choice_results$summary_data, 
                                                     var)
   
-  # Format and append bet results
   formatted_bet_results <- format_results_reversal(bet_results$test_results, 
                                                  bet_results$summary_data, 
                                                  var)
@@ -1106,51 +1194,7 @@ for(var in questionnaire_vars) {
   all_choice_results <- paste0(all_choice_results, formatted_choice_results$choice_text, "\n\n")
   all_bet_results <- paste0(all_bet_results, formatted_bet_results$bet_text, "\n\n")
   
-  # Process subscales if they exist
-  if(!is.null(SUBSCALE_MAPPING[[var]])) {
-    for(subscale in SUBSCALE_MAPPING[[var]]) {
-      # Run subscale analyses on choice data
-      choice_subscale_results <- plot_median_split_reversal(choice_data, 
-                                                          subscale, 
-                                                          NULL, 
-                                                          NULL, 
-                                                          subscale)
-      
-      # Run subscale analyses on bet data
-      bet_subscale_results <- plot_median_split_reversal(bet_data, 
-                                                        subscale, 
-                                                        NULL, 
-                                                        NULL, 
-                                                        subscale)
-      
-      # Save subscale plots
-      ggsave(
-        filename = file.path(plot_choice_dir, paste0(subscale, "_choice_reversal.png")),
-        plot = choice_subscale_results$choice_plot,
-        width = 5,
-        height = 7
-      )
-      
-      ggsave(
-        filename = file.path(plot_bet_dir, paste0(subscale, "_bet_reversal.png")),
-        plot = bet_subscale_results$bet_plot,
-        width = 5,
-        height = 7
-      )
-      
-      # Format and append subscale results
-      formatted_choice_results <- format_results_reversal(choice_subscale_results$test_results,
-                                                        choice_subscale_results$summary_data,
-                                                        subscale)
-      
-      formatted_bet_results <- format_results_reversal(bet_subscale_results$test_results,
-                                                     bet_subscale_results$summary_data,
-                                                     subscale)
-      
-      all_choice_results <- paste0(all_choice_results, formatted_choice_results$choice_text, "\n\n")
-      all_bet_results <- paste0(all_bet_results, formatted_bet_results$bet_text, "\n\n")
-    }
-  }
+  # No subscale processing
 }
 
 # Save combined results
@@ -1163,4 +1207,3 @@ writeLines(all_bet_results,
 cat("\nAnalysis complete.\n")
 cat("Results saved in:", analysis_dir, "\n")
 ```
-

@@ -104,9 +104,70 @@ theme_custom <- theme_minimal() +
     legend.text = element_text(size = 9)
   )
 
+################## HELPER FUNCTIONS ###################
+# Function to get shared y-axis limits for consistent plotting
+get_shared_y_limits <- function(data_low, data_high, value_col, buffer = 0.05) {
+  # Combine both datasets for min/max calculation
+  all_values <- c(
+    data_low[[value_col]] - data_low$se,
+    data_low[[value_col]] + data_low$se,
+    data_high[[value_col]] - data_high$se,
+    data_high[[value_col]] + data_high$se
+  )
+  
+  min_val <- min(all_values, na.rm = TRUE)
+  max_val <- max(all_values, na.rm = TRUE)
+  
+  # Add buffer
+  range <- max_val - min_val
+  min_val <- min_val - (range * buffer)
+  max_val <- max_val + (range * buffer)
+  
+  return(list(min = min_val, max = max_val))
+}
+
+################## EFFECT SIZE CALCULATIONS ###################
+calculate_partial_eta_squared <- function(anova_results) {
+  # Create a data frame to store the results
+  eta_sq <- data.frame(
+    Effect = rownames(anova_results),
+    partial_eta_sq = NA
+  )
+  
+  # Calculate partial eta-squared for each effect
+  for (i in 1:nrow(anova_results)) {
+    # Check if F value exists
+    if ("F" %in% colnames(anova_results)) {
+      F_val <- anova_results[i, "F"]
+      df_num <- anova_results[i, "Df"][1]  # numerator df
+      df_denom <- anova_results[i, "Df"][2]  # denominator df
+      
+      # Calculate partial eta-squared
+      eta_sq$partial_eta_sq[i] <- (F_val * df_num) / (F_val * df_num + df_denom)
+    } else {
+      # For Chi-square tests, use an alternative calculation
+      chisq_val <- anova_results[i, "Chisq"]
+      df_num <- anova_results[i, "Df"]
+      
+      # Calculate partial eta-squared (approximation)
+      eta_sq$partial_eta_sq[i] <- chisq_val / (chisq_val + nrow(data))
+    }
+  }
+  
+  return(eta_sq)
+}
+
+# Function to calculate Cohen's d from t-statistic
+calculate_cohens_d <- function(t_value, df) {
+  return(2 * t_value / sqrt(df))
+}
+
 ################## RESULTS FORMATTING ###################
 format_results <- function(model_results, anova_results, posthoc_results, 
                            plot_data, analysis_name, diagnostics) {
+  
+  # Calculate partial eta-squared
+  eta_sq <- calculate_partial_eta_squared(anova_results)
   
   output_text <- sprintf("%s - STATISTICAL ANALYSIS RESULTS\n\n", 
                          toupper(analysis_name))
@@ -158,6 +219,28 @@ format_results <- function(model_results, anova_results, posthoc_results,
                         "  Number of outliers: ", 
                         diagnostics$outliers$n_outliers, "\n\n")
   
+  # Effect sizes section
+  output_text <- paste0(output_text, "EFFECT SIZES:\n",
+                        "===========\n",
+                        "R² marginal: ", round(diagnostics$model_fit$r2_marginal, 3), 
+                        " (variance explained by fixed effects)\n",
+                        "R² conditional: ", round(diagnostics$model_fit$r2_conditional, 3), 
+                        " (variance explained by both fixed and random effects)\n\n")
+  
+  # Add partial eta-squared values for complex interactions
+  output_text <- paste0(output_text, "PARTIAL ETA-SQUARED VALUES:\n",
+                        "==========================\n")
+  
+  # Format partial eta-squared table
+  eta_sq_table <- data.frame(
+    Effect = eta_sq$Effect,
+    Partial_Eta_Sq = round(eta_sq$partial_eta_sq, 3)
+  )
+  
+  output_text <- paste0(output_text,
+                        paste(capture.output(print.data.frame(eta_sq_table)),
+                              collapse = "\n"), "\n\n")
+  
   # ANOVA results
   output_text <- paste0(output_text, "ANOVA RESULTS:\n",
                         "==============\n",
@@ -172,6 +255,7 @@ format_results <- function(model_results, anova_results, posthoc_results,
   
   return(output_text)
 }
+
 
 ################## CORE PIPELINE ###################
 run_mixed_model_pipeline <- function(
@@ -213,14 +297,22 @@ run_mixed_model_pipeline <- function(
   # Get statistical results
   anova_results <- car::Anova(winning_model, type = 2)
   
+  # Calculate partial eta-squared values
+  eta_squared_values <- calculate_partial_eta_squared(anova_results)
+  
   # Run post-hoc tests
   emmeans_results <- emmeans(winning_model, 
                              specs = additional_params$emmeans_specs)
   posthoc_results <- pairs(emmeans_results, adjust = "tukey")
   
-  # Create plot
+  # Create a properly merged list of parameters
+  plot_params <- additional_params
+  plot_params$eta_squared <- eta_squared_values
+  plot_params$diagnostics <- diagnostics
+  
+  # Create plot with all parameters
   plot <- plot_function(processed_data, model_results, 
-                        anova_results, additional_params)
+                        anova_results, plot_params)
   
   # Format and save results
   results_text <- format_results(
@@ -246,6 +338,7 @@ run_mixed_model_pipeline <- function(
     posthoc_results = posthoc_results,
     plot = plot,
     processed_data = processed_data,
-    diagnostics = diagnostics
+    diagnostics = diagnostics,
+    eta_squared = eta_squared_values
   ))
 }

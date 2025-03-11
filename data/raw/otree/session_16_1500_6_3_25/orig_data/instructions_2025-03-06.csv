@@ -1,0 +1,26 @@
+﻿participant.id_in_session,participant.code,participant.label,participant._is_bot,participant._index_in_pages,participant._max_page_index,participant._current_app_name,participant._current_page_name,participant.time_started_utc,participant.visited,participant.mturk_worker_id,participant.mturk_assignment_id,participant.payoff,player.id_in_group,player.role,player.payoff,player.prolific_id,group.id_in_subsession,subsession.round_number,session.code,session.label,session.mturk_HITId,session.mturk_HITGroupId,session.comment,session.is_demo
+1,51600f0a,66bfd3867e3dd5e2c19650b9,0,298,298,submission,Submit,2025-03-06 14:59:11.032935,1,,,0.0,1,,0.0,66bfd3867e3dd5e2c19650b9,1,1,74u25ss6,,,,,0
+2,ky73j8yc,64137cf15dfe79e9ff198054,0,37,298,main_task,WaitPage2,2025-03-06 14:59:11.061559,1,,,0.0,2,,0.0,64137cf15dfe79e9ff198054,1,1,74u25ss6,,,,,0
+3,64b5pb6z,647849063b9fd9be24803727,0,298,298,submission,Submit,2025-03-06 14:59:51.891708,1,,,0.0,3,,0.0,647849063b9fd9be24803727,1,1,74u25ss6,,,,,0
+4,nyi4l86w,666d914c8a386185e18db071,0,298,298,submission,Submit,2025-03-06 15:00:02.187455,1,,,0.0,4,,0.0,666d914c8a386185e18db071,1,1,74u25ss6,,,,,0
+5,lxmv0a2d,673f6ffebce20832346325de,0,298,298,submission,Submit,2025-03-06 15:00:07.587027,1,,,0.0,5,,0.0,673f6ffebce20832346325de,1,1,74u25ss6,,,,,0
+6,hsmvook6,665d5a08c8e61c18498d08c9,0,298,298,submission,Submit,2025-03-06 15:00:13.063738,1,,,0.0,6,,0.0,665d5a08c8e61c18498d08c9,1,1,74u25ss6,,,,,0
+7,4km1iyi7,6426cfe964863ee2ff26642f,0,298,298,submission,Submit,2025-03-06 15:00:13.579725,1,,,0.0,7,,0.0,6426cfe964863ee2ff26642f,1,1,74u25ss6,,,,,0
+8,wp5thczz,67744dd5d793cc3d79ba38fc,0,298,298,submission,Submit,2025-03-06 15:00:16.077762,1,,,0.0,8,,0.0,67744dd5d793cc3d79ba38fc,1,1,74u25ss6,,,,,0
+9,2t9swlla,5cad1eef8ed53d00180d2532,0,37,298,main_task,WaitPage2,2025-03-06 15:00:17.074291,1,,,0.0,9,,0.0,5cad1eef8ed53d00180d2532,1,1,74u25ss6,,,,,0
+10,yp6gatxq,5fbccd88199e4319f7a988d2,0,298,298,submission,Submit,2025-03-06 15:00:20.268400,1,,,0.0,10,,0.0,5fbccd88199e4319f7a988d2,1,1,74u25ss6,,,,,0
+11,wce0tmac,62f3b543dce069211e8e982c,0,298,298,submission,Submit,2025-03-06 15:00:24.332614,1,,,0.0,11,,0.0,62f3b543dce069211e8e982c,1,1,74u25ss6,,,,,0
+12,ymxk9kdh,6173c5b0aa4bc2370fd2c1f2,0,298,298,submission,Submit,2025-03-06 15:00:27.762362,1,,,0.0,12,,0.0,6173c5b0aa4bc2370fd2c1f2,1,1,74u25ss6,,,,,0
+13,be5h8zxa,63c80a427dfa1305502df5a8,0,298,298,submission,Submit,2025-03-06 15:00:28.264313,1,,,0.0,13,,0.0,63c80a427dfa1305502df5a8,1,1,74u25ss6,,,,,0
+14,0jgxfvxg,6765877a0722b290bb4ab344,0,298,298,submission,Submit,2025-03-06 15:00:28.312470,1,,,0.0,14,,0.0,6765877a0722b290bb4ab344,1,1,74u25ss6,,,,,0
+15,7kn4zly0,6534cceb3847273f3c9b8239,0,298,298,submission,Submit,2025-03-06 15:00:30.767247,1,,,0.0,15,,0.0,6534cceb3847273f3c9b8239,1,1,74u25ss6,,,,,0
+16,0l78zd7k,604541676af7216614098dde,0,298,298,submission,Submit,2025-03-06 15:00:36.370019,1,,,0.0,16,,0.0,604541676af7216614098dde,1,1,74u25ss6,,,,,0
+17,n5v38n2a,5c4f5967aac8be0001716a65,0,298,298,submission,Submit,2025-03-06 15:01:02.722883,1,,,0.0,17,,0.0,5c4f5967aac8be0001716a65,1,1,74u25ss6,,,,,0
+18,3azjehks,631623dc8a64a7f2d743deac,0,37,298,main_task,WaitPage2,2025-03-06 15:02:52.217845,1,,,0.0,18,,0.0,631623dc8a64a7f2d743deac,1,1,74u25ss6,,,,,0
+19,7km46ogx,673d2104b265ff9ce425c9c4,0,37,298,main_task,WaitPage2,2025-03-06 15:12:23.923579,1,,,0.0,19,,0.0,673d2104b265ff9ce425c9c4,1,1,74u25ss6,,,,,0
+20,42rtk7b2,6670886ad4ccb4bd7531af48,0,37,298,main_task,WaitPage2,2025-03-06 15:21:05.320372,1,,,0.0,20,,0.0,6670886ad4ccb4bd7531af48,1,1,74u25ss6,,,,,0
+21,ea32yof5,65389f0b0f181197c4218f6d,0,37,298,main_task,WaitPage2,2025-03-06 15:32:32.031976,1,,,0.0,21,,0.0,65389f0b0f181197c4218f6d,1,1,74u25ss6,,,,,0
+22,2ury0l9r,,0,0,298,,,,0,,,0.0,22,,0.0,,1,1,74u25ss6,,,,,0
+23,qxgvsl5l,,0,0,298,,,,0,,,0.0,23,,0.0,,1,1,74u25ss6,,,,,0
+24,ctbu8sn7,,0,0,298,,,,0,,,0.0,24,,0.0,,1,1,74u25ss6,,,,,0
+25,p75xw95z,,0,0,298,,,,0,,,0.0,25,,0.0,,1,1,74u25ss6,,,,,0

@@ -149,9 +149,10 @@ run_model_pipeline <- function(data, params, output_path) {
   
   all_results <- list()
   interaction_p_values <- list()
+  median_split_p_values <- list()
   
-  # Apply winning model structure to each questionnaire
-  message("\nAnalyzing questionnaires...")
+  # Apply winning model structure to each MAIN questionnaire only
+  message("\nAnalyzing main questionnaires...")
   for(var in params$questionnaire_vars) {
     message(sprintf("\nProcessing: %s", var))
     
@@ -166,18 +167,16 @@ run_model_pipeline <- function(data, params, output_path) {
       params
     )
     
-    # Store raw p-values for three-way interactions
-    interaction_p_values[[paste0(var, "_main")]] <- analysis_results$main_results$raw_p
+    # Store raw p-values for main questionnaires only (simplified naming)
+    interaction_p_values[[var]] <- analysis_results$main_results$raw_p
     
-    # Store subscale p-values if they exist
-    if(!is.null(analysis_results$subscale_results)) {
-      for(subscale in names(analysis_results$subscale_results)) {
-        interaction_p_values[[paste0(var, "_", subscale)]] <- 
-          analysis_results$subscale_results[[subscale]]$raw_p
-      }
+    # Store median split p-values for main questionnaires only
+    if(!is.null(analysis_results$main_results$median_split) && 
+       !is.na(analysis_results$main_results$median_split$p_value)) {
+      median_split_p_values[[var]] <- analysis_results$main_results$median_split$p_value
     }
     
-    # Store results without adjusted p-values for now
+    # Store results
     all_results[[var]] <- list(
       model_results = pooled_results,
       analysis_results = analysis_results$main_results,
@@ -186,27 +185,36 @@ run_model_pipeline <- function(data, params, output_path) {
     )
   }
   
-  # Perform FDR correction across all interaction p-values
-  message("\nPerforming FDR correction...")
+  # Perform FDR correction - now only across main questionnaires
+  message("\nPerforming FDR correction (main questionnaires only)...")
+  
+  # Correct continuous model p-values
   all_p_values <- unlist(interaction_p_values)
   all_adj_p_values <- p.adjust(all_p_values, method = "fdr")
   names(all_adj_p_values) <- names(all_p_values)
   
+  # Correct median split p-values if any exist
+  if(length(median_split_p_values) > 0) {
+    all_median_p_values <- unlist(median_split_p_values)
+    all_median_adj_p_values <- p.adjust(all_median_p_values, method = "fdr")
+    names(all_median_adj_p_values) <- names(all_median_p_values)
+  } else {
+    all_median_adj_p_values <- NULL
+  }
+  
   # Update results with corrected p-values and generate plots
   for(var in params$questionnaire_vars) {
     # Update main scale adjusted p-value
-    all_results[[var]]$moderation_results$main_results$adj_p <- 
-      all_adj_p_values[paste0(var, "_main")]
+    all_results[[var]]$moderation_results$main_results$adj_p <- all_adj_p_values[var]
     
-    # Update subscale adjusted p-values if they exist
-    if(!is.null(all_results[[var]]$moderation_results$subscale_results)) {
-      for(subscale in names(all_results[[var]]$moderation_results$subscale_results)) {
-        all_results[[var]]$moderation_results$subscale_results[[subscale]]$adj_p <- 
-          all_adj_p_values[paste0(var, "_", subscale)]
-      }
+    # Update median split adjusted p-value
+    if(!is.null(all_results[[var]]$moderation_results$main_results$median_split) &&
+       !is.null(all_median_adj_p_values) && var %in% names(all_median_adj_p_values)) {
+      all_results[[var]]$moderation_results$main_results$median_split$adj_p <- 
+        all_median_adj_p_values[var]
     }
     
-    # Generate plots
+    # Generate plots for main questionnaires only
     all_results[[var]]$plots <- generate_all_plots(
       all_results[[var]]$processed_data,
       all_results[[var]]$moderation_results,
@@ -311,7 +319,6 @@ run_model_comparison <- function(model_formulas, data, params) {
 run_individual_analysis <- function(processed_data, winning_model, var, params) {
   # Initialize results lists
   main_results <- list()
-  subscale_results <- list()
   
   # Fit main scale model
   main_model <- tryCatch({
@@ -339,11 +346,6 @@ run_individual_analysis <- function(processed_data, winning_model, var, params) 
     interaction_term <- "consensus_level:direction:scale_name"
   }
   
-  # Debug message to check ANOVA results
-  message("Available terms in ANOVA:")
-  print(rownames(main_anova))
-  
-  # More robust p-value extraction
   raw_p <- tryCatch({
     if(interaction_term %in% rownames(main_anova)) {
       main_anova[interaction_term, "Pr(>Chisq)"]
@@ -356,75 +358,90 @@ run_individual_analysis <- function(processed_data, winning_model, var, params) 
     NA
   })
   
-  # Only print if significant and not NA
   if(!is.na(raw_p) && raw_p < 0.05) {
     message(sprintf("  Significant interaction found (p = %.3f)", raw_p))
   }
   
-  # Rest of the function remains the same...
+  # Run median split analysis
+  message("  Running median split analysis with winning model...")
+  median_analysis <- run_median_split_analysis(processed_data, winning_model, params)
+  
+  # Store main results including median split analysis
   main_results <- list(
     model = main_model,
     anova_results = main_anova,
     raw_p = raw_p,
-    diagnostics = check_model_diagnostics(main_model, params)
+    diagnostics = check_model_diagnostics(main_model, params),
+    median_split = median_analysis
   )
   
-  # Run subscale analyses if applicable
-  if(!is.null(params$subscale_mapping[[var]])) {
-    message(sprintf("  Processing subscales for %s", var))
-    
-    for(subscale in params$subscale_mapping[[var]]) {
-      if(subscale %in% colnames(processed_data)) {
-        # Create subscale data
-        subscale_data <- processed_data
-        subscale_data$scale_name <- as.numeric(scale(processed_data[[subscale]]))
-        
-        # Fit subscale model
-        subscale_model <- tryCatch({
-          model <- lmer(formula(winning_model), data = subscale_data,
-                        control = lmerControl(optimizer = "bobyqa"))
-          model
-        }, error = function(e) {
-          message(sprintf("    Error fitting model for subscale %s: %s", 
-                          subscale, e$message))
-          return(NULL)
-        })
-        
-        if(!is.null(subscale_model)) {
-          # Get ANOVA results for subscale with same robust approach
-          sub_anova <- car::Anova(subscale_model, type = 2)
-          sub_raw_p <- tryCatch({
-            if(interaction_term %in% rownames(sub_anova)) {
-              sub_anova[interaction_term, "Pr(>Chisq)"]
-            } else {
-              message(sprintf("Interaction term '%s' not found in subscale ANOVA results", interaction_term))
-              NA
-            }
-          }, error = function(e) {
-            message(sprintf("Error extracting subscale p-value: %s", e$message))
-            NA
-          })
-          
-          if(!is.na(sub_raw_p) && sub_raw_p < 0.05) {
-            message(sprintf("    Significant interaction for %s (p = %.3f)", 
-                            subscale, sub_raw_p))
-          }
-          
-          subscale_results[[subscale]] <- list(
-            model = subscale_model,
-            anova_results = sub_anova,
-            raw_p = sub_raw_p,
-            diagnostics = check_model_diagnostics(subscale_model, params)
-          )
-        }
-      }
-    }
+  # No subscale results
+  return(list(
+    main_results = main_results,
+    processed_data = processed_data
+  ))
+}
+run_median_split_analysis <- function(data, winning_model, params) {
+  # Create median-split data
+  prepped_data <- data %>%
+    mutate(quest_group = factor(
+      ifelse(!is.na(scale_name), 
+             ifelse(scale_name > median(scale_name, na.rm = TRUE), "High", "Low"),
+             NA),
+      levels = c("Low", "High")
+    )) %>%
+    filter(!is.na(quest_group))
+  
+  # Extract the formula from the winning model and adapt it
+  model_formula <- formula(winning_model)
+  
+  # Convert formula to string
+  formula_str <- as.character(model_formula)
+  formula_rhs <- formula_str[3] # Right-hand side of the formula
+  
+  # Replace scale_name with quest_group in the formula
+  new_formula_str <- gsub("scale_name", "quest_group", formula_rhs)
+  
+  # Construct new formula
+  new_formula <- as.formula(paste("outcome_value ~", new_formula_str))
+  
+  # Fit the model with adapted formula
+  median_model <- tryCatch({
+    lmer(new_formula, data = prepped_data)
+  }, error = function(e) {
+    message(paste("Error fitting median split model:", e$message))
+    return(NULL)
+  })
+  
+  # If model fitting failed, return NA results
+  if(is.null(median_model)) {
+    return(list(p_value = NA, model = NULL, anova = NULL, data = prepped_data))
+  }
+  
+  # Get ANOVA results
+  median_anova <- car::Anova(median_model, type = 2)
+  
+  # Get appropriate interaction term based on analysis type
+  if(params$analysis_type == "within_trial_switch") {
+    interaction_term <- "consensus_level:direction:switch_vs_stay:quest_group"
+  } else if(params$analysis_type == "switch_difference") {
+    interaction_term <- "consensus_level:direction:switch_difference:quest_group"
+  } else {
+    interaction_term <- "consensus_level:direction:quest_group"
+  }
+  
+  # Extract p-value
+  p_value <- if(interaction_term %in% rownames(median_anova)) {
+    median_anova[interaction_term, "Pr(>Chisq)"]
+  } else {
+    NA
   }
   
   return(list(
-    main_results = main_results,
-    subscale_results = subscale_results,
-    processed_data = processed_data
+    p_value = p_value,
+    model = median_model,
+    anova = median_anova,
+    data = prepped_data
   ))
 }
 
@@ -470,8 +487,6 @@ theme_custom <- theme_classic() +  # Changed from theme_minimal()
 
 ################## PLOTTING FUNCTIONS ###################
 generate_all_plots <- function(processed_data, moderation_results, var, params, display_name) {
-  print("Data structure for plotting:")
-  print(str(processed_data))
   print("Levels of factors:")
   print(levels(processed_data$switch_vs_stay))
   print(levels(processed_data$consensus_level))
@@ -602,52 +617,31 @@ plot_consensus_results <- function(all_results, params) {
     results <- all_results[[var]]
     current_plots <- list()
     
-    # Main scale plots with updated results structure
+    # Main scale plots only
     current_plots[["continuous"]] <- plot_continuous_relationship(
       data = results$processed_data,
       var = "scale_name",
       outcome_var = "outcome_value",
-      results = results$moderation_results$main_results,  # Updated
+      results = results$moderation_results$main_results,
       params = params
     )
     
     current_plots[["median_split"]] <- plot_median_split(
       data = results$processed_data,
       var = var,
-      results = results$moderation_results$main_results,  # Updated
+      results = results$moderation_results$main_results,
       median_var = "scale_name",
       params = params
     )
     
     current_plots[["simple_slopes"]] <- plot_simple_slopes(
-      model = results$moderation_results$main_results$model,  # Updated
+      model = results$moderation_results$main_results$model,
       var = "scale_name",
       data = results$processed_data,
       params = params
     )
     
-    # Handle subscale plots with updated results structure
-    if(!is.null(results$moderation_results$subscale_results)) {
-      for(subscale in names(results$moderation_results$subscale_results)) {
-        sub_results <- results$moderation_results$subscale_results[[subscale]]
-        
-        current_plots[[paste0(subscale, "_continuous")]] <- plot_continuous_relationship(
-          data = results$processed_data,
-          var = subscale,
-          outcome_var = "outcome_value",
-          results = sub_results,
-          params = params
-        )
-        
-        current_plots[[paste0(subscale, "_simple_slopes")]] <- plot_simple_slopes(
-          model = sub_results$model,
-          var = subscale,
-          data = results$processed_data,
-          params = params
-        )
-      }
-    }
-    
+    # No subscale plots
     all_plots[[var]] <- current_plots
   }
   
@@ -741,22 +735,58 @@ plot_continuous_relationship <- function(data, var, outcome_var, results, params
 }
 
 plot_median_split <- function(data, var, results, median_var, params, display_name) {
-  subtitle_text <- if(!is.null(results$raw_p) && !is.na(results$raw_p)) {
-    paste("Three-way interaction:\nRaw p =", format.pval(results$raw_p, digits = 3),
-          "\nFDR-adjusted p =", format.pval(results$adj_p, digits = 3))
+  # Check if we have dedicated median split results
+  median_results <- results$median_split
+  
+  # Use the data from median split analysis if available
+  if (!is.null(median_results) && !is.null(median_results$data)) {
+    data_for_plot <- median_results$data
   } else {
-    "P-values not available"
+    # Fallback to creating the median split data directly
+    data_for_plot <- data %>%
+      mutate(quest_group = factor(
+        ifelse(!is.na(.data[[median_var]]), 
+               ifelse(.data[[median_var]] > median(.data[[median_var]], na.rm = TRUE), "High", "Low"),
+               NA),
+        levels = c("Low", "High")
+      )) %>%
+      filter(!is.na(quest_group))
   }
   
-  # Create quest_group factor with ordered levels
-  data <- data %>%
-    mutate(quest_group = factor(
-      ifelse(.data[[median_var]] > median(.data[[median_var]]), "High", "Low"),
-      levels = c("Low", "High")
-    ))
+  # Get p-value from median split analysis
+  median_p <- if(!is.null(median_results) && !is.na(median_results$p_value)) {
+    median_results$p_value
+  } else {
+    NA
+  }
   
+  # Get adjusted p-value if available
+  median_adj_p <- if(!is.null(median_results) && !is.null(median_results$adj_p)) {
+    median_results$adj_p
+  } else {
+    NA
+  }
+  
+  # Create subtitle text using median split p-value if available
+  subtitle_text <- if(!is.na(median_p)) {
+    if(!is.na(median_adj_p)) {
+      paste("Median-split interaction:\nRaw p =", format.pval(median_p, digits = 3),
+            "\nFDR-adjusted p =", format.pval(median_adj_p, digits = 3))
+    } else {
+      paste("Median-split interaction:\np =", format.pval(median_p, digits = 3))
+    }
+  } else {
+    if(!is.null(results$raw_p) && !is.na(results$raw_p)) {
+      paste("Three-way interaction:\nRaw p =", format.pval(results$raw_p, digits = 3),
+            "\nFDR-adjusted p =", format.pval(results$adj_p, digits = 3))
+    } else {
+      "P-values not available"
+    }
+  }
+  
+  # Create plots using appropriate grouping variables based on analysis type
   if(params$analysis_type == "switch_difference") {
-    summary_data <- data %>%
+    summary_data <- data_for_plot %>%
       group_by(consensus_level, direction, quest_group, trial_type) %>%
       summarise(
         mean_outcome = mean(outcome_value),
@@ -776,7 +806,7 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
                     width = 0.1,
                     linewidth = 0.8) +
       scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
-      facet_grid(trial_type ~ quest_group) +  # trial_type on y-axis, quest_group columns
+      facet_grid(trial_type ~ quest_group) +  
       labs(x = "Consensus Level",
            y = params$y_label,
            title = paste("Effect of", display_name, "(Median-split)"),
@@ -784,7 +814,7 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
       theme_custom
     
   } else if(params$analysis_type == "within_trial_switch") {
-    summary_data <- data %>%
+    summary_data <- data_for_plot %>%
       group_by(consensus_level, direction, quest_group, switch_vs_stay) %>%
       summarise(
         mean_outcome = mean(outcome_value),
@@ -816,7 +846,7 @@ plot_median_split <- function(data, var, results, median_var, params, display_na
       theme_custom
     
   } else {  # choice_consensus
-    summary_data <- data %>%
+    summary_data <- data_for_plot %>%
       group_by(consensus_level, direction, quest_group) %>%
       summarise(
         mean_outcome = mean(outcome_value),
@@ -1264,7 +1294,7 @@ run_moderation_analysis <- function(data, analysis_results, params) {
   print("Running model diagnostics...")
   main_anova <- car::Anova(mod_model, type = 2)
   model_comparison <- anova(base_model, mod_model)
-  model_diagnostics <- check_model_diagnostics(mod_model, params)  # Add params here
+  model_diagnostics <- check_model_diagnostics(mod_model, params)
   
   print("Model comparison results:")
   print(model_comparison)
@@ -1315,93 +1345,8 @@ run_moderation_analysis <- function(data, analysis_results, params) {
     effect_sizes = effect_sizes
   )
   
-  # Store subscale results
+  # Empty subscale results list
   subscale_results <- list()
-  
-  # Run subscale analyses if applicable
-  current_scale <- params$current_var
-  if(!is.null(params$subscale_mapping[[current_scale]])) {
-    print(paste("Processing subscales for", current_scale))
-    for(subscale in params$subscale_mapping[[current_scale]]) {
-      print(paste("Analyzing subscale:", subscale))
-      
-      if(subscale %in% colnames(data)) {
-        # Fit subscale models
-        print(paste("Fitting models for subscale:", subscale))
-        sub_base_model <- tryCatch({
-          lmer(
-            as.formula(paste0(
-              "outcome_value ~ consensus_level + direction + ", subscale,
-              " + age + (1|participant.id_in_session)"
-            )),
-            data = data,
-            control = lmerControl(optimizer = "bobyqa")
-          )
-        }, error = function(e) {
-          print(paste("Error fitting subscale base model:", e$message))
-          return(NULL)
-        })
-        
-        sub_mod_model <- tryCatch({
-          lmer(
-            as.formula(paste0(
-              "outcome_value ~ consensus_level * direction * ", subscale,
-              " + age + (1|participant.id_in_session)"
-            )),
-            data = data,
-            control = lmerControl(optimizer = "bobyqa")
-          )
-        }, error = function(e) {
-          print(paste("Error fitting subscale moderation model:", e$message))
-          return(NULL)
-        })
-        
-        if(!is.null(sub_base_model) && !is.null(sub_mod_model)) {
-          # Calculate subscale diagnostics and statistics
-          sub_anova <- car::Anova(sub_mod_model, type = 2)
-          sub_comparison <- anova(sub_base_model, sub_mod_model)
-          sub_diagnostics <- check_model_diagnostics(sub_mod_model, params)  # Add params here
-          
-          print(paste("Calculating effect sizes for subscale:", subscale))
-          sub_effect_sizes <- tryCatch({
-            effectsize::eta_squared(sub_mod_model, partial = TRUE)
-          }, error = function(e) {
-            print(paste("Error calculating subscale effect sizes:", e$message))
-            return(NULL)
-          })
-          
-          # Get subscale interaction terms and p-values
-          sub_interaction_term <- paste0("consensus_level:direction:", subscale)
-          sub_raw_p <- sub_anova[sub_interaction_term, "Pr(>Chisq)"]
-          sub_all_p_values <- sub_anova[, "Pr(>Chisq)"]
-          
-          print(paste("Subscale three-way interaction p-value:", sub_raw_p))
-          
-          # Create subscale moderation plot
-          sub_moderation_plot <- plot_moderation_effects(
-            model = sub_mod_model,
-            data = data,
-            var = subscale,
-            params = params,
-            raw_p = sub_raw_p
-          )
-          
-          subscale_results[[subscale]] <- list(
-            model = sub_mod_model,
-            base_model = sub_base_model,
-            anova_results = sub_anova,
-            comparison = sub_comparison,
-            raw_p = sub_raw_p,
-            all_p_values = sub_all_p_values,
-            interaction_term = sub_interaction_term,
-            diagnostics = sub_diagnostics,
-            effect_sizes = sub_effect_sizes,
-            moderation_plot = sub_moderation_plot
-          )
-        }
-      }
-    }
-  }
   
   print("Moderation analysis complete.")
   return(list(
@@ -1598,6 +1543,7 @@ format_results <- function(all_results, analysis_name, params) {
                             "Raw p = ", format.pval(raw_p, digits = 3), "\n",
                             "FDR-adjusted p = ", format.pval(adj_p, digits = 3),
                             "\n")
+      
     } else if(params$analysis_type == "within_trial_switch") {
       output_text <- paste0(output_text,
                             "\nINTERACTION RESULTS:\n===================\n")
@@ -1623,15 +1569,34 @@ format_results <- function(all_results, analysis_name, params) {
                             "\n")
     }
     
+    # Add section for continuous model interaction
+    output_text <- paste0(output_text,
+                          "\nCONTINUOUS MODEL INTERACTION:\n",
+                          "=============================\n",
+                          "Raw p = ", format.pval(results$moderation_results$main_results$raw_p, digits = 3), "\n",
+                          "FDR-adjusted p = ", format.pval(results$moderation_results$main_results$adj_p, digits = 3),
+                          "\n\n")
+    
+    # Add section for median split results
+    median_results <- results$moderation_results$main_results$median_split
+    if(!is.null(median_results) && !is.na(median_results$p_value)) {
+      output_text <- paste0(output_text,
+                            "MEDIAN SPLIT INTERACTION:\n",
+                            "==========================\n",
+                            "Raw p = ", format.pval(median_results$p_value, digits = 3), "\n")
+      
+      if(!is.null(median_results$adj_p)) {
+        output_text <- paste0(output_text,
+                              "FDR-adjusted p = ", format.pval(median_results$adj_p, digits = 3), "\n")
+      }
+      output_text <- paste0(output_text, "\n")
+    }
+    
     # Add model diagnostics
     output_text <- paste0(output_text, 
                           "\n", format_diagnostics(results$moderation_results$main_results$diagnostics))
     
-    # Add subscale results
-    if(!is.null(results$moderation_results$subscale_results)) {
-      output_text <- paste0(output_text, format_subscale_results(
-        results$moderation_results$subscale_results, params))
-    }
+    # No subscale results section
   }
   
   return(output_text)
@@ -1708,50 +1673,8 @@ format_effect_size_table <- function(effect_sizes) {
 
 # Helper function for subscale results formatting
 format_subscale_results <- function(subscale_results, params) {
-  output <- paste0("\nSUBSCALE RESULTS:\n================\n")
-  
-  for(subscale_name in names(subscale_results)) {
-    sub_result <- subscale_results[[subscale_name]]
-    
-    output <- paste0(output,
-                     "\nSubscale: ", subscale_name, "\n",
-                     "----------------------\n")
-    
-    if(!is.null(sub_result$anova_results)) {
-      output <- paste0(output,
-                       "ANOVA Results:\n-------------\n",
-                       paste(capture.output(sub_result$anova_results), 
-                             collapse = "\n"),
-                       "\n")
-    }
-    
-    if(!is.null(sub_result$effect_sizes)) {
-      output <- paste0(output, 
-                       format_effect_size_table(sub_result$effect_sizes))
-    }
-    
-    if(!is.null(sub_result$raw_p) && !is.null(sub_result$adj_p)) {
-      if(params$analysis_type == "switch_difference") {
-        output <- paste0(output,
-                         "\nSwitch Difference Interaction:\n",
-                         "Raw p = ", format.pval(sub_result$raw_p, digits = 3), "\n",
-                         "FDR-adjusted p = ", format.pval(sub_result$adj_p, digits = 3),
-                         "\n")
-      } else {
-        output <- paste0(output,
-                         "\nThree-way Interaction:\n",
-                         "Raw p = ", format.pval(sub_result$raw_p, digits = 3), "\n",
-                         "FDR-adjusted p = ", format.pval(sub_result$adj_p, digits = 3),
-                         "\n")
-      }
-    }
-    
-    if(!is.null(sub_result$diagnostics)) {
-      output <- paste0(output, "\n", format_diagnostics(sub_result$diagnostics))
-    }
-  }
-  
-  return(output)
+  # Since we're not analyzing subscales anymore, return empty string
+  return("")
 }
 
 
@@ -1818,24 +1741,58 @@ create_output_filename <- function(params, prefix) {
 
 ################## REVERSAL ANALYSIS FUNCTIONS ###################
 plot_median_split_reversal <- function(data, var, results, params, display_name) {
-  # Create quest_group factor with ordered levels
-  data <- data %>%
-    mutate(quest_group = factor(
-      ifelse(.data[[var]] > median(.data[[var]]), "High", "Low"),
-      levels = c("Low", "High")
-    ))
   
-  # Calculate summary statistics and run t-tests
+  # Calculate median directly
+  median_value <- median(data[[var]], na.rm = TRUE)
+  
+  # Determine if this is choice or bet analysis based on the data
+  analysis_type <- if(all(c("player.bet1", "player.bet2") %in% names(data))) "BET ANALYSIS" else "CHOICE ANALYSIS"
+  
+  # Create variable-specific group column name
+  group_col_name <- paste0("quest_group_", var)
+  
+  # Create groups with variable-specific column using !!sym() 
+  data <- data %>%
+    # First create a temporary column with current variable's values
+    mutate(
+      temp_values = !!sym(var),
+      !!group_col_name := factor(
+        if_else(
+          is.na(temp_values), 
+          NA_character_,
+          if_else(temp_values > median_value, "High", "Low")
+        ),
+        levels = c("Low", "High")
+      )
+    ) %>%
+    # Remove temporary column
+    select(-temp_values)
+  
+  # Get and print participant IDs for each group
+  grouping_info <- data %>%
+    select(participant.id_in_session, !!sym(group_col_name)) %>%
+    distinct()
+  
+  # Modified summary calculation using variable-specific group column
   summary_data <- data %>%
-    group_by(trial_to_reversal, quest_group) %>%
+    filter(!is.na(.data[[group_col_name]])) %>%
+    group_by(trial_to_reversal, !!sym(group_col_name)) %>%
+    {
+      # Debug: Print grouped data before summarizing
+      print(head(.))
+      .
+    } %>%
     summarise(
+      # Debug: Print group sizes
+      n_obs = n(),
+      
       # Choice 1
       choice1_mean = mean(player.choice1_accuracy, na.rm = TRUE) * 100,
       choice1_sd = sd(player.choice1_accuracy, na.rm = TRUE) * 100,
       choice1_n = sum(!is.na(player.choice1_accuracy)),
       choice1_se = (choice1_sd / sqrt(choice1_n)),
       
-      # Choice 2
+      # Choice 2 
       choice2_mean = mean(player.choice2_accuracy, na.rm = TRUE) * 100,
       choice2_sd = sd(player.choice2_accuracy, na.rm = TRUE) * 100,
       choice2_n = sum(!is.na(player.choice2_accuracy)),
@@ -1862,53 +1819,48 @@ plot_median_split_reversal <- function(data, var, results, params, display_name)
     summarise(
       # Choice 1
       choice1_t = tryCatch({
-        t.test(player.choice1_accuracy ~ quest_group)$statistic
+        t.test(player.choice1_accuracy ~ .data[[group_col_name]])$statistic
       }, error = function(e) NA),
       choice1_p = tryCatch({
-        t.test(player.choice1_accuracy ~ quest_group)$p.value
+        t.test(player.choice1_accuracy ~ .data[[group_col_name]])$p.value
       }, error = function(e) NA),
       choice1_effect = tryCatch({
-        tab <- table(quest_group, player.choice1_accuracy)
-        if(nrow(tab) > 1 && ncol(tab) > 1) {
-          sqrt(chisq.test(tab)$statistic/n())
-        } else {
-          NA
-        }
+        fisher_result <- fisher.test(table(.data[[group_col_name]], player.choice1_accuracy))
+        sqrt(log(fisher_result$estimate)^2 / sum(table(.data[[group_col_name]], player.choice1_accuracy)))
       }, error = function(e) NA),
+      
       # Choice 2
       choice2_t = tryCatch({
-        t.test(player.choice2_accuracy ~ quest_group)$statistic
+        t.test(player.choice2_accuracy ~ .data[[group_col_name]])$statistic
       }, error = function(e) NA),
       choice2_p = tryCatch({
-        t.test(player.choice2_accuracy ~ quest_group)$p.value
+        t.test(player.choice2_accuracy ~ .data[[group_col_name]])$p.value
       }, error = function(e) NA),
       choice2_effect = tryCatch({
-        tab <- table(quest_group, player.choice2_accuracy)
-        if(nrow(tab) > 1 && ncol(tab) > 1) {
-          sqrt(chisq.test(tab)$statistic/n())
-        } else {
-          NA
-        }
+        fisher_result <- fisher.test(table(.data[[group_col_name]], player.choice2_accuracy))
+        sqrt(log(fisher_result$estimate)^2 / sum(table(.data[[group_col_name]], player.choice2_accuracy)))
       }, error = function(e) NA),
+      
       # Bet 1
       bet1_t = tryCatch({
-        t.test(player.bet1 ~ quest_group)$statistic
+        t.test(player.bet1 ~ .data[[group_col_name]])$statistic
       }, error = function(e) NA),
       bet1_p = tryCatch({
-        t.test(player.bet1 ~ quest_group)$p.value
+        t.test(player.bet1 ~ .data[[group_col_name]])$p.value
       }, error = function(e) NA),
       bet1_d = tryCatch({
-        effectsize::cohens_d(player.bet1 ~ quest_group)$Cohens_d
+        effectsize::cohens_d(player.bet1 ~ .data[[group_col_name]])$Cohens_d
       }, error = function(e) NA),
+      
       # Bet 2
       bet2_t = tryCatch({
-        t.test(player.bet2 ~ quest_group)$statistic
+        t.test(player.bet2 ~ .data[[group_col_name]])$statistic
       }, error = function(e) NA),
       bet2_p = tryCatch({
-        t.test(player.bet2 ~ quest_group)$p.value
+        t.test(player.bet2 ~ .data[[group_col_name]])$p.value
       }, error = function(e) NA),
       bet2_d = tryCatch({
-        effectsize::cohens_d(player.bet2 ~ quest_group)$Cohens_d
+        effectsize::cohens_d(player.bet2 ~ .data[[group_col_name]])$Cohens_d
       }, error = function(e) NA),
       .groups = 'drop'
     ) %>%
@@ -1916,7 +1868,7 @@ plot_median_split_reversal <- function(data, var, results, params, display_name)
                   list(adj = ~p.adjust(., method = "fdr")), 
                   .names = "{.col}_adj"))
   
-  # Function to get significance stars
+  # Function to get significance stars (unchanged)
   get_stars <- function(p) {
     if(p < 0.0001) return("****")
     if(p < 0.001) return("***")
@@ -1925,15 +1877,15 @@ plot_median_split_reversal <- function(data, var, results, params, display_name)
     return("")
   }
   
-  # Base plot theme
+  # Base plot theme (unchanged)
   theme_custom_no_legend <- theme_custom + theme(legend.position = "none")
   
   # Choice plots
-  p_choice1 <- ggplot(summary_data, aes(x = trial_to_reversal, group = quest_group)) +
-    geom_line(aes(y = choice1_mean, color = quest_group), linewidth = 1) +
+  p_choice1 <- ggplot(summary_data, aes(x = trial_to_reversal, group = !!sym(group_col_name))) +
+    geom_line(aes(y = choice1_mean, color = !!sym(group_col_name)), linewidth = 1) +
     geom_errorbar(aes(ymin = choice1_mean - choice1_se, 
                       ymax = choice1_mean + choice1_se, 
-                      color = quest_group), 
+                      color = !!sym(group_col_name)), 
                   width = 0.2, alpha = 0.5) +
     scale_color_manual(values = c("Low" = "blue", "High" = "red")) +
     labs(title = "Choice 1 Accuracy",
@@ -1942,11 +1894,11 @@ plot_median_split_reversal <- function(data, var, results, params, display_name)
          color = "Group") +
     theme_custom_no_legend
   
-  p_choice2 <- ggplot(summary_data, aes(x = trial_to_reversal, group = quest_group)) +
-    geom_line(aes(y = choice2_mean, color = quest_group), linewidth = 1) +
+  p_choice2 <- ggplot(summary_data, aes(x = trial_to_reversal, group = !!sym(group_col_name))) +
+    geom_line(aes(y = choice2_mean, color = !!sym(group_col_name)), linewidth = 1) +
     geom_errorbar(aes(ymin = choice2_mean - choice2_se, 
                       ymax = choice2_mean + choice2_se, 
-                      color = quest_group), 
+                      color = !!sym(group_col_name)), 
                   width = 0.2, alpha = 0.5) +
     scale_color_manual(values = c("Low" = "blue", "High" = "red")) +
     labs(title = "Choice 2 Accuracy",
@@ -1956,11 +1908,11 @@ plot_median_split_reversal <- function(data, var, results, params, display_name)
     theme_custom_no_legend
   
   # Bet plots
-  p_bet1 <- ggplot(summary_data, aes(x = trial_to_reversal, group = quest_group)) +
-    geom_line(aes(y = bet1_mean, color = quest_group), linewidth = 1) +
+  p_bet1 <- ggplot(summary_data, aes(x = trial_to_reversal, group = !!sym(group_col_name))) +
+    geom_line(aes(y = bet1_mean, color = !!sym(group_col_name)), linewidth = 1) +
     geom_errorbar(aes(ymin = bet1_mean - bet1_se, 
                       ymax = bet1_mean + bet1_se, 
-                      color = quest_group), 
+                      color = !!sym(group_col_name)), 
                   width = 0.2, alpha = 0.5) +
     scale_color_manual(values = c("Low" = "blue", "High" = "red")) +
     labs(title = "Bet 1 Magnitude",
@@ -1969,11 +1921,11 @@ plot_median_split_reversal <- function(data, var, results, params, display_name)
          color = "Group") +
     theme_custom_no_legend
   
-  p_bet2 <- ggplot(summary_data, aes(x = trial_to_reversal, group = quest_group)) +
-    geom_line(aes(y = bet2_mean, color = quest_group), linewidth = 1) +
+  p_bet2 <- ggplot(summary_data, aes(x = trial_to_reversal, group = !!sym(group_col_name))) +
+    geom_line(aes(y = bet2_mean, color = !!sym(group_col_name)), linewidth = 1) +
     geom_errorbar(aes(ymin = bet2_mean - bet2_se, 
                       ymax = bet2_mean + bet2_se, 
-                      color = quest_group), 
+                      color = !!sym(group_col_name)), 
                   width = 0.2, alpha = 0.5) +
     scale_color_manual(values = c("Low" = "blue", "High" = "red")) +
     labs(title = "Bet 2 Magnitude",
@@ -1984,28 +1936,35 @@ plot_median_split_reversal <- function(data, var, results, params, display_name)
   
   # Add significance stars for all plots
   for(i in 1:nrow(test_results)) {
-    if(test_results$choice1_p_adj[i] < 0.05) {
+    # Choice 1
+    if(!is.na(test_results$choice1_p_adj[i]) && test_results$choice1_p_adj[i] < 0.05) {
       stars <- get_stars(test_results$choice1_p_adj[i])
       p_choice1 <- p_choice1 + 
         annotate("text", x = test_results$trial_to_reversal[i], 
                  y = max(summary_data$choice1_mean) + 5, 
                  label = stars, size = 5)
     }
-    if(test_results$choice2_p_adj[i] < 0.05) {
+    
+    # Choice 2
+    if(!is.na(test_results$choice2_p_adj[i]) && test_results$choice2_p_adj[i] < 0.05) {
       stars <- get_stars(test_results$choice2_p_adj[i])
       p_choice2 <- p_choice2 + 
         annotate("text", x = test_results$trial_to_reversal[i], 
                  y = max(summary_data$choice2_mean) + 5, 
                  label = stars, size = 5)
     }
-    if(test_results$bet1_p_adj[i] < 0.05) {
+    
+    # Bet 1
+    if(!is.na(test_results$bet1_p_adj[i]) && test_results$bet1_p_adj[i] < 0.05) {
       stars <- get_stars(test_results$bet1_p_adj[i])
       p_bet1 <- p_bet1 + 
         annotate("text", x = test_results$trial_to_reversal[i], 
                  y = max(summary_data$bet1_mean) + 0.5, 
                  label = stars, size = 5)
     }
-    if(test_results$bet2_p_adj[i] < 0.05) {
+    
+    # Bet 2
+    if(!is.na(test_results$bet2_p_adj[i]) && test_results$bet2_p_adj[i] < 0.05) {
       stars <- get_stars(test_results$bet2_p_adj[i])
       p_bet2 <- p_bet2 + 
         annotate("text", x = test_results$trial_to_reversal[i], 
@@ -2015,8 +1974,8 @@ plot_median_split_reversal <- function(data, var, results, params, display_name)
   }
   
   # Create legend plot
-  legend_plot <- ggplot(summary_data, aes(x = trial_to_reversal, group = quest_group)) +
-    geom_line(aes(y = choice1_mean, color = quest_group)) +  # Added y aesthetic
+  legend_plot <- ggplot(summary_data, aes(x = trial_to_reversal, group = !!sym(group_col_name))) +
+    geom_line(aes(y = choice1_mean, color = !!sym(group_col_name))) +
     scale_color_manual(values = c("Low" = "blue", "High" = "red")) +
     labs(color = "Group") +
     theme_custom
@@ -2041,6 +2000,9 @@ plot_median_split_reversal <- function(data, var, results, params, display_name)
                          gp = grid::gpar(fontsize = 12, fontface = "bold"))
   )
   
+  # Debug: Print final return object structure
+  cat("\nReturning results for", var, "\n")
+  
   return(list(
     choice_plot = p_choice,
     bet_plot = p_bet,
@@ -2051,13 +2013,16 @@ plot_median_split_reversal <- function(data, var, results, params, display_name)
 
 # Reversal results have a different format
 format_results_reversal <- function(test_results, summary_data, var_name) {
+  # Create variable-specific group column name
+  group_col_name <- paste0("quest_group_", var_name)
+  
   choice_text <- sprintf("CHOICE ACCURACY ANALYSIS FOR %s\n\n", toupper(var_name))
   choice_text <- paste0(choice_text, "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
   
-  # Add group sizes
+  # Add group sizes using the variable-specific group column
   choice_text <- paste0(choice_text, "GROUP SIZES:\n",
-                        "Low group n = ", sum(summary_data$quest_group == "Low")/7, "\n",
-                        "High group n = ", sum(summary_data$quest_group == "High")/7, "\n\n",
+                        "Low group n = ", sum(summary_data[[group_col_name]] == "Low")/7, "\n",
+                        "High group n = ", sum(summary_data[[group_col_name]] == "High")/7, "\n\n",
                         "SUMMARY OF SIGNIFICANT DIFFERENCES:\n",
                         "================================\n")
   
@@ -2076,7 +2041,7 @@ format_results_reversal <- function(test_results, summary_data, var_name) {
       # Get detailed statistics for this trial
       trial_stats <- summary_data %>%
         filter(trial_to_reversal == choice1_sig$trial_to_reversal[i]) %>%
-        select(quest_group, choice1_mean, choice1_sd, choice1_n) %>%
+        select(!!sym(group_col_name), choice1_mean, choice1_sd, choice1_n) %>%
         rename(
           mean_acc = choice1_mean,
           sd_acc = choice1_sd,
@@ -2113,7 +2078,7 @@ format_results_reversal <- function(test_results, summary_data, var_name) {
     for(i in 1:nrow(choice2_sig)) {
       trial_stats <- summary_data %>%
         filter(trial_to_reversal == choice2_sig$trial_to_reversal[i]) %>%
-        select(quest_group, choice2_mean, choice2_sd, choice2_n) %>%
+        select(!!sym(group_col_name), choice2_mean, choice2_sd, choice2_n) %>%
         rename(
           mean_acc = choice2_mean,
           sd_acc = choice2_sd,
@@ -2149,8 +2114,8 @@ format_results_reversal <- function(test_results, summary_data, var_name) {
   bet_text <- paste0(bet_text, "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
   
   bet_text <- paste0(bet_text, "GROUP SIZES:\n",
-                     "Low group n = ", sum(summary_data$quest_group == "Low")/7, "\n",
-                     "High group n = ", sum(summary_data$quest_group == "High")/7, "\n\n",
+                     "Low group n = ", sum(summary_data[[group_col_name]] == "Low")/7, "\n",
+                     "High group n = ", sum(summary_data[[group_col_name]] == "High")/7, "\n\n",
                      "SUMMARY OF SIGNIFICANT DIFFERENCES:\n",
                      "================================\n")
   
@@ -2167,7 +2132,7 @@ format_results_reversal <- function(test_results, summary_data, var_name) {
     for(i in 1:nrow(bet1_sig)) {
       trial_stats <- summary_data %>%
         filter(trial_to_reversal == bet1_sig$trial_to_reversal[i]) %>%
-        select(quest_group, bet1_mean, bet1_sd, bet1_n) %>%
+        select(!!sym(group_col_name), bet1_mean, bet1_sd, bet1_n) %>%
         rename(
           mean_bet = bet1_mean,
           sd_bet = bet1_sd,
@@ -2204,7 +2169,7 @@ format_results_reversal <- function(test_results, summary_data, var_name) {
     for(i in 1:nrow(bet2_sig)) {
       trial_stats <- summary_data %>%
         filter(trial_to_reversal == bet2_sig$trial_to_reversal[i]) %>%
-        select(quest_group, bet2_mean, bet2_sd, bet2_n) %>%
+        select(!!sym(group_col_name), bet2_mean, bet2_sd, bet2_n) %>%
         rename(
           mean_bet = bet2_mean,
           sd_bet = bet2_sd,
@@ -2274,40 +2239,535 @@ format_results_overall <- function(main_results, subscale_results = NULL, params
                           sprintf("Residual normality: %s\n\n", format.pval(result$bet_resid_norm, digits = 3)))
   }
   
-  # Format subscale results if they exist
-  if(!is.null(subscale_results) && nrow(subscale_results) > 0) {
-    output_text <- paste0(output_text, "\nSUBSCALE ANALYSIS RESULTS:\n",
-                          "================================\n")
+  # No subscale results section
+  
+  return(output_text)
+}
+
+################## POST-HOC TESTING FUNCTIONS ###################
+# Function to run post-hoc tests for significant relationships
+run_posthoc_tests <- function(model, data, var_name, analysis_type, output_dir) {
+  # Create more descriptive analysis name
+  analysis_name <- if(analysis_type == "choice_consensus") {
+    "choice_switch_by_consensus"
+  } else if(analysis_type == "within_trial_switch") {
+    "bet_difference_by_switch"
+  } else {
+    analysis_type
+  }
+  
+  # Create output directory with clearer naming
+  posthoc_dir <- file.path(output_dir, "posthoc", analysis_name, var_name, "txt")
+  dir.create(posthoc_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # Initialize results storage
+  results_text <- sprintf("POST-HOC ANALYSIS: %s - %s\n\n", toupper(var_name), toupper(analysis_name))
+  results_text <- paste0(results_text, "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
+  
+  # Initialize storage for statistics
+  p_values <- numeric()
+  test_details <- character()
+  test_results <- list()
+  
+  # Run tests based on analysis type
+  if(analysis_type == "choice_consensus") {
+    results_text <- paste0(results_text, "SIMPLE SLOPES ANALYSIS BY CONSENSUS LEVEL:\n========================================\n\n")
     
-    for(scale in unique(subscale_results$parent_scale)) {
-      output_text <- paste0(output_text, "\nParent Scale: ", scale, "\n")
-      
-      scale_results <- subscale_results %>% filter(parent_scale == scale)
-      for(i in 1:nrow(scale_results)) {
-        result <- scale_results[i,]
-        output_text <- paste0(output_text,
-                              sprintf("\nSubscale: %s\n", result$questionnaire),
-                              "\nChoice Analysis:\n",
-                              sprintf("p-value: %s\n", format.pval(result$choice_p, digits = 3)),
-                              sprintf("FDR-adjusted p-value: %s\n", format.pval(result$choice_p_adj, digits = 3)),
-                              sprintf("Correlation (r): %.3f [%.3f, %.3f]\n", 
-                                      result$choice_r, result$choice_r_ci_low, result$choice_r_ci_high),
-                              sprintf("Standardized beta: %.3f\n", result$choice_beta),
-                              sprintf("R²: %.3f\n", result$choice_r2),
-                              sprintf("F-statistic: F(1,%d) = %.2f\n", result$choice_df - 2, result$choice_f),
-                              sprintf("Residual normality: %s\n", format.pval(result$choice_resid_norm, digits = 3)),
-                              "\nBet Analysis:\n",
-                              sprintf("p-value: %s\n", format.pval(result$bet_p, digits = 3)),
-                              sprintf("FDR-adjusted p-value: %s\n", format.pval(result$bet_p_adj, digits = 3)),
-                              sprintf("Correlation (r): %.3f [%.3f, %.3f]\n", 
-                                      result$bet_r, result$bet_r_ci_low, result$bet_r_ci_high),
-                              sprintf("Standardized beta: %.3f\n", result$bet_beta),
-                              sprintf("R²: %.3f\n", result$bet_r2),
-                              sprintf("F-statistic: F(1,%d) = %.2f\n", result$bet_df - 2, result$bet_f),
-                              sprintf("Residual normality: %s\n\n", format.pval(result$bet_resid_norm, digits = 3)))
+    # For each consensus level
+    for(cons in c("2:2", "3:1", "4:0")) {
+      # For each direction
+      for(dir in c("Against group", "With group")) {
+        # Skip invalid combination
+        if(cons == "2:2" && dir == "With group") next
+        
+        # Create model for this specific combination
+        subset_data <- data %>% 
+          filter(consensus_level == cons, direction == dir)
+        
+        # Only proceed if we have enough data
+        if(nrow(subset_data) < 30) {
+          results_text <- paste0(results_text, 
+                                 sprintf("Insufficient data for %s, %s (n=%d)\n\n", 
+                                         cons, dir, nrow(subset_data)))
+          next
+        }
+        
+        # Run the simple model
+        simple_model <- tryCatch({
+          lm(outcome_value ~ scale_name + age, data = subset_data)
+        }, error = function(e) {
+          return(NULL)
+        })
+        
+        if(is.null(simple_model)) {
+          results_text <- paste0(results_text, 
+                                 sprintf("Failed to fit model for %s, %s\n\n", cons, dir))
+          next
+        }
+        
+        # Get model results
+        model_summary <- summary(simple_model)
+        
+        # Get correlation 
+        cor_test <- cor.test(subset_data$scale_name, subset_data$outcome_value)
+        
+        # Get key statistics
+        slope <- model_summary$coefficients["scale_name", "Estimate"]
+        slope_se <- model_summary$coefficients["scale_name", "Std. Error"]
+        slope_t <- model_summary$coefficients["scale_name", "t value"]
+        slope_p <- model_summary$coefficients["scale_name", "Pr(>|t|)"]
+        slope_df <- model_summary$df[2]
+        r_value <- cor_test$estimate
+        r_ci_low <- cor_test$conf.int[1]
+        r_ci_high <- cor_test$conf.int[2]
+        
+        # Get standardized beta
+        beta <- lm.beta(simple_model)$standardized.coefficients["scale_name"]
+        
+        # Store p-value and test details for correction
+        p_values <- c(p_values, slope_p)
+        test_details <- c(test_details, sprintf("Consensus level: %s, Direction: %s", cons, dir))
+        
+        # Store test results in a named list element
+        test_key <- paste(cons, dir, sep="_")
+        test_results[[test_key]] <- list(
+          p_value = slope_p,
+          r_value = r_value,
+          r_ci_low = r_ci_low,
+          r_ci_high = r_ci_high,
+          beta = beta,
+          slope = slope,
+          t_value = slope_t,
+          df = slope_df,
+          n = nrow(subset_data)
+        )
+        
+        # Add to results
+        results_text <- paste0(results_text,
+                               sprintf("Consensus level: %s, Direction: %s\n", cons, dir),
+                               sprintf("Sample size: %d\n", nrow(subset_data)),
+                               sprintf("Correlation: r = %.3f [%.3f, %.3f]\n", r_value, r_ci_low, r_ci_high),
+                               sprintf("Slope: β = %.3f (SE = %.3f)\n", slope, slope_se),
+                               sprintf("Standardized beta: %.3f\n", beta),
+                               sprintf("t(%d) = %.3f, p = %.4f\n\n", 
+                                       slope_df, slope_t, slope_p))
+      }
+    }
+  } else if(analysis_type == "within_trial_switch") {
+    results_text <- paste0(results_text, "SIMPLE SLOPES ANALYSIS BY CONSENSUS LEVEL AND SWITCH STATUS:\n=========================================================\n\n")
+    
+    # For each consensus level
+    for(cons in c("2:2", "3:1", "4:0")) {
+      # For each direction
+      for(dir in c("Against group", "With group")) {
+        # Skip invalid combination
+        if(cons == "2:2" && dir == "With group") next
+        
+        # For each switch status
+        for(switch_status in c("0", "1")) {
+          # Create model for this specific combination
+          subset_data <- data %>% 
+            filter(consensus_level == cons, 
+                   direction == dir,
+                   switch_vs_stay == switch_status)
+          
+          # Only proceed if we have enough data
+          if(nrow(subset_data) < 30) {
+            results_text <- paste0(results_text, 
+                                   sprintf("Insufficient data for %s, %s, switch=%s (n=%d)\n\n", 
+                                           cons, dir, switch_status, nrow(subset_data)))
+            next
+          }
+          
+          # Run the simple model
+          simple_model <- tryCatch({
+            lm(outcome_value ~ scale_name + age, data = subset_data)
+          }, error = function(e) {
+            return(NULL)
+          })
+          
+          if(is.null(simple_model)) {
+            results_text <- paste0(results_text, 
+                                   sprintf("Failed to fit model for %s, %s, switch=%s\n\n", 
+                                           cons, dir, switch_status))
+            next
+          }
+          
+          # Get model results
+          model_summary <- summary(simple_model)
+          
+          # Get correlation 
+          cor_test <- cor.test(subset_data$scale_name, subset_data$outcome_value)
+          
+          # Get key statistics
+          slope <- model_summary$coefficients["scale_name", "Estimate"]
+          slope_se <- model_summary$coefficients["scale_name", "Std. Error"]
+          slope_t <- model_summary$coefficients["scale_name", "t value"]
+          slope_p <- model_summary$coefficients["scale_name", "Pr(>|t|)"]
+          slope_df <- model_summary$df[2]
+          r_value <- cor_test$estimate
+          r_ci_low <- cor_test$conf.int[1]
+          r_ci_high <- cor_test$conf.int[2]
+          
+          # Get standardized beta
+          beta <- lm.beta(simple_model)$standardized.coefficients["scale_name"]
+          
+          # Store p-value and test details for correction
+          p_values <- c(p_values, slope_p)
+          switch_label <- ifelse(switch_status == "1", "Switch", "Stay")
+          test_details <- c(test_details, 
+                            sprintf("Consensus: %s, Direction: %s, Trial: %s", 
+                                    cons, dir, switch_label))
+          
+          # Store test results in a named list element
+          test_key <- paste(cons, dir, switch_status, sep="_")
+          test_results[[test_key]] <- list(
+            p_value = slope_p,
+            r_value = r_value,
+            r_ci_low = r_ci_low,
+            r_ci_high = r_ci_high,
+            beta = beta,
+            slope = slope,
+            t_value = slope_t,
+            df = slope_df,
+            n = nrow(subset_data)
+          )
+          
+          # Add to results
+          results_text <- paste0(results_text,
+                                 sprintf("Consensus level: %s, Direction: %s, Trial type: %s\n", 
+                                         cons, dir, switch_label),
+                                 sprintf("Sample size: %d\n", nrow(subset_data)),
+                                 sprintf("Correlation: r = %.3f [%.3f, %.3f]\n", r_value, r_ci_low, r_ci_high),
+                                 sprintf("Slope: β = %.3f (SE = %.3f)\n", slope, slope_se),
+                                 sprintf("Standardized beta: %.3f\n", beta),
+                                 sprintf("t(%d) = %.3f, p = %.4f\n\n", 
+                                         slope_df, slope_t, slope_p))
+        }
       }
     }
   }
   
-  return(output_text)
+  # Apply FDR correction and add to results
+  adj_p_values <- p.adjust(p_values, method = "fdr")
+  
+  results_text <- paste0(results_text, 
+                         "FDR CORRECTED P-VALUES:\n========================\n")
+  
+  for(i in seq_along(p_values)) {
+    results_text <- paste0(results_text,
+                           sprintf("%s: Original p = %.4f, FDR-adjusted p = %.4f\n", 
+                                   test_details[i], p_values[i], adj_p_values[i]))
+    
+    # Also update the test_results with adjusted p-values
+    if(i <= length(test_details)) {
+      # Extract condition details
+      cond_parts <- strsplit(test_details[i], ", ")[[1]]
+      cons_part <- sub("Consensus level: ", "", cond_parts[1])
+      cons_part <- sub("Consensus: ", "", cons_part) # Handle both formats
+      dir_part <- sub("Direction: ", "", cond_parts[2])
+      
+      if(length(cond_parts) > 2) {
+        # Handle within-trial case with switch status
+        switch_part <- sub("Trial: ", "", cond_parts[3])
+        switch_val <- ifelse(switch_part == "Switch", "1", "0")
+        key <- paste(cons_part, dir_part, switch_val, sep="_")
+      } else {
+        # Handle consensus case
+        key <- paste(cons_part, dir_part, sep="_")
+      }
+      
+      # Update the adj_p_value if the key exists
+      if(key %in% names(test_results)) {
+        test_results[[key]]$adj_p_value <- adj_p_values[i]
+      }
+    }
+  }
+  
+  # Save results with descriptive filename
+  output_file <- file.path(posthoc_dir, paste0(analysis_name, "_", var_name, "_posthoc.txt"))
+  writeLines(results_text, output_file)
+  
+  return(list(
+    text = results_text, 
+    file = output_file, 
+    p_values = p_values, 
+    adj_p_values = adj_p_values,
+    test_results = test_results,
+    analysis_name = analysis_name
+  ))
+}
+
+# Function to create improved visualizations of the post-hoc tests using participant averages
+plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir, test_results) {
+  # Create more descriptive analysis name
+  analysis_name <- if(analysis_type == "choice_consensus") {
+    "choice_switch_by_consensus"
+  } else if(analysis_type == "within_trial_switch") {
+    "bet_difference_by_switch"
+  } else {
+    analysis_type
+  }
+  
+  # Create output directory with clearer naming
+  posthoc_plot_dir <- file.path(output_dir, "posthoc", analysis_name, var_name, "plots")
+  dir.create(posthoc_plot_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # Define y-axis label based on analysis type
+  y_label <- if(analysis_type == "choice_consensus") {
+    "Choice switch probability (%)"
+  } else if(analysis_type == "within_trial_switch") {
+    "Bet difference (Bet 2 - Bet 1)"
+  } else {
+    "Outcome value"
+  }
+  
+  if(analysis_type == "choice_consensus") {
+    # For each consensus level
+    for(cons in c("2:2", "3:1", "4:0")) {
+      # Get test results for this consensus level
+      against_key <- paste(cons, "Against group", sep="_")
+      with_key <- paste(cons, "With group", sep="_")
+      
+      # Create subtitle with statistics
+      against_stats <- if(against_key %in% names(test_results)) {
+        result <- test_results[[against_key]]
+        sprintf("Against group: r = %.3f, β = %.3f, p = %.4f, adj-p = %.4f", 
+                result$r_value, result$beta, result$p_value, result$adj_p_value)
+      } else { "Against group: No data" }
+      
+      with_stats <- if(with_key %in% names(test_results) && cons != "2:2") {
+        result <- test_results[[with_key]]
+        sprintf("With group: r = %.3f, β = %.3f, p = %.4f, adj-p = %.4f", 
+                result$r_value, result$beta, result$p_value, result$adj_p_value)
+      } else { "With group: N/A" }
+      
+      subtitle <- paste(against_stats, with_stats, sep="\n")
+      
+      # Filter data for this consensus level
+      subset_data <- data %>% 
+        filter(consensus_level == cons)
+      
+      # CHANGE: Aggregate by participant for each direction
+      against_data <- subset_data %>%
+        filter(direction == "Against group") %>%
+        group_by(participant.id_in_session) %>%
+        summarise(
+          outcome_value = mean(outcome_value, na.rm = TRUE),
+          scale_name = first(scale_name),  # Should be identical for all trials
+          n_trials = n(),
+          direction = "Against group",
+          .groups = 'drop'
+        )
+      
+      with_data <- subset_data %>%
+        filter(direction == "With group") %>%
+        group_by(participant.id_in_session) %>%
+        summarise(
+          outcome_value = mean(outcome_value, na.rm = TRUE),
+          scale_name = first(scale_name),  # Should be identical for all trials
+          n_trials = n(),
+          direction = "With group",
+          .groups = 'drop'
+        )
+      
+      # Combine the aggregated data
+      aggregated_data <- bind_rows(against_data, with_data)
+      
+      # Create plot with participant averages
+      p <- ggplot(aggregated_data, aes(x = scale_name, y = outcome_value, color = direction)) +
+        geom_point(aes(size = n_trials), alpha = 0.7, shape = 16) +
+        scale_size_continuous(name = "Number of trials", range = c(2, 6)) +
+        geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
+        scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+        labs(
+          title = paste("Simple slope for", var_name, "at", cons, "consensus"),
+          subtitle = subtitle,
+          x = paste(var_name, "score (standardized)"),
+          y = y_label,
+          color = "Direction"
+        ) +
+        theme_custom
+      
+      # Save plot with descriptive filename
+      ggsave(
+        filename = file.path(posthoc_plot_dir, paste0(analysis_name, "_", var_name, "_", cons, ".png")),
+        plot = p,
+        width = 8,
+        height = 6
+      )
+    }
+  } else if(analysis_type == "within_trial_switch") {
+    # For each consensus level
+    for(cons in c("2:2", "3:1", "4:0")) {
+      # For each switch status
+      for(switch_status in c("0", "1")) {
+        # Get test results for this consensus level and switch status
+        switch_label <- ifelse(switch_status == "0", "Stay", "Switch")
+        
+        against_key <- paste(cons, "Against group", switch_status, sep="_")
+        with_key <- paste(cons, "With group", switch_status, sep="_")
+        
+        # Create subtitle with statistics
+        against_stats <- if(against_key %in% names(test_results)) {
+          result <- test_results[[against_key]]
+          sprintf("Against group: r = %.3f, β = %.3f, p = %.4f, adj-p = %.4f", 
+                  result$r_value, result$beta, result$p_value, result$adj_p_value)
+        } else { "Against group: No data" }
+        
+        with_stats <- if(with_key %in% names(test_results) && cons != "2:2") {
+          result <- test_results[[with_key]]
+          sprintf("With group: r = %.3f, β = %.3f, p = %.4f, adj-p = %.4f", 
+                  result$r_value, result$beta, result$p_value, result$adj_p_value)
+        } else { "With group: N/A" }
+        
+        subtitle <- paste(against_stats, with_stats, sep="\n")
+        
+        # Filter data for this consensus level and switch status
+        subset_data <- data %>% 
+          filter(consensus_level == cons, switch_vs_stay == switch_status)
+        
+        # Skip if not enough data
+        if(nrow(subset_data) < 15) {
+          message(sprintf("Skipping %s plot for consensus %s, switch=%s (n=%d)", 
+                          var_name, cons, switch_status, nrow(subset_data)))
+          next
+        }
+        
+        # CHANGE: Aggregate by participant for each direction
+        against_data <- subset_data %>%
+          filter(direction == "Against group") %>%
+          group_by(participant.id_in_session) %>%
+          summarise(
+            outcome_value = mean(outcome_value, na.rm = TRUE),
+            scale_name = first(scale_name),  # Should be identical for all trials
+            n_trials = n(),
+            direction = "Against group",
+            .groups = 'drop'
+          )
+        
+        with_data <- subset_data %>%
+          filter(direction == "With group") %>%
+          group_by(participant.id_in_session) %>%
+          summarise(
+            outcome_value = mean(outcome_value, na.rm = TRUE),
+            scale_name = first(scale_name),  # Should be identical for all trials
+            n_trials = n(),
+            direction = "With group",
+            .groups = 'drop'
+          )
+        
+        # Combine the aggregated data
+        aggregated_data <- bind_rows(against_data, with_data)
+        
+        # Create plot with participant averages
+        p <- ggplot(aggregated_data, aes(x = scale_name, y = outcome_value, color = direction)) +
+          geom_point(aes(size = n_trials), alpha = 0.7, shape = 16) +
+          scale_size_continuous(name = "Number of trials", range = c(2, 6)) +
+          geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
+          scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+          labs(
+            title = paste("Simple slope for", var_name, "at", cons, "consensus,", switch_label, "trials"),
+            subtitle = subtitle,
+            x = paste(var_name, "score (standardized)"),
+            y = y_label,
+            color = "Direction"
+          ) +
+          theme_custom
+        
+        # Save plot with descriptive filename
+        ggsave(
+          filename = file.path(posthoc_plot_dir, 
+                               paste0(analysis_name, "_", var_name, "_", cons, "_", switch_status, ".png")),
+          plot = p,
+          width = 8,
+          height = 6
+        )
+      }
+    }
+  }
+  
+  # Create combined plots for quick comparison with participant averages
+  if(analysis_type == "choice_consensus") {
+    # Get data for Against group only
+    subset_data <- data %>% 
+      filter(direction == "Against group")
+    
+    # CHANGE: Aggregate by participant for each consensus level
+    aggregated_data <- subset_data %>%
+      group_by(participant.id_in_session, consensus_level) %>%
+      summarise(
+        outcome_value = mean(outcome_value, na.rm = TRUE),
+        scale_name = first(scale_name),
+        n_trials = n(),
+        .groups = 'drop'
+      )
+    
+    combined_p <- ggplot(aggregated_data, aes(x = scale_name, y = outcome_value, color = consensus_level)) +
+      geom_point(aes(size = n_trials), alpha = 0.7, shape = 16) +
+      scale_size_continuous(name = "Number of trials", range = c(2, 6)) +
+      geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
+      scale_color_manual(values = c("2:2" = "#E69F00", "3:1" = "#56B4E9", "4:0" = "#009E73")) +
+      labs(
+        title = paste("Comparison of", var_name, "effect across consensus levels"),
+        subtitle = "Against group direction only",
+        x = paste(var_name, "score (standardized)"),
+        y = y_label,
+        color = "Consensus Level"
+      ) +
+      theme_custom
+    
+    ggsave(
+      filename = file.path(posthoc_plot_dir, paste0(analysis_name, "_", var_name, "_combined.png")),
+      plot = combined_p,
+      width = 10,
+      height = 7
+    )
+  } else if(analysis_type == "within_trial_switch") {
+    # Create combined plots by switch status
+    for(switch_status in c("0", "1")) {
+      switch_label <- ifelse(switch_status == "0", "Stay", "Switch")
+      
+      # Get data for Against group and current switch status
+      subset_data <- data %>% 
+        filter(direction == "Against group", switch_vs_stay == switch_status)
+      
+      # Skip if not enough data
+      if(nrow(subset_data) < 30) next
+      
+      # CHANGE: Aggregate by participant for each consensus level
+      aggregated_data <- subset_data %>%
+        group_by(participant.id_in_session, consensus_level) %>%
+        summarise(
+          outcome_value = mean(outcome_value, na.rm = TRUE),
+          scale_name = first(scale_name),
+          n_trials = n(),
+          .groups = 'drop'
+        )
+      
+      combined_p <- ggplot(aggregated_data, aes(x = scale_name, y = outcome_value, color = consensus_level)) +
+        geom_point(aes(size = n_trials), alpha = 0.7, shape = 16) +
+        scale_size_continuous(name = "Number of trials", range = c(2, 6)) +
+        geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
+        scale_color_manual(values = c("2:2" = "#E69F00", "3:1" = "#56B4E9", "4:0" = "#009E73")) +
+        labs(
+          title = paste("Comparison of", var_name, "effect across consensus levels"),
+          subtitle = paste("Against group direction,", switch_label, "trials"),
+          x = paste(var_name, "score (standardized)"),
+          y = y_label,
+          color = "Consensus Level"
+        ) +
+        theme_custom
+      
+      ggsave(
+        filename = file.path(posthoc_plot_dir, 
+                             paste0(analysis_name, "_", var_name, "_combined_", switch_status, ".png")),
+        plot = combined_p,
+        width = 10,
+        height = 7
+      )
+    }
+  }
+  
+  return(posthoc_plot_dir)
 }
