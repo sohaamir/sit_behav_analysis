@@ -25,10 +25,10 @@ renv/cache/
 *.so
 *.dll
 
-# DS Store
-.DS_Store
-
 # Extra directories
 backup_data/
 code_archive/
 glmmTMB/
+
+# Ignore all CSV files
+*.csv
