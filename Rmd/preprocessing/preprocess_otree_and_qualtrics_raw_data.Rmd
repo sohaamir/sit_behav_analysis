@@ -2411,7 +2411,6 @@ rm(list=ls())
 combined_data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), 
                          show_col_types = FALSE)
 
-
 # First, ensure we have only unique participants
 unique_data <- combined_data %>%
   distinct(participant.label, .keep_all = TRUE)
@@ -2454,8 +2453,8 @@ x <- function(n) {
   return(sorted_values[n])
 }
 ```
-Now let's get our thresholds for high and low belief
 
+Now let's get our thresholds for high and low belief
 ```{r}
 # Define the thresholds
 low_threshold <- 30

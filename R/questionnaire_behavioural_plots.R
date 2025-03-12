@@ -2260,14 +2260,19 @@ run_posthoc_tests <- function(model, data, var_name, analysis_type, output_dir) 
   posthoc_dir <- file.path(output_dir, "posthoc", analysis_name, var_name, "txt")
   dir.create(posthoc_dir, recursive = TRUE, showWarnings = FALSE)
   
+  # Get total participant count
+  total_participants <- length(unique(data$participant.id_in_session))
+  
   # Initialize results storage
   results_text <- sprintf("POST-HOC ANALYSIS: %s - %s\n\n", toupper(var_name), toupper(analysis_name))
-  results_text <- paste0(results_text, "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
+  results_text <- paste0(results_text, "Analysis run on: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+  results_text <- paste0(results_text, "Total participants in dataset: ", total_participants, "\n\n")
   
   # Initialize storage for statistics
   p_values <- numeric()
   test_details <- character()
   test_results <- list()
+  participants_per_condition <- list()
   
   # Run tests based on analysis type
   if(analysis_type == "choice_consensus") {
@@ -2284,11 +2289,17 @@ run_posthoc_tests <- function(model, data, var_name, analysis_type, output_dir) 
         subset_data <- data %>% 
           filter(consensus_level == cons, direction == dir)
         
+        # Count unique participants in this condition
+        participant_ids <- unique(subset_data$participant.id_in_session)
+        n_participants <- length(participant_ids)
+        n_trials <- nrow(subset_data)
+        participants_per_condition[[paste(cons, dir)]] <- participant_ids
+        
         # Only proceed if we have enough data
         if(nrow(subset_data) < 30) {
           results_text <- paste0(results_text, 
-                                 sprintf("Insufficient data for %s, %s (n=%d)\n\n", 
-                                         cons, dir, nrow(subset_data)))
+                                 sprintf("Insufficient data for %s, %s (n=%d trials from %d participants)\n\n", 
+                                         cons, dir, n_trials, n_participants))
           next
         }
         
@@ -2339,13 +2350,15 @@ run_posthoc_tests <- function(model, data, var_name, analysis_type, output_dir) 
           slope = slope,
           t_value = slope_t,
           df = slope_df,
-          n = nrow(subset_data)
+          n = nrow(subset_data),
+          n_participants = n_participants
         )
         
         # Add to results
         results_text <- paste0(results_text,
                                sprintf("Consensus level: %s, Direction: %s\n", cons, dir),
-                               sprintf("Sample size: %d\n", nrow(subset_data)),
+                               sprintf("Sample size: %d trials from %d unique participants\n", 
+                                       n_trials, n_participants),
                                sprintf("Correlation: r = %.3f [%.3f, %.3f]\n", r_value, r_ci_low, r_ci_high),
                                sprintf("Slope: β = %.3f (SE = %.3f)\n", slope, slope_se),
                                sprintf("Standardized beta: %.3f\n", beta),
@@ -2371,11 +2384,18 @@ run_posthoc_tests <- function(model, data, var_name, analysis_type, output_dir) 
                    direction == dir,
                    switch_vs_stay == switch_status)
           
+          # Count unique participants in this condition
+          participant_ids <- unique(subset_data$participant.id_in_session)
+          n_participants <- length(participant_ids)
+          n_trials <- nrow(subset_data)
+          condition_key <- paste(cons, dir, switch_status, sep="_")
+          participants_per_condition[[condition_key]] <- participant_ids
+          
           # Only proceed if we have enough data
           if(nrow(subset_data) < 30) {
             results_text <- paste0(results_text, 
-                                   sprintf("Insufficient data for %s, %s, switch=%s (n=%d)\n\n", 
-                                           cons, dir, switch_status, nrow(subset_data)))
+                                   sprintf("Insufficient data for %s, %s, switch=%s (n=%d trials from %d participants)\n\n", 
+                                           cons, dir, switch_status, n_trials, n_participants))
             next
           }
           
@@ -2430,14 +2450,16 @@ run_posthoc_tests <- function(model, data, var_name, analysis_type, output_dir) 
             slope = slope,
             t_value = slope_t,
             df = slope_df,
-            n = nrow(subset_data)
+            n = nrow(subset_data),
+            n_participants = n_participants
           )
           
           # Add to results
           results_text <- paste0(results_text,
                                  sprintf("Consensus level: %s, Direction: %s, Trial type: %s\n", 
                                          cons, dir, switch_label),
-                                 sprintf("Sample size: %d\n", nrow(subset_data)),
+                                 sprintf("Sample size: %d trials from %d unique participants\n", 
+                                         n_trials, n_participants),
                                  sprintf("Correlation: r = %.3f [%.3f, %.3f]\n", r_value, r_ci_low, r_ci_high),
                                  sprintf("Slope: β = %.3f (SE = %.3f)\n", slope, slope_se),
                                  sprintf("Standardized beta: %.3f\n", beta),
@@ -2484,6 +2506,47 @@ run_posthoc_tests <- function(model, data, var_name, analysis_type, output_dir) 
     }
   }
   
+  # Add summary of participant inclusion
+  results_text <- paste0(results_text, 
+                         "\n\nPARTICIPANT INCLUSION SUMMARY:\n============================\n")
+  
+  # Count participants included in at least one analysis
+  all_included_participants <- unique(unlist(participants_per_condition))
+  
+  results_text <- paste0(results_text,
+                         sprintf("Total participants in dataset: %d\n", total_participants),
+                         sprintf("Participants included in at least one condition: %d (%.1f%%)\n", 
+                                 length(all_included_participants),
+                                 100 * length(all_included_participants) / total_participants))
+  
+  # Add condition-specific counts
+  results_text <- paste0(results_text, "\nParticipants per condition:\n")
+  
+  # Sort condition names for better readability
+  sorted_conditions <- sort(names(participants_per_condition))
+  for(cond in sorted_conditions) {
+    if(is.null(participants_per_condition[[cond]])) next
+    
+    # Format the condition name for display
+    display_name <- if(grepl("_", cond)) {
+      parts <- strsplit(cond, "_")[[1]]
+      if(length(parts) == 3) {
+        # Handle within-trial case
+        switch_label <- ifelse(parts[3] == "1", "Switch", "Stay")
+        sprintf("%s, %s, %s", parts[1], parts[2], switch_label)
+      } else {
+        # Handle consensus case
+        sprintf("%s, %s", parts[1], parts[2])
+      }
+    } else {
+      cond
+    }
+    
+    results_text <- paste0(results_text,
+                           sprintf("  %s: %d participants\n", 
+                                   display_name, length(participants_per_condition[[cond]])))
+  }
+  
   # Save results with descriptive filename
   output_file <- file.path(posthoc_dir, paste0(analysis_name, "_", var_name, "_posthoc.txt"))
   writeLines(results_text, output_file)
@@ -2494,7 +2557,8 @@ run_posthoc_tests <- function(model, data, var_name, analysis_type, output_dir) 
     p_values = p_values, 
     adj_p_values = adj_p_values,
     test_results = test_results,
-    analysis_name = analysis_name
+    analysis_name = analysis_name,
+    participant_counts = participants_per_condition
   ))
 }
 
@@ -2574,18 +2638,38 @@ plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir
       # Combine the aggregated data
       aggregated_data <- bind_rows(against_data, with_data)
       
-      # Create plot with participant averages
+      # DEBUG: Print point counts
+      message(sprintf("\nPlotting %s at %s consensus:", var_name, cons))
+      message(sprintf("Against group points: %d", nrow(against_data)))
+      message(sprintf("With group points: %d", nrow(with_data)))
+      message(sprintf("Total points: %d", nrow(aggregated_data)))
+      
+      # Add additional info for title
+      point_count_info <- sprintf("Counts: Against=%d, With=%d", 
+                                  nrow(against_data), 
+                                  nrow(with_data))
+      
+      # Create plot with participant averages and jittering
       p <- ggplot(aggregated_data, aes(x = scale_name, y = outcome_value, color = direction)) +
-        geom_point(aes(size = n_trials), alpha = 0.7, shape = 16) +
+        # Add jittering to reveal overlapping points
+        geom_point(aes(size = n_trials), alpha = 0.6, 
+                   position = position_jitter(width = 0.1, height = 0.05, seed = 42), 
+                   shape = 16) +
         scale_size_continuous(name = "Number of trials", range = c(2, 6)) +
         geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
         scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+        # Ensure axes include all points with some padding
+        coord_cartesian(
+          ylim = c(min(aggregated_data$outcome_value, na.rm = TRUE) - 0.5, 
+                   max(aggregated_data$outcome_value, na.rm = TRUE) + 0.5)
+        ) +
         labs(
           title = paste("Simple slope for", var_name, "at", cons, "consensus"),
-          subtitle = subtitle,
+          subtitle = paste(subtitle, point_count_info, sep="\n"),
           x = paste(var_name, "score (standardized)"),
           y = y_label,
-          color = "Direction"
+          color = "Direction",
+          caption = "Note: Points are jittered to reduce overlap. Each point is one participant's average."
         ) +
         theme_custom
       
@@ -2594,7 +2678,8 @@ plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir
         filename = file.path(posthoc_plot_dir, paste0(analysis_name, "_", var_name, "_", cons, ".png")),
         plot = p,
         width = 8,
-        height = 6
+        height = 6,
+        dpi = 300
       )
     }
   } else if(analysis_type == "within_trial_switch") {
@@ -2628,7 +2713,7 @@ plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir
           filter(consensus_level == cons, switch_vs_stay == switch_status)
         
         # Skip if not enough data
-        if(nrow(subset_data) < 15) {
+        if(nrow(subset_data) < 5) {
           message(sprintf("Skipping %s plot for consensus %s, switch=%s (n=%d)", 
                           var_name, cons, switch_status, nrow(subset_data)))
           next
@@ -2660,18 +2745,39 @@ plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir
         # Combine the aggregated data
         aggregated_data <- bind_rows(against_data, with_data)
         
-        # Create plot with participant averages
+        # DEBUG: Print point counts
+        message(sprintf("\nPlotting %s at %s consensus, %s trials:", 
+                        var_name, cons, switch_label))
+        message(sprintf("Against group points: %d", nrow(against_data)))
+        message(sprintf("With group points: %d", nrow(with_data)))
+        message(sprintf("Total points: %d", nrow(aggregated_data)))
+        
+        # Add additional info for title
+        point_count_info <- sprintf("Counts: Against=%d, With=%d", 
+                                    nrow(against_data), 
+                                    nrow(with_data))
+        
+        # Create plot with participant averages and jittering
         p <- ggplot(aggregated_data, aes(x = scale_name, y = outcome_value, color = direction)) +
-          geom_point(aes(size = n_trials), alpha = 0.7, shape = 16) +
+          # Add jittering to reveal overlapping points
+          geom_point(aes(size = n_trials), alpha = 0.6, 
+                     position = position_jitter(width = 0.1, height = 0.05, seed = 42), 
+                     shape = 16) +
           scale_size_continuous(name = "Number of trials", range = c(2, 6)) +
           geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
           scale_color_manual(values = c("Against group" = "red", "With group" = "blue")) +
+          # Ensure axes include all points with some padding
+          coord_cartesian(
+            ylim = c(min(aggregated_data$outcome_value, na.rm = TRUE) - 0.5, 
+                     max(aggregated_data$outcome_value, na.rm = TRUE) + 0.5)
+          ) +
           labs(
             title = paste("Simple slope for", var_name, "at", cons, "consensus,", switch_label, "trials"),
-            subtitle = subtitle,
+            subtitle = paste(subtitle, point_count_info, sep="\n"),
             x = paste(var_name, "score (standardized)"),
             y = y_label,
-            color = "Direction"
+            color = "Direction",
+            caption = "Note: Points are jittered to reduce overlap. Each point is one participant's average."
           ) +
           theme_custom
         
@@ -2681,7 +2787,8 @@ plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir
                                paste0(analysis_name, "_", var_name, "_", cons, "_", switch_status, ".png")),
           plot = p,
           width = 8,
-          height = 6
+          height = 6,
+          dpi = 300
         )
       }
     }
@@ -2703,17 +2810,31 @@ plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir
         .groups = 'drop'
       )
     
+    # DEBUG: Print point counts for combined plot
+    message("\nPlotting combined Against group comparison:")
+    for(cons in c("2:2", "3:1", "4:0")) {
+      count <- sum(aggregated_data$consensus_level == cons)
+      message(sprintf("%s consensus: %d points", cons, count))
+    }
+    
     combined_p <- ggplot(aggregated_data, aes(x = scale_name, y = outcome_value, color = consensus_level)) +
-      geom_point(aes(size = n_trials), alpha = 0.7, shape = 16) +
+      geom_point(aes(size = n_trials), alpha = 0.6, 
+                 position = position_jitter(width = 0.1, height = 0.05, seed = 42), 
+                 shape = 16) +
       scale_size_continuous(name = "Number of trials", range = c(2, 6)) +
       geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
       scale_color_manual(values = c("2:2" = "#E69F00", "3:1" = "#56B4E9", "4:0" = "#009E73")) +
+      coord_cartesian(
+        ylim = c(min(aggregated_data$outcome_value, na.rm = TRUE) - 0.5, 
+                 max(aggregated_data$outcome_value, na.rm = TRUE) + 0.5)
+      ) +
       labs(
         title = paste("Comparison of", var_name, "effect across consensus levels"),
         subtitle = "Against group direction only",
         x = paste(var_name, "score (standardized)"),
         y = y_label,
-        color = "Consensus Level"
+        color = "Consensus Level",
+        caption = "Note: Points are jittered to reduce overlap. Each point is one participant's average."
       ) +
       theme_custom
     
@@ -2721,7 +2842,8 @@ plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir
       filename = file.path(posthoc_plot_dir, paste0(analysis_name, "_", var_name, "_combined.png")),
       plot = combined_p,
       width = 10,
-      height = 7
+      height = 7,
+      dpi = 300
     )
   } else if(analysis_type == "within_trial_switch") {
     # Create combined plots by switch status
@@ -2733,7 +2855,10 @@ plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir
         filter(direction == "Against group", switch_vs_stay == switch_status)
       
       # Skip if not enough data
-      if(nrow(subset_data) < 30) next
+      if(nrow(subset_data) < 10) {
+        message(sprintf("Skipping combined plot for switch=%s (insufficient data)", switch_status))
+        next
+      }
       
       # CHANGE: Aggregate by participant for each consensus level
       aggregated_data <- subset_data %>%
@@ -2745,17 +2870,31 @@ plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir
           .groups = 'drop'
         )
       
+      # DEBUG: Print point counts for combined plot
+      message(sprintf("\nPlotting combined Against group comparison for %s trials:", switch_label))
+      for(cons in c("2:2", "3:1", "4:0")) {
+        count <- sum(aggregated_data$consensus_level == cons)
+        message(sprintf("%s consensus: %d points", cons, count))
+      }
+      
       combined_p <- ggplot(aggregated_data, aes(x = scale_name, y = outcome_value, color = consensus_level)) +
-        geom_point(aes(size = n_trials), alpha = 0.7, shape = 16) +
+        geom_point(aes(size = n_trials), alpha = 0.6, 
+                   position = position_jitter(width = 0.1, height = 0.05, seed = 42), 
+                   shape = 16) +
         scale_size_continuous(name = "Number of trials", range = c(2, 6)) +
         geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
         scale_color_manual(values = c("2:2" = "#E69F00", "3:1" = "#56B4E9", "4:0" = "#009E73")) +
+        coord_cartesian(
+          ylim = c(min(aggregated_data$outcome_value, na.rm = TRUE) - 0.5, 
+                   max(aggregated_data$outcome_value, na.rm = TRUE) + 0.5)
+        ) +
         labs(
           title = paste("Comparison of", var_name, "effect across consensus levels"),
           subtitle = paste("Against group direction,", switch_label, "trials"),
           x = paste(var_name, "score (standardized)"),
           y = y_label,
-          color = "Consensus Level"
+          color = "Consensus Level",
+          caption = "Note: Points are jittered to reduce overlap. Each point is one participant's average."
         ) +
         theme_custom
       
@@ -2764,7 +2903,8 @@ plot_posthoc_simple_slopes <- function(data, var_name, analysis_type, output_dir
                              paste0(analysis_name, "_", var_name, "_combined_", switch_status, ".png")),
         plot = combined_p,
         width = 10,
-        height = 7
+        height = 7,
+        dpi = 300
       )
     }
   }

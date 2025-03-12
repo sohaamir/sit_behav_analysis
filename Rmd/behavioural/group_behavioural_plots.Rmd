@@ -172,6 +172,153 @@ print(plots$choice)
 print(plots$bet)
 ```
 
+Plot scatter plots against believability rating for real players
+```{r, fig.width=12, fig.height=6}
+# Create scatter plots showing individual data against player.real_players rating
+# For Choice 1/2 Accuracy and Bet 1/2 Magnitude separately
+
+# Calculate participant-level metrics
+participant_data <- data %>%
+  group_by(participant.label) %>%  # Using participant.label as requested
+  summarize(
+    # Choice accuracy values
+    choice1_accuracy = mean(player.choice1_accuracy, na.rm = TRUE) * 100,
+    choice2_accuracy = mean(player.choice2_accuracy, na.rm = TRUE) * 100,
+    
+    # Bet magnitude values
+    bet1_magnitude = mean(player.bet1, na.rm = TRUE),
+    bet2_magnitude = mean(player.bet2, na.rm = TRUE),
+    
+    # The predictor variable
+    real_players_rating = mean(player.real_players, na.rm = TRUE)
+  )
+
+# Convert to long format for faceting
+choice_data_long <- participant_data %>%
+  select(participant.label, real_players_rating, choice1_accuracy, choice2_accuracy) %>%
+  pivot_longer(
+    cols = c(choice1_accuracy, choice2_accuracy),
+    names_to = "condition",
+    values_to = "accuracy"
+  ) %>%
+  mutate(condition = factor(condition, 
+                           levels = c("choice1_accuracy", "choice2_accuracy"),
+                           labels = c("Choice 1", "Choice 2")))
+
+bet_data_long <- participant_data %>%
+  select(participant.label, real_players_rating, bet1_magnitude, bet2_magnitude) %>%
+  pivot_longer(
+    cols = c(bet1_magnitude, bet2_magnitude),
+    names_to = "condition",
+    values_to = "magnitude"
+  ) %>%
+  mutate(condition = factor(condition, 
+                           levels = c("bet1_magnitude", "bet2_magnitude"),
+                           labels = c("Bet 1", "Bet 2")))
+
+# Function to calculate statistics for annotations
+get_stats_annotation <- function(data, x_var, y_var) {
+  model <- lm(paste(y_var, "~", x_var), data = data)
+  stats <- summary(model)
+  cor_test <- cor.test(data[[x_var]], data[[y_var]])
+  
+  return(sprintf(
+    "r = %.3f [%.3f, %.3f], β = %.3f, p = %.3f\nR² = %.3f, F(%.0f,%.0f) = %.2f",
+    cor_test$estimate,
+    cor_test$conf.int[1],
+    cor_test$conf.int[2],
+    stats$coefficients[2, 1],
+    stats$coefficients[2, 4],
+    stats$r.squared,
+    stats$fstatistic[2],
+    stats$fstatistic[3],
+    stats$fstatistic[1]
+  ))
+}
+
+# Create choice accuracy faceted plot
+choice_models <- choice_data_long %>%
+  group_by(condition) %>%
+  summarize(
+    stats = list(get_stats_annotation(cur_data(), "real_players_rating", "accuracy")),
+    .groups = "drop"
+  )
+
+choice_plot <- ggplot(choice_data_long, aes(x = real_players_rating, y = accuracy)) +
+  geom_point(color = "#1f77b4", size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "#1f77b4", fill = "lightgray") +
+  facet_wrap(~ condition) +
+  labs(
+    title = "Effect of real_players_rating on choice accuracy",
+    x = "real_players_rating",
+    y = "Choice accuracy (%)"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    strip.text = element_text(size = 16, face = "bold"),
+    strip.background = element_rect(fill = "white")
+  )
+
+# Add statistics to each facet
+choice_plot <- choice_plot +
+  geom_text(
+    data = choice_models,
+    aes(label = stats),
+    x = 20,  # Approximate middle of x-axis
+    y = min(choice_data_long$accuracy) + 0 * (max(choice_data_long$accuracy) - min(choice_data_long$accuracy)),
+    size = 2.5,
+    hjust = 0.5
+  )
+
+# Create bet magnitude faceted plot
+bet_models <- bet_data_long %>%
+  group_by(condition) %>%
+  summarize(
+    stats = list(get_stats_annotation(cur_data(), "real_players_rating", "magnitude")),
+    .groups = "drop"
+  )
+
+bet_plot <- ggplot(bet_data_long, aes(x = real_players_rating, y = magnitude)) +
+  geom_point(color = "#2ca02c", size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "#2ca02c", fill = "lightgray") +
+  facet_wrap(~ condition) +
+  labs(
+    title = "Effect of real_players_rating on bet magnitude",
+    x = "real_players_rating",
+    y = "Bet magnitude"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    strip.text = element_text(size = 16, face = "bold"),
+    strip.background = element_rect(fill = "white")
+  )
+
+# Add statistics to each facet
+bet_plot <- bet_plot +
+  geom_text(
+    data = bet_models,
+    aes(label = stats),
+    x = 20, 
+    y = min(bet_data_long$magnitude) + 0 * (max(bet_data_long$magnitude) - min(bet_data_long$magnitude)),
+    size = 2.5,
+    hjust = 0.5
+  )
+
+# Print the faceted plots
+print(choice_plot)
+print(bet_plot)
+
+# Optional: save the plots
+#ggsave("choice_real_players_faceted.png", choice_plot, width = 10, height = 6)
+#ggsave("bet_real_players_faceted.png", bet_plot, width = 10, height = 6)
+```
+
 ## Choice switch probability and bet difference by group consensus
 
 Run linear-mixed effect models for choice switch probability and bet difference by group consensus, and then plot the winning model (Figs 1D-1E)
@@ -205,65 +352,64 @@ process_consensus_data <- function(data, outcome_type) {
       )
   }
   
-  # Continue with existing processing
+  # Keep trial-level data instead of summarizing
   processed <- if(outcome_type == "switch") {
     filtered_data %>%
-      group_by(participant.id_in_session, 
-               consensus = player.choice1_with, 
-               gender) %>%
-      summarise(
-        outcome_value = mean(player.switch_vs_stay) * 100,
-        .groups = 'drop'
+      mutate(
+        outcome_value = player.switch_vs_stay * 100  # Keep as trial-level variable
       )
   } else {
     filtered_data %>%
-      mutate(bet_difference = player.bet2 - player.bet1) %>%
-      group_by(participant.id_in_session,
-               consensus = player.choice1_with,
-               gender) %>%
-      summarise(
-        outcome_value = mean(bet_difference),
-        .groups = 'drop'
+      mutate(
+        bet_difference = player.bet2 - player.bet1,
+        outcome_value = bet_difference  # Keep as trial-level variable
       )
   }
   
-  processed %>%
-    left_join(
-      filtered_data %>%
-        group_by(participant.id_in_session) %>%
-        slice(1) %>%
-        select(participant.id_in_session, age),
-      by = "participant.id_in_session"
-    ) %>%
+  # Check if age exists in the dataset and handle appropriately
+  has_age <- "age" %in% colnames(filtered_data)
+  
+  processed_data <- processed %>%
     mutate(
-      direction = if_else(consensus >= 0.5, "With group", "Against group"),
+      direction = if_else(player.choice1_with >= 0.5, "With group", "Against group"),
       consensus_numeric = case_when(
-        consensus %in% c(0, 1) ~ 2,
-        consensus %in% c(0.25, 0.75) ~ 1,
-        consensus == 0.5 ~ 0
+        player.choice1_with %in% c(0, 1) ~ 2,
+        player.choice1_with %in% c(0.25, 0.75) ~ 1,
+        player.choice1_with == 0.5 ~ 0
       ),
-      gender = factor(gender),
-      age = scale(age)[,1]
+      gender = factor(gender)
     )
+  
+  # Only add age if it exists
+  if(has_age) {
+    processed_data <- processed_data %>%
+      mutate(age_scaled = scale(age)[,1])
+  } else {
+    # Create dummy age variable (all 0)
+    processed_data <- processed_data %>%
+      mutate(age_scaled = 0)
+  }
+  
+  return(processed_data)
 }
 
 ################## SPECIFIC MODEL FORMULAS ###################
 consensus_model_formulas <- list(
-  m1 = outcome_value ~ direction * consensus_numeric + age + 
+  m1 = outcome_value ~ direction * consensus_numeric + age_scaled + 
          (1|participant.id_in_session),
   
-  m2 = outcome_value ~ direction * consensus_numeric + age + 
+  m2 = outcome_value ~ direction * consensus_numeric + age_scaled + 
          (1|participant.id_in_session) + (1|gender),
   
-  m3 = outcome_value ~ direction * consensus_numeric + age + 
+  m3 = outcome_value ~ direction * consensus_numeric + age_scaled + 
          (1|participant.id_in_session) + (1|gender) + 
          (1|direction:participant.id_in_session),
   
-  m4 = outcome_value ~ direction * consensus_numeric + age + 
+  m4 = outcome_value ~ direction * consensus_numeric + age_scaled + 
          (1|participant.id_in_session) + (1|gender) + 
          (1|consensus_numeric:participant.id_in_session),
   
-  m5 = outcome_value ~ direction * consensus_numeric + age + 
+  m5 = outcome_value ~ direction * consensus_numeric + age_scaled + 
          (1|participant.id_in_session) + (1|gender) + 
          (1|direction:participant.id_in_session) + 
          (1|consensus_numeric:participant.id_in_session)
@@ -534,7 +680,7 @@ process_switch_accuracy_data <- function(data, outcome_type) {
       )
   }
 
-  # Create derived columns
+  # Create derived columns at trial level (no grouping)
   filtered_data <- filtered_data %>%
     mutate(
       outcome_value = if(outcome_type == "accuracy") {
@@ -563,14 +709,15 @@ process_switch_accuracy_data <- function(data, outcome_type) {
       direction = factor(direction, levels = c("Against group", "With group"))
     )
 
-  # Save the intermediate data with only specified columns
-  filtered_data %>%
-    select(participant.label, participant.id_in_session, group.trial_number, 
-           is_consecutive, choice_switch_across_trials, outcome_value, 
-           switch_difference, consensus_numeric, consensus_level, direction, 
-           trial_type) %>%
-    write_csv(here("data", "preprocessed", "merged", "sessions",
-               paste0("switch_accuracy_", outcome_type, "_pre_grouping.csv")))
+  # Check if age exists and handle appropriately
+  has_age <- "age" %in% colnames(filtered_data)
+  if(has_age) {
+    filtered_data <- filtered_data %>%
+      mutate(age_scaled = scale(age)[,1])
+  } else {
+    filtered_data <- filtered_data %>%
+      mutate(age_scaled = 0)
+  }
 
   # Create separate dataframes for With and Against groups using choice 2 consensus
   df_with <- filtered_data %>%
@@ -581,7 +728,7 @@ process_switch_accuracy_data <- function(data, outcome_type) {
     mutate(direction = "Against group") %>%
     filter(player.choice2_with <= 0.5)
   
-  # Combine and prepare final dataset
+  # Combine and prepare final dataset at trial level
   combined_data <- bind_rows(df_with, df_against) %>%
     filter(!is.na(choice_switch_across_trials)) %>%
     mutate(
@@ -603,7 +750,7 @@ process_switch_accuracy_data <- function(data, outcome_type) {
 get_switch_accuracy_formulas <- function(outcome_var) {
   formula_base <- as.formula(paste(
     outcome_var,
-    "~ direction * consensus_numeric * choice_switch_across_trials"
+    "~ direction * consensus_numeric * choice_switch_across_trials + age_scaled"
   ))
   
   list(
@@ -778,12 +925,11 @@ process_bet_difference_data <- function(data) {
       player.player4_choice1_computer == 0
     )
 
-  # Continue with preprocessing
+  # Check if age exists and handle appropriately
+  has_age <- "age" %in% colnames(filtered_data)
+
+  # Keep trial-level data (no grouping/summarizing)
   processed_data <- filtered_data %>%
-    {
-      nTrials <<- nrow(.)
-      .
-    } %>%
     mutate(
       bet_difference = player.bet2 - player.bet1,
       direction = if_else(player.choice1_with > 0.5, 
@@ -801,30 +947,36 @@ process_bet_difference_data <- function(data) {
       switch_vs_stay = factor(player.switch_vs_stay),
       participant.id_in_session = factor(participant.id_in_session)
     )
-    
-  # Save the grouped data
-  # write.csv(processed_data, "grouped_consensus_data.csv", row.names = FALSE)
   
+  # Add age_scaled if it exists
+  if(has_age) {
+    processed_data <- processed_data %>%
+      mutate(age_scaled = scale(age)[,1])
+  } else {
+    processed_data <- processed_data %>%
+      mutate(age_scaled = 0)
+  }
+    
   return(processed_data)
 }
 
 ################## SPECIFIC MODEL FORMULAS ###################
 bet_difference_formulas <- list(
-  m1 = bet_difference ~ direction * consensus_numeric * switch_vs_stay + 
+  m1 = bet_difference ~ direction * consensus_numeric * switch_vs_stay + age_scaled + 
          (1|participant.id_in_session),
   
-  m2 = bet_difference ~ direction * consensus_numeric * switch_vs_stay + 
+  m2 = bet_difference ~ direction * consensus_numeric * switch_vs_stay + age_scaled + 
          (1|participant.id_in_session) + (1|gender),
   
-  m3 = bet_difference ~ direction * consensus_numeric * switch_vs_stay + 
+  m3 = bet_difference ~ direction * consensus_numeric * switch_vs_stay + age_scaled + 
          (1|participant.id_in_session) + (1|gender) + 
          (1|direction:participant.id_in_session),
   
-  m4 = bet_difference ~ direction * consensus_numeric * switch_vs_stay + 
+  m4 = bet_difference ~ direction * consensus_numeric * switch_vs_stay + age_scaled + 
          (1|participant.id_in_session) + (1|gender) + 
          (1|consensus_numeric:participant.id_in_session),
   
-  m5 = bet_difference ~ direction * consensus_numeric * switch_vs_stay + 
+  m5 = bet_difference ~ direction * consensus_numeric * switch_vs_stay + age_scaled + 
          (1|participant.id_in_session) + (1|gender) + 
          (1|direction:participant.id_in_session) + 
          (1|consensus_numeric:participant.id_in_session)
@@ -970,7 +1122,7 @@ process_reversal_data <- function(data, outcome_type) {
       player.bet2 = "Bet 2")
   }
   
-  # Process data with additional filtering
+  # Process data with additional filtering - keep at trial level
   processed_data <- data %>%
     group_by(participant.id_in_session) %>%
     mutate(
@@ -984,6 +1136,7 @@ process_reversal_data <- function(data, outcome_type) {
         }
       })
     ) %>%
+    ungroup() %>%  # Ungroup after calculating trial_to_reversal
     filter(!is.na(trial_to_reversal)) %>%
     # Modified filtering based on outcome type
     filter(
@@ -997,7 +1150,13 @@ process_reversal_data <- function(data, outcome_type) {
       cols = names(cols),
       names_to = if(outcome_type == "accuracy") "choice_type" else "bet_type",
       values_to = if(outcome_type == "accuracy") "accuracy" else "bet"
-    ) %>%
+    )
+  
+  # Check if age exists and handle appropriately
+  has_age <- "age" %in% colnames(processed_data)
+  
+  # Add demographic variables and convert to factors
+  processed_data <- processed_data %>%
     mutate(
       choice_type = if(outcome_type == "accuracy") 
         factor(choice_type, levels = names(cols), labels = cols) else NULL,
@@ -1007,6 +1166,15 @@ process_reversal_data <- function(data, outcome_type) {
       participant.id_in_session = factor(participant.id_in_session),
       gender = factor(gender)
     )
+  
+  # Add age_scaled if it exists
+  if(has_age) {
+    processed_data <- processed_data %>%
+      mutate(age_scaled = scale(age)[,1])
+  } else {
+    processed_data <- processed_data %>%
+      mutate(age_scaled = 0)
+  }
   
   return(processed_data)
 }
@@ -1018,13 +1186,13 @@ get_reversal_formulas <- function(outcome_type) {
   iv <- if(outcome_type == "accuracy") "choice_type" else "bet_type"
   
   list(
-    m1 = as.formula(paste(dv, "~", iv, "*trial_to_reversal + 
+    m1 = as.formula(paste(dv, "~", iv, "*trial_to_reversal + age_scaled + 
                          (1|participant.id_in_session)")),
     
-    m2 = as.formula(paste(dv, "~", iv, "*trial_to_reversal + 
+    m2 = as.formula(paste(dv, "~", iv, "*trial_to_reversal + age_scaled + 
                          (1|participant.id_in_session) + (1|gender)")),
     
-    m3 = as.formula(paste(dv, "~", iv, "*trial_to_reversal + 
+    m3 = as.formula(paste(dv, "~", iv, "*trial_to_reversal + age_scaled + 
                          (1|participant.id_in_session) + (1|gender) + (1|", 
                          iv, ":participant.id_in_session)"))
   )

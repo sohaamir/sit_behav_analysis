@@ -24,3 +24,7 @@ renv/cache/
 *.o
 *.so
 *.dll
+
+backup_data/
+code_archive/
+glmmTMB/

@@ -53,7 +53,7 @@ Plot a correlation matrix of questionnaire scores
 rm(list=ls())
 
 # Read and process data
-merged_data <- read_csv(here("data", "preprocessed", "merged", "pilots", "otree_prolific_merged_filtered_2025-02-07.csv"), show_col_types = FALSE)
+merged_data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), show_col_types = FALSE)
 
 # Create correlation matrix dataframe with one row per participant
 questionnaire_data <- merged_data %>%
@@ -90,7 +90,7 @@ rm(list=ls())
 source(here("R", "cca.R"))
 
 # Read and prepare data
-merged_data <- read_csv(here("data", "preprocessed", "merged", "pilots", "otree_prolific_merged_filtered_2025-02-07.csv"), 
+merged_data <- read_csv(here("data", "preprocessed", "merged", "sessions", "otree_prolific_merged_filtered_2025-06-03.csv"), 
                        show_col_types = FALSE)
 
 # Prepare behavioral CV data

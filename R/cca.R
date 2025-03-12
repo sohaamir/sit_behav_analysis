@@ -468,6 +468,13 @@ create_correlation_heatmap <- function(X, Y, cca_fit) {
   combined_matrix[1:n_vars_x, ] <- X_cors
   combined_matrix[(n_vars_x + 1):(n_vars_x + n_vars_y), ] <- Y_cors
   
+  # Check for problematic values
+  if(any(is.na(combined_matrix)) || any(!is.finite(combined_matrix))) {
+    warning("Problematic values in correlation heatmap matrix. Replacing with zeros.")
+    combined_matrix[is.na(combined_matrix)] <- 0
+    combined_matrix[!is.finite(combined_matrix)] <- 0
+  }
+  
   return(combined_matrix)
 }
 
@@ -712,7 +719,7 @@ write_detailed_results <- function(results, filename) {
                 results$significance_tests$Canonical_Correlation[i],
                 results$bootstrap_results$ci_lower[i],
                 results$bootstrap_results$ci_upper[i]))
-    cat(sprintf("Wilks' λ = %.3f, F(%d,%d) = %.2f, p = %.3f\n",
+    cat(sprintf("Wilks' λ = %.3f, F(%f,%f) = %.2f, p = %.3f\n",
                 results$significance_tests$Wilks_Lambda[i],
                 results$significance_tests$df1[i],
                 results$significance_tests$df2[i],
@@ -817,7 +824,24 @@ save_all_plots <- function(results, output_dir) {
   if (!is.null(results$plots$correlation_heatmap)) {
     png(file.path(output_dir, "correlation_heatmap.png"), 
         width = 12, height = 10, units = "in", res = 300)
-    corrplot(results$plots$correlation_heatmap)
+    tryCatch({
+      corrplot(results$plots$correlation_heatmap,
+               method = "color",
+               type = "full",
+               tl.col = "black",
+               tl.cex = 0.7)
+    }, error = function(e) {
+      warning("Error in correlation heatmap plotting: ", e$message, 
+              "\nTrying alternative visualization...")
+      # Simple alternative visualization
+      image(t(results$plots$correlation_heatmap), 
+            axes = FALSE, 
+            main = "Correlation Heatmap")
+      axis(1, at = seq(0, 1, length.out = ncol(results$plots$correlation_heatmap)),
+           labels = colnames(results$plots$correlation_heatmap), las = 2)
+      axis(2, at = seq(0, 1, length.out = nrow(results$plots$correlation_heatmap)),
+           labels = rownames(results$plots$correlation_heatmap), las = 2)
+    })
     dev.off()
   }
   
