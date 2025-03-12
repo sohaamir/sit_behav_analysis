@@ -29,6 +29,7 @@ renv/cache/
 backup_data/
 code_archive/
 glmmTMB/
+data/
 
 # Ignore all CSV files
 *.csv
