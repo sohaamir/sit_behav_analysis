@@ -30,6 +30,7 @@ backup_data/
 code_archive/
 glmmTMB/
 data/
+plots/
 
 # Ignore all CSV files
 *.csv
